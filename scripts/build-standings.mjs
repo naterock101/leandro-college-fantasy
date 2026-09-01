@@ -150,10 +150,10 @@ function build(doc, owners, games, lines) {
   };
 
   const headToHead = [];
+  /* Every upcoming game involving a drafted team, each flagged h2h when both
+     sides are drafted. The UI shows only the h2h ones until you filter to a
+     manager, at which point it needs that manager's whole slate. */
   const upcoming = [];
-  /* Every upcoming game involving a drafted team, not just the both-drafted
-     ones in gamesOfWeek: a team beating an undrafted opponent still scores. */
-  const scheduled = [];
   const seenTeams = new Set();
   const collisionLoss = {};
 
@@ -176,16 +176,17 @@ function build(doc, owners, games, lines) {
         collisionLoss[oh.manager] = (collisionLoss[oh.manager] ?? 0) + lesser;
       }
       if (oh || oa) {
-        scheduled.push({ key: sortKey(g), id: g.id, home: h, away: a, oh, oa });
-      }
-      if (oh && oa) {
+        const sideOf = (team, o) =>
+          o ? { team, manager: o.manager, tier: o.tier, conf: o.conf, draft: o.draft }
+            : { team, manager: null, tier: null, conf: null, draft: team };
         upcoming.push({
-          key: sortKey(g), week: weekOf(g), seasonType: seasonType(g), date: startDate(g),
-          away: { team: a, manager: oa.manager, tier: oa.tier, conf: oa.conf, draft: oa.draft },
-          home: { team: h, manager: oh.manager, tier: oh.tier, conf: oh.conf, draft: oh.draft },
+          key: sortKey(g), id: g.id, week: weekOf(g), seasonType: seasonType(g), date: startDate(g),
+          away: sideOf(a, oa),
+          home: sideOf(h, oh),
           neutral: pick(g, "neutralSite", "neutral_site") === true,
-          sameManager: oh.manager === oa.manager,
-          stakes: Math.max(val(oh.tier), val(oa.tier)),
+          h2h: Boolean(oh && oa),
+          sameManager: Boolean(oh && oa && oh.manager === oa.manager),
+          stakes: Math.max(oh ? val(oh.tier) : 0, oa ? val(oa.tier) : 0),
           spread: lines.games[g.id] ?? null,
         });
       }
@@ -250,7 +251,7 @@ function build(doc, owners, games, lines) {
     (x, y) => y.points - x.points || y.wins - x.wins || x.manager.localeCompare(y.manager)
   );
 
-  const projection = project(table, scheduled, lines, val);
+  const projection = project(table, upcoming, lines, val);
 
   const byConference = {};
   for (const c of ALL_CONFS) byConference[c] = [];
@@ -271,7 +272,8 @@ function build(doc, owners, games, lines) {
   upcoming.sort((x, y) => x.key.localeCompare(y.key) || String(x.date).localeCompare(String(y.date)));
   const nextKey = upcoming.length ? upcoming[0].key : null;
   const gow = upcoming.filter((u) => u.key === nextKey)
-    .sort((x, y) => y.stakes - x.stakes || String(x.date).localeCompare(String(y.date)));
+    .sort((x, y) => Number(y.h2h) - Number(x.h2h) || y.stakes - x.stakes ||
+                    String(x.date).localeCompare(String(y.date)));
 
   return {
     generatedAt: new Date().toISOString(),
@@ -295,27 +297,27 @@ function build(doc, owners, games, lines) {
    favours. Deliberately naive: a spread is a market probability, not a verdict,
    so this is "if every favourite holds", not a forecast. Pick-ems and unpriced
    games are counted as unprojected rather than guessed at. */
-function project(table, scheduled, lines, val) {
-  const keys = [...new Set(scheduled.map((s) => s.key))].sort();
+function project(table, upcoming, lines, val) {
+  const keys = [...new Set(upcoming.map((u) => u.key))].sort();
   if (!keys.length) return null;
   const key = keys[0];
-  const week = scheduled.filter((s) => s.key === key);
+  const week = upcoming.filter((u) => u.key === key);
 
   const delta = {};
   for (const row of table) delta[row.manager] = { wins: 0, losses: 0, points: 0 };
 
   let projected = 0, unprojected = 0;
   for (const g of week) {
-    const line = lines.games[g.id] ?? null;
+    const line = g.spread;
     if (!line || !line.favorite) { unprojected++; continue; }
     projected++;
-    for (const [team, o] of [[g.home, g.oh], [g.away, g.oa]]) {
-      if (!o) continue;
-      if (team === line.favorite) {
-        delta[o.manager].wins++;
-        delta[o.manager].points += val(o.tier);
+    for (const sd of [g.home, g.away]) {
+      if (!sd.manager) continue;
+      if (sd.team === line.favorite) {
+        delta[sd.manager].wins++;
+        delta[sd.manager].points += val(sd.tier);
       } else {
-        delta[o.manager].losses++;
+        delta[sd.manager].losses++;
       }
     }
   }

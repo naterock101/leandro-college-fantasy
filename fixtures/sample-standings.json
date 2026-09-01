@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-01T03:04:48.027Z",
+  "generatedAt": "2026-09-01T03:38:41.885Z",
   "season": 2026,
   "scoring": {
     "p4": 3,
@@ -1222,19 +1222,20 @@
     }
   ],
   "gamesOfWeek": {
-    "label": "Week 3",
+    "label": "Week 1",
     "games": [
       {
-        "key": "0|03",
-        "week": 3,
+        "key": "0|01",
+        "id": 9,
+        "week": 1,
         "seasonType": "regular",
-        "date": "2026-09-12T16:00:00.000Z",
+        "date": "2026-09-05T16:00:00.000Z",
         "away": {
-          "team": "Arizona State",
-          "manager": "nathan",
-          "tier": "p4",
-          "conf": "Big 12",
-          "draft": "Arizona State Sun Devils"
+          "team": "Missouri State",
+          "manager": null,
+          "tier": null,
+          "conf": null,
+          "draft": "Missouri State"
         },
         "home": {
           "team": "Texas A&M",
@@ -1244,7 +1245,8 @@
           "draft": "Texas A&M Aggies"
         },
         "neutral": false,
-        "sameManager": true,
+        "h2h": false,
+        "sameManager": false,
         "stakes": 3,
         "spread": null
       }

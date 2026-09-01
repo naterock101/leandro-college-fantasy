@@ -22,7 +22,9 @@ type Row = {
   remaining: number; ceiling: number; collisionLoss: number;
   teams: Record<string, TeamRow>;
 };
-type Side = { team: string; manager: string; tier: "p4" | "g5"; draft: string };
+/* manager is null on the undrafted side of a game, where draft falls back to
+   the school name. */
+type Side = { team: string; manager: string | null; tier: "p4" | "g5" | null; draft: string };
 type Data = {
   generatedAt: string;
   season: number;
@@ -38,7 +40,8 @@ type Data = {
                                gained: number; rankDelta: number }>;
   } | null;
   gamesOfWeek: { label: string | null; games: {
-    date: string; away: Side; home: Side; neutral: boolean; sameManager: boolean; stakes: number;
+    date: string; away: Side; home: Side; neutral: boolean; sameManager: boolean;
+    stakes: number; h2h: boolean;
     spread: { spread: number; favorite: string | null; formatted: string;
               overUnder: number | null; provider: string } | null }[] };
   byConference: Record<string, {
@@ -82,6 +85,10 @@ export default function Page() {
   const [draftSel, setDraftSel] = useState<"all" | "drafted" | "undrafted">("all");
   const [confOpen, setConfOpen] = useState(false);
   const ddRef = useRef<HTMLDivElement>(null);
+  /* empty = no manager filter, which shows only the head-to-heads */
+  const [gowSel, setGowSel] = useState<string[]>([]);
+  const [gowOpen, setGowOpen] = useState(false);
+  const gowRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let alive = true;
@@ -106,6 +113,15 @@ export default function Page() {
     document.addEventListener("mousedown", away);
     return () => document.removeEventListener("mousedown", away);
   }, [confOpen]);
+
+  useEffect(() => {
+    if (!gowOpen) return;
+    const away = (e: MouseEvent) => {
+      if (gowRef.current && !gowRef.current.contains(e.target as Node)) setGowOpen(false);
+    };
+    document.addEventListener("mousedown", away);
+    return () => document.removeEventListener("mousedown", away);
+  }, [gowOpen]);
 
   /* One flat table of every FBS team, ranked on points across all ten
      conferences rather than within each one. */
@@ -137,6 +153,28 @@ export default function Page() {
   /* A poll that falls back to the bundled copy can return fewer weeks than the
      one this index was picked against, so never trust it to still be in range. */
   const weekIdx = week >= 0 && data && week < data.byWeek.length ? week : -1;
+
+  const managers = useMemo(
+    () => (data ? data.standings.map((r) => r.manager).slice().sort() : []),
+    [data]
+  );
+
+  /* No manager selected shows the head-to-heads, which is what the section has
+     always been. Selecting managers switches to their full slate, since a
+     manager's own week is mostly games against undrafted teams. */
+  const gowGames = useMemo(() => {
+    if (!data) return [];
+    const all = data.gamesOfWeek.games;
+    /* A payload written before h2h existed has no flag to filter on, which
+       would empty the section. Show everything until the data catches up. */
+    const tagged = all.some((g) => typeof g.h2h === "boolean");
+    if (!gowSel.length) return tagged ? all.filter((g) => g.h2h) : all;
+    return all.filter(
+      (g) =>
+        (g.away.manager && gowSel.includes(g.away.manager)) ||
+        (g.home.manager && gowSel.includes(g.home.manager))
+    );
+  }, [data, gowSel]);
 
   const board = useMemo(() => {
     if (!data) return null;
@@ -273,15 +311,64 @@ export default function Page() {
           {data.gamesOfWeek.games.length > 0 && (
             <section>
               <h2>Games of the week</h2>
-              <p className="muted sm">{data.gamesOfWeek.label} · both teams are drafted, so these move the table twice.</p>
-              {data.gamesOfWeek.games.map((g, i) => (
+              <p className="muted sm">
+                {data.gamesOfWeek.label} ·{" "}
+                {gowSel.length === 0
+                  ? "both teams are drafted, so these move the table twice."
+                  : `every game for ${gowSel.map(cap).join(", ")} this week.`}
+              </p>
+
+              <div className="filters">
+                <div className="dd" ref={gowRef}>
+                  <button
+                    className={`ddbtn ${gowSel.length ? "act" : ""}`}
+                    onClick={() => setGowOpen((o) => !o)}
+                    aria-expanded={gowOpen}
+                  >
+                    {gowSel.length === 0
+                      ? "Head to head only"
+                      : gowSel.length === 1
+                      ? cap(gowSel[0])
+                      : `${gowSel.length} managers`}
+                    <span className={`ddcaret ${gowOpen ? "up" : ""}`}>▾</span>
+                  </button>
+                  {gowOpen && (
+                    <div className="ddmenu">
+                      <label className="ddopt">
+                        <input
+                          type="checkbox"
+                          checked={gowSel.length === 0}
+                          onChange={() => setGowSel([])}
+                        />
+                        <span className="ddname">Head to head only</span>
+                      </label>
+                      <div className="ddsep" />
+                      {managers.map((m) => (
+                        <label key={m} className="ddopt">
+                          <input
+                            type="checkbox"
+                            checked={gowSel.includes(m)}
+                            onChange={() =>
+                              setGowSel((v) => (v.includes(m) ? v.filter((x) => x !== m) : [...v, m]))
+                            }
+                          />
+                          <span className="ddname">{cap(m)}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <span className="muted sm">{gowGames.length} games</span>
+              </div>
+
+              {gowGames.map((g, i) => (
                 <div className="gow" key={i}>
                   <span className="mono muted d">{shortDate(g.date)}</span>
                   <span className="mu">
-                    <b>{cap(g.away.manager)}</b>&rsquo;s{" "}
+                    {g.away.manager ? <><b>{cap(g.away.manager)}</b>&rsquo;s{" "}</> : null}
                     <span className={side(g.away.team, g.spread)}>{g.away.draft}</span>
                     <span className="at">{g.neutral ? " vs " : " at "}</span>
-                    <b>{cap(g.home.manager)}</b>&rsquo;s{" "}
+                    {g.home.manager ? <><b>{cap(g.home.manager)}</b>&rsquo;s{" "}</> : null}
                     <span className={side(g.home.team, g.spread)}>{g.home.draft}</span>
                     {g.sameManager && <em className="self"> both his</em>}
                   </span>
@@ -289,9 +376,10 @@ export default function Page() {
                   <span className="mono stakes">{g.stakes}pt</span>
                 </div>
               ))}
+              {!gowGames.length && <p className="caption">No games match that filter.</p>}
               {data.linesFetchedAt && (
                 <p className="caption">
-                  Spreads from {books(data.gamesOfWeek.games)}, refreshed{" "}
+                  Spreads from {books(gowGames)}, refreshed{" "}
                   {new Date(data.linesFetchedAt).toLocaleString(undefined,
                     { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}.
                 </p>
