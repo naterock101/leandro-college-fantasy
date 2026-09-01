@@ -1,13 +1,19 @@
 name: Update standings
 
 # All times UTC. Eastern is UTC-4 through Nov 1, UTC-5 after.
+#
+# Every one of these deliberately avoids :00, :15, :30 and :45. GitHub's
+# scheduler is best effort and queues behind the whole platform on the round
+# minutes. The original baseline fired only at :00: its 08:00 slot did not run
+# until 13:22, 5h22m late, on an 8 hour cycle. Same frequencies and same call
+# budget as before, just off the crowded minutes.
 on:
   schedule:
-    - cron: "*/10 16-23 * * 6"    # Sat 12pm-8pm ET
-    - cron: "*/10 0-5  * * 0"     # Sat 8pm-1am ET
-    - cron: "*/15 23   * * 4,5"   # Thu/Fri 7pm ET
-    - cron: "*/15 0-4  * * 5,6"   # Thu/Fri 8pm-midnight ET
-    - cron: "0 */8 * * *"         # baseline, catches corrections to old weeks
+    - cron: "3-53/10 16-23 * * 6"  # Sat 12pm-8pm ET, 6x/hr
+    - cron: "3-53/10 0-5  * * 0"   # Sat 8pm-1am ET, 6x/hr
+    - cron: "7-52/15 23   * * 4,5" # Thu/Fri 7pm ET, 4x/hr
+    - cron: "7-52/15 0-4  * * 5,6" # Thu/Fri 8pm-midnight ET, 4x/hr
+    - cron: "17 */8 * * *"         # baseline, catches corrections to old weeks
   workflow_dispatch:
 
 concurrency:
@@ -31,7 +37,7 @@ jobs:
       # on every run it would cost ~666 more and blow the cap. Spreads do not
       # move meaningfully between polls and stop mattering at kickoff.
       - name: Refresh betting lines
-        if: github.event.schedule == '0 */8 * * *' || github.event_name == 'workflow_dispatch'
+        if: github.event.schedule == '17 */8 * * *' || github.event_name == 'workflow_dispatch'
         env:
           CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
         run: node scripts/build-lines.mjs

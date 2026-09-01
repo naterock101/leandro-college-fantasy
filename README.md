@@ -66,6 +66,19 @@ decisions are coupled - change one and you must change the other.
 The free tier is **1,000 calls/month**. The cron schedule uses **666**, leaving
 334 for manual runs and testing.
 
+Every cron deliberately avoids `:00`, `:15`, `:30` and `:45`. GitHub's scheduler
+is best effort and queues behind the whole platform on the round minutes. The
+original baseline fired only at `:00`, and its 08:00 slot did not actually run
+until 13:22 - 5h22m late on an 8 hour cycle, so the site sat stale all morning.
+
+If the schedule ever looks dead again, run `gh run list` first. A run that is
+simply absent means the scheduler has not dispatched it yet, which is a delay
+rather than a failure, and is not something the repo can fix. A run that exists
+and failed is a real problem worth reading the logs for.
+
+The lines step keys off the exact baseline cron string, so the two must be
+changed together or betting lines silently stop refreshing on schedule.
+
 | Window | Frequency | Calls/week |
 |---|---|---|
 | Sat 12pm-1am ET | 10 min | 84 |
