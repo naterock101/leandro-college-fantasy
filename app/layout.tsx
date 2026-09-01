@@ -13,13 +13,18 @@ export const metadata = {
     title: TITLE,
     description: DESC,
     type: "website",
-    images: [{ url: "/og.png", width: 1200, height: 630, alt: TITLE }],
+    url: "/",
+    siteName: TITLE,
+    /* JPEG, not PNG: the source art has a transparent background, and an
+       alpha channel renders unpredictably in some chat clients. Flattening
+       onto the brand navy also cuts it from 164KB to 49KB. */
+    images: [{ url: "/og.jpg", width: 1200, height: 630, alt: TITLE, type: "image/jpeg" }],
   },
   twitter: {
     card: "summary_large_image",
     title: TITLE,
     description: DESC,
-    images: ["/og.png"],
+    images: ["/og.jpg"],
   },
   icons: { icon: "/icon.png", apple: "/icon.png" },
 };
