@@ -24,9 +24,20 @@ GitHub Actions cron  ->  scripts/build-standings.mjs  ->  public/standings.json 
                                                           app/page.tsx (static, Vercel)
 ```
 
-The bot commits with `[skip ci]` so Vercel does not redeploy on every data
-commit. The page therefore reads the live JSON from raw.githubusercontent
-rather than its own bundled copy.
+The bot's data commits must not trigger a Vercel build. `[skip ci]` in the
+commit message is **not** sufficient - it was observed deploying anyway - so
+`vercel.json` carries an `ignoreCommand` that skips the build whenever a commit
+touched nothing outside `public/standings.json` and `public/lines.json`. It
+exits 0 (skip) only on a data-only commit; any code change, or any git error
+such as a shallow clone with no `HEAD^`, exits non-zero and the build proceeds.
+
+This matters at scale: during the Saturday window the bot commits every 10
+minutes, ~144/day, which would exhaust the Hobby plan's daily deployment limit
+within hours and freeze the site.
+
+Because the site therefore does not rebuild on data changes, the page reads the
+live JSON from raw.githubusercontent rather than its own bundled copy. These two
+decisions are coupled - change one and you must change the other.
 
 ## Setup
 
