@@ -1,0 +1,57 @@
+name: Update standings
+
+# All times UTC. Eastern is UTC-4 through Nov 1, UTC-5 after.
+on:
+  schedule:
+    - cron: "*/10 16-23 * * 6"    # Sat 12pm-8pm ET
+    - cron: "*/10 0-5  * * 0"     # Sat 8pm-1am ET
+    - cron: "*/15 23   * * 4,5"   # Thu/Fri 7pm ET
+    - cron: "*/15 0-4  * * 5,6"   # Thu/Fri 8pm-midnight ET
+    - cron: "0 */8 * * *"         # baseline, catches corrections to old weeks
+  workflow_dispatch:
+
+concurrency:
+  group: standings
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # Second endpoint, so a second API call. Restricted to the 8-hourly
+      # baseline (~93 calls/month) to stay under the 1,000/month free tier:
+      # on every run it would cost ~666 more and blow the cap. Spreads do not
+      # move meaningfully between polls and stop mattering at kickoff.
+      - name: Refresh betting lines
+        if: github.event.schedule == '0 */8 * * *' || github.event_name == 'workflow_dispatch'
+        env:
+          CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
+        run: node scripts/build-lines.mjs
+
+      # Reads public/lines.json if it is there, so runs that skipped the step
+      # above still carry the spreads the last baseline run wrote.
+      - name: Build standings
+        env:
+          CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
+        run: node scripts/build-standings.mjs
+
+      - name: Commit if changed
+        run: |
+          if git diff --quiet -- public/standings.json public/lines.json; then
+            echo "no change, skipping commit"
+            exit 0
+          fi
+          git config user.name  "standings-bot"
+          git config user.email "standings-bot@users.noreply.github.com"
+          git add public/standings.json public/lines.json
+          # [skip ci] keeps Vercel from redeploying on every data commit.
+          git commit -m "standings: $(date -u '+%Y-%m-%d %H:%M UTC') [skip ci]"
+          git push

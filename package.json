@@ -1,0 +1,28 @@
+{
+  "name": "cfb-squad-standings",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "standings": "node --env-file-if-exists=.env scripts/build-standings.mjs",
+    "standings:dry": "node --env-file-if-exists=.env scripts/build-standings.mjs --dry",
+    "standings:fixture": "node scripts/build-standings.mjs --dry --fixture fixtures/sample-games.json",
+    "lines": "node --env-file-if-exists=.env scripts/build-lines.mjs",
+    "lines:dry": "node --env-file-if-exists=.env scripts/build-lines.mjs --dry",
+    "fixture:regen": "node scripts/build-standings.mjs --fixture fixtures/sample-games.json --out fixtures/sample-standings.json",
+    "verify": "node --env-file-if-exists=.env scripts/verify-teams.mjs"
+  },
+  "dependencies": {
+    "next": "^15.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "typescript": "^5.6.0"
+  }
+}

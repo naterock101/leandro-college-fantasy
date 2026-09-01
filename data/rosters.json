@@ -1,0 +1,114 @@
+{
+  "$comment": "Draft board to CollegeFootballData mapping. Join on 'cfbd' with EXACT string equality, never substring. 'conf' is the 2026 alignment and is a validation invariant: league rules require exactly one team per conference per manager. 'tier' drives scoring and is hardcoded on purpose, do NOT derive it from the API conference field. Entries with verify:true need a human eyeball against a live /teams response.",
+  "season": 2026,
+  "scoring": { "p4": 3, "g5": 2 },
+  "conferences": {
+    "power": ["ACC", "Big Ten", "Big 12", "SEC"],
+    "other": ["American Athletic", "Conference USA", "Mid-American", "Mountain West", "Pac-12", "Sun Belt"]
+  },
+  "rules": {
+    "one_team_per_conference": true,
+    "independents_excluded": true,
+    "postseason_counts": "bowl and playoff wins count toward total wins",
+    "conference_championship_counts": null,
+    "tiebreaker": "head to head games"
+  },
+  "managers": {
+    "nathan": [
+      { "draft": "Miami Hurricanes", "cfbd": "Miami", "conf": "ACC", "tier": "p4" },
+      { "draft": "Iowa Hawkeyes", "cfbd": "Iowa", "conf": "Big Ten", "tier": "p4" },
+      { "draft": "Arizona State Sun Devils", "cfbd": "Arizona State", "conf": "Big 12", "tier": "p4" },
+      { "draft": "Texas A&M Aggies", "cfbd": "Texas A&M", "conf": "SEC", "tier": "p4" },
+      { "draft": "East Carolina Pirates", "cfbd": "East Carolina", "conf": "American Athletic", "tier": "g5" },
+      { "draft": "Western Kentucky Hilltoppers", "cfbd": "Western Kentucky", "conf": "Conference USA", "tier": "g5" },
+      { "draft": "Western Michigan Broncos", "cfbd": "Western Michigan", "conf": "Mid-American", "tier": "g5" },
+      { "draft": "UNLV Rebels", "cfbd": "UNLV", "conf": "Mountain West", "tier": "g5" },
+      { "draft": "Texas State Bobcats", "cfbd": "Texas State", "conf": "Pac-12", "tier": "g5" },
+      { "draft": "Marshall Thundering Herd", "cfbd": "Marshall", "conf": "Sun Belt", "tier": "g5" }
+    ],
+    "tconn": [
+      { "draft": "Virginia Cavaliers", "cfbd": "Virginia", "conf": "ACC", "tier": "p4" },
+      { "draft": "Penn State Nittany Lions", "cfbd": "Penn State", "conf": "Big Ten", "tier": "p4" },
+      { "draft": "Texas Tech Red Raiders", "cfbd": "Texas Tech", "conf": "Big 12", "tier": "p4" },
+      { "draft": "Alabama Crimson Tide", "cfbd": "Alabama", "conf": "SEC", "tier": "p4" },
+      { "draft": "Tulane Green Wave", "cfbd": "Tulane", "conf": "American Athletic", "tier": "g5" },
+      { "draft": "Delaware Blue Hens", "cfbd": "Delaware", "conf": "Conference USA", "tier": "g5" },
+      { "draft": "Toledo Rockets", "cfbd": "Toledo", "conf": "Mid-American", "tier": "g5" },
+      { "draft": "Hawaii Rainbow Warriors", "cfbd": "Hawai'i", "conf": "Mountain West", "tier": "g5" },
+      { "draft": "Colorado State Rams", "cfbd": "Colorado State", "conf": "Pac-12", "tier": "g5" },
+      { "draft": "SoutherMiss Golden Eagles", "cfbd": "Southern Miss", "conf": "Sun Belt", "tier": "g5" }
+    ],
+    "leandro": [
+      { "draft": "Louisville Cardinals", "cfbd": "Louisville", "conf": "ACC", "tier": "p4" },
+      { "draft": "Indiana Hoosiers", "cfbd": "Indiana", "conf": "Big Ten", "tier": "p4" },
+      { "draft": "Arizona Wildcats", "cfbd": "Arizona", "conf": "Big 12", "tier": "p4" },
+      { "draft": "LSU Tigers", "cfbd": "LSU", "conf": "SEC", "tier": "p4" },
+      { "draft": "Florida Atlantic Owls", "cfbd": "Florida Atlantic", "conf": "American Athletic", "tier": "g5" },
+      { "draft": "New Mexico State Aggies", "cfbd": "New Mexico State", "conf": "Conference USA", "tier": "g5" },
+      { "draft": "Bowling Green Falcons", "cfbd": "Bowling Green", "conf": "Mid-American", "tier": "g5" },
+      { "draft": "New Mexico Lobos", "cfbd": "New Mexico", "conf": "Mountain West", "tier": "g5" },
+      { "draft": "Washington State Cougars", "cfbd": "Washington State", "conf": "Pac-12", "tier": "g5" },
+      { "draft": "Troy Trojans", "cfbd": "Troy", "conf": "Sun Belt", "tier": "g5" }
+    ],
+    "charlie": [
+      { "draft": "Pittsburgh Panthers", "cfbd": "Pittsburgh", "conf": "ACC", "tier": "p4" },
+      { "draft": "Michigan Wolverines", "cfbd": "Michigan", "conf": "Big Ten", "tier": "p4" },
+      { "draft": "Utah Utes", "cfbd": "Utah", "conf": "Big 12", "tier": "p4" },
+      { "draft": "Georgia Bulldogs", "cfbd": "Georgia", "conf": "SEC", "tier": "p4" },
+      { "draft": "South Florida Bulls", "cfbd": "South Florida", "conf": "American Athletic", "tier": "g5" },
+      { "draft": "Kennesaw State Owls", "cfbd": "Kennesaw State", "conf": "Conference USA", "tier": "g5" },
+      { "draft": "Central Michigan Chippewas", "cfbd": "Central Michigan", "conf": "Mid-American", "tier": "g5" },
+      { "draft": "Air Force Falcons", "cfbd": "Air Force", "conf": "Mountain West", "tier": "g5" },
+      { "draft": "San Diego State Aztecs", "cfbd": "San Diego State", "conf": "Pac-12", "tier": "g5" },
+      { "draft": "James Madison Dukes", "cfbd": "James Madison", "conf": "Sun Belt", "tier": "g5" }
+    ],
+    "steve": [
+      { "draft": "SMU Mustangs", "cfbd": "SMU", "conf": "ACC", "tier": "p4" },
+      { "draft": "Oregon Ducks", "cfbd": "Oregon", "conf": "Big Ten", "tier": "p4" },
+      { "draft": "Kansas State Wildcats", "cfbd": "Kansas State", "conf": "Big 12", "tier": "p4" },
+      { "draft": "Florida Gators", "cfbd": "Florida", "conf": "SEC", "tier": "p4" },
+      { "draft": "Army Black Knights", "cfbd": "Army", "conf": "American Athletic", "tier": "g5" },
+      { "draft": "Liberty Flames", "cfbd": "Liberty", "conf": "Conference USA", "tier": "g5" },
+      { "draft": "Miami (OH) RedHawks", "cfbd": "Miami (OH)", "conf": "Mid-American", "tier": "g5" },
+      { "draft": "Wyoming Cowboys", "cfbd": "Wyoming", "conf": "Mountain West", "tier": "g5" },
+      { "draft": "Utah State Aggies", "cfbd": "Utah State", "conf": "Pac-12", "tier": "g5" },
+      { "draft": "Old Dominion Monarchs", "cfbd": "Old Dominion", "conf": "Sun Belt", "tier": "g5" }
+    ],
+    "devish": [
+      { "draft": "Clemson Tigers", "cfbd": "Clemson", "conf": "ACC", "tier": "p4" },
+      { "draft": "USC Trojans", "cfbd": "USC", "conf": "Big Ten", "tier": "p4" },
+      { "draft": "TCU Horned Frogs", "cfbd": "TCU", "conf": "Big 12", "tier": "p4" },
+      { "draft": "Texas Longhorns", "cfbd": "Texas", "conf": "SEC", "tier": "p4" },
+      { "draft": "Memphis Tigers", "cfbd": "Memphis", "conf": "American Athletic", "tier": "g5" },
+      { "draft": "Middle Tennesee Blue Raiders", "cfbd": "Middle Tennessee", "conf": "Conference USA", "tier": "g5" },
+      { "draft": "Eastern Michigan Eagles", "cfbd": "Eastern Michigan", "conf": "Mid-American", "tier": "g5" },
+      { "draft": "Nevada Wolkpack", "cfbd": "Nevada", "conf": "Mountain West", "tier": "g5" },
+      { "draft": "Oregon State Beavers", "cfbd": "Oregon State", "conf": "Pac-12", "tier": "g5" },
+      { "draft": "App State Mountaineers", "cfbd": "App State", "conf": "Sun Belt", "tier": "g5" }
+    ],
+    "adam": [
+      { "draft": "Virginia Tech Hokies", "cfbd": "Virginia Tech", "conf": "ACC", "tier": "p4" },
+      { "draft": "Ohio State Buckeyes", "cfbd": "Ohio State", "conf": "Big Ten", "tier": "p4" },
+      { "draft": "Houston Cougars", "cfbd": "Houston", "conf": "Big 12", "tier": "p4" },
+      { "draft": "Ole Miss Rebels", "cfbd": "Ole Miss", "conf": "SEC", "tier": "p4" },
+      { "draft": "UTSA Roadrunners", "cfbd": "UTSA", "conf": "American Athletic", "tier": "g5" },
+      { "draft": "Jacksonville State Gamecocks", "cfbd": "Jacksonville State", "conf": "Conference USA", "tier": "g5" },
+      { "draft": "Buffalo Bulls", "cfbd": "Buffalo", "conf": "Mid-American", "tier": "g5" },
+      { "draft": "North Dakota State Bison", "cfbd": "North Dakota State", "conf": "Mountain West", "tier": "g5", "note": "FBS as of 2026, football-only MW member. Ineligible for the MW title game during transition." },
+      { "draft": "Fresno State Bulldogs", "cfbd": "Fresno State", "conf": "Pac-12", "tier": "g5" },
+      { "draft": "Louisiana Ragin Cajuns", "cfbd": "Louisiana", "conf": "Sun Belt", "tier": "g5" }
+    ],
+    "clint": [
+      { "draft": "NC State Wolfpack", "cfbd": "NC State", "conf": "ACC", "tier": "p4" },
+      { "draft": "Washington Huskies", "cfbd": "Washington", "conf": "Big Ten", "tier": "p4" },
+      { "draft": "BYU Cougars", "cfbd": "BYU", "conf": "Big 12", "tier": "p4" },
+      { "draft": "Oklahoma Sooners", "cfbd": "Oklahoma", "conf": "SEC", "tier": "p4" },
+      { "draft": "Navy Midshipmen", "cfbd": "Navy", "conf": "American Athletic", "tier": "g5" },
+      { "draft": "Florida International Panthers", "cfbd": "Florida International", "conf": "Conference USA", "tier": "g5" },
+      { "draft": "Ohio Bobcats", "cfbd": "Ohio", "conf": "Mid-American", "tier": "g5" },
+      { "draft": "San Jose State Spartans", "cfbd": "San Jos\u00e9 State", "conf": "Mountain West", "tier": "g5" },
+      { "draft": "Boise State Broncos", "cfbd": "Boise State", "conf": "Pac-12", "tier": "g5" },
+      { "draft": "Arkansas State Red Wolves", "cfbd": "Arkansas State", "conf": "Sun Belt", "tier": "g5" }
+    ]
+  }
+}
