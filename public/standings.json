@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-01T02:49:44.603Z",
+  "generatedAt": "2026-09-01T03:00:38.030Z",
   "season": 2026,
   "scoring": {
     "p4": 3,
@@ -977,6 +977,71 @@
       }
     }
   ],
+  "projection": {
+    "key": "0|01",
+    "label": "Week 1",
+    "games": 57,
+    "projected": 57,
+    "unprojected": 0,
+    "managers": {
+      "adam": {
+        "wins": 10,
+        "losses": 2,
+        "points": 24,
+        "gained": 22,
+        "rankDelta": 2
+      },
+      "charlie": {
+        "wins": 9,
+        "losses": 1,
+        "points": 22,
+        "gained": 22,
+        "rankDelta": 2
+      },
+      "devish": {
+        "wins": 9,
+        "losses": 4,
+        "points": 21,
+        "gained": 14,
+        "rankDelta": -2
+      },
+      "steve": {
+        "wins": 7,
+        "losses": 3,
+        "points": 18,
+        "gained": 18,
+        "rankDelta": 4
+      },
+      "tconn": {
+        "wins": 7,
+        "losses": 4,
+        "points": 18,
+        "gained": 15,
+        "rankDelta": -3
+      },
+      "leandro": {
+        "wins": 7,
+        "losses": 4,
+        "points": 17,
+        "gained": 17,
+        "rankDelta": 0
+      },
+      "nathan": {
+        "wins": 6,
+        "losses": 5,
+        "points": 16,
+        "gained": 16,
+        "rankDelta": 0
+      },
+      "clint": {
+        "wins": 4,
+        "losses": 7,
+        "points": 11,
+        "gained": 11,
+        "rankDelta": -3
+      }
+    }
+  },
   "byWeek": [
     {
       "key": "0|01",
@@ -1197,36 +1262,6 @@
         "seasonType": "regular",
         "date": "2026-09-05T19:30:00.000Z",
         "away": {
-          "team": "Texas State",
-          "manager": "nathan",
-          "tier": "g5",
-          "conf": "Pac-12",
-          "draft": "Texas State Bobcats"
-        },
-        "home": {
-          "team": "Texas",
-          "manager": "devish",
-          "tier": "p4",
-          "conf": "SEC",
-          "draft": "Texas Longhorns"
-        },
-        "neutral": false,
-        "sameManager": false,
-        "stakes": 3,
-        "spread": {
-          "spread": -29.5,
-          "favorite": "Texas",
-          "formatted": "Texas -29.5",
-          "overUnder": 59.5,
-          "provider": "DraftKings"
-        }
-      },
-      {
-        "key": "0|01",
-        "week": 1,
-        "seasonType": "regular",
-        "date": "2026-09-05T19:30:00.000Z",
-        "away": {
           "team": "Marshall",
           "manager": "nathan",
           "tier": "g5",
@@ -1255,29 +1290,29 @@
         "key": "0|01",
         "week": 1,
         "seasonType": "regular",
-        "date": "2026-09-05T23:30:00.000Z",
+        "date": "2026-09-05T19:30:00.000Z",
         "away": {
-          "team": "Western Michigan",
+          "team": "Texas State",
           "manager": "nathan",
           "tier": "g5",
-          "conf": "Mid-American",
-          "draft": "Western Michigan Broncos"
+          "conf": "Pac-12",
+          "draft": "Texas State Bobcats"
         },
         "home": {
-          "team": "Michigan",
-          "manager": "charlie",
+          "team": "Texas",
+          "manager": "devish",
           "tier": "p4",
-          "conf": "Big Ten",
-          "draft": "Michigan Wolverines"
+          "conf": "SEC",
+          "draft": "Texas Longhorns"
         },
         "neutral": false,
         "sameManager": false,
         "stakes": 3,
         "spread": {
-          "spread": -27.5,
-          "favorite": "Michigan",
-          "formatted": "Michigan -27.5",
-          "overUnder": 48.5,
+          "spread": -29.5,
+          "favorite": "Texas",
+          "formatted": "Texas -29.5",
+          "overUnder": 59.5,
           "provider": "DraftKings"
         }
       },
@@ -1308,6 +1343,36 @@
           "favorite": "LSU",
           "formatted": "LSU -10",
           "overUnder": 51.5,
+          "provider": "DraftKings"
+        }
+      },
+      {
+        "key": "0|01",
+        "week": 1,
+        "seasonType": "regular",
+        "date": "2026-09-05T23:30:00.000Z",
+        "away": {
+          "team": "Western Michigan",
+          "manager": "nathan",
+          "tier": "g5",
+          "conf": "Mid-American",
+          "draft": "Western Michigan Broncos"
+        },
+        "home": {
+          "team": "Michigan",
+          "manager": "charlie",
+          "tier": "p4",
+          "conf": "Big Ten",
+          "draft": "Michigan Wolverines"
+        },
+        "neutral": false,
+        "sameManager": false,
+        "stakes": 3,
+        "spread": {
+          "spread": -27.5,
+          "favorite": "Michigan",
+          "formatted": "Michigan -27.5",
+          "overUnder": 48.5,
           "provider": "DraftKings"
         }
       },
@@ -1557,36 +1622,6 @@
         "seasonType": "regular",
         "date": "2026-09-06T02:00:00.000Z",
         "away": {
-          "team": "UNLV",
-          "manager": "nathan",
-          "tier": "g5",
-          "conf": "Mountain West",
-          "draft": "UNLV Rebels"
-        },
-        "home": {
-          "team": "Hawai'i",
-          "manager": "tconn",
-          "tier": "g5",
-          "conf": "Mountain West",
-          "draft": "Hawaii Rainbow Warriors"
-        },
-        "neutral": false,
-        "sameManager": false,
-        "stakes": 2,
-        "spread": {
-          "spread": 3,
-          "favorite": "UNLV",
-          "formatted": "UNLV -3",
-          "overUnder": 58.5,
-          "provider": "DraftKings"
-        }
-      },
-      {
-        "key": "0|01",
-        "week": 1,
-        "seasonType": "regular",
-        "date": "2026-09-06T02:00:00.000Z",
-        "away": {
           "team": "Central Michigan",
           "manager": "charlie",
           "tier": "g5",
@@ -1608,6 +1643,36 @@
           "favorite": "New Mexico",
           "formatted": "New Mexico -10",
           "overUnder": 46.5,
+          "provider": "DraftKings"
+        }
+      },
+      {
+        "key": "0|01",
+        "week": 1,
+        "seasonType": "regular",
+        "date": "2026-09-06T02:00:00.000Z",
+        "away": {
+          "team": "UNLV",
+          "manager": "nathan",
+          "tier": "g5",
+          "conf": "Mountain West",
+          "draft": "UNLV Rebels"
+        },
+        "home": {
+          "team": "Hawai'i",
+          "manager": "tconn",
+          "tier": "g5",
+          "conf": "Mountain West",
+          "draft": "Hawaii Rainbow Warriors"
+        },
+        "neutral": false,
+        "sameManager": false,
+        "stakes": 2,
+        "spread": {
+          "spread": 3,
+          "favorite": "UNLV",
+          "formatted": "UNLV -3",
+          "overUnder": 58.5,
           "provider": "DraftKings"
         }
       },

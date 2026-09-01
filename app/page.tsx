@@ -32,6 +32,11 @@ type Data = {
             delta: Record<string, number>;
             cumulative: Record<string, { points: number; wins: number; losses: number }> }[];
   linesFetchedAt: string | null;
+  projection: {
+    label: string; games: number; projected: number; unprojected: number;
+    managers: Record<string, { wins: number; losses: number; points: number;
+                               gained: number; rankDelta: number }>;
+  } | null;
   gamesOfWeek: { label: string | null; games: {
     date: string; away: Side; home: Side; neutral: boolean; sameManager: boolean; stakes: number;
     spread: { spread: number; favorite: string | null; formatted: string;
@@ -187,7 +192,9 @@ export default function Page() {
             <thead>
               <tr>
                 <th className="r">#</th><th>Manager</th>
-                <th className="r">W-L</th><th className="r">Pts</th>
+                <th className="r">W-L</th>
+                {live && data.projection && <th className="r">Proj</th>}
+                <th className="r">Pts</th>
                 <th className="r">{live ? "Left" : "+/-"}</th><th className="r">Ceil</th>
               </tr>
             </thead>
@@ -200,13 +207,31 @@ export default function Page() {
                     <td className="r rank">{i + 1}</td>
                     <td className="name">{cap(r.manager)}<span className={`caret ${isOpen ? "up" : ""}`}>›</span></td>
                     <td className="r mono">{r.wins}-{r.losses}</td>
+                    {live && data.projection && (() => {
+                      const pr = data.projection!.managers[r.manager];
+                      if (!pr) return <td className="r mono muted">-</td>;
+                      const dir = pr.rankDelta > 0 ? "up" : pr.rankDelta < 0 ? "down" : "flat";
+                      return (
+                        <td className="r mono proj">
+                          {pr.wins}-{pr.losses}
+                          <span
+                            className={`arrow ${dir}`}
+                            title={dir === "flat"
+                              ? "Projected to hold this position"
+                              : `Projected to move ${Math.abs(pr.rankDelta)} ${dir}`}
+                          >
+                            {dir === "up" ? "▲" : dir === "down" ? "▼" : "–"}
+                          </span>
+                        </td>
+                      );
+                    })()}
                     <td className="r pts">{r.points}</td>
                     <td className="r mono muted">{live ? r.remaining : r.delta > 0 ? `+${r.delta}` : "0"}</td>
                     <td className="r mono ceil">{r.ceiling}</td>
                   </tr>,
                   isOpen && (
                     <tr key={r.manager + "-d"} className="detail">
-                      <td colSpan={6}>
+                      <td colSpan={live && data.projection ? 7 : 6}>
                         {teams.map((t) => (
                           <div className="team" key={t.team}>
                             <span className={`tier ${t.tier}`}>{t.tier === "p4" ? 3 : 2}</span>
@@ -230,6 +255,14 @@ export default function Page() {
           </table>
 
           <p className="caption">
+            {live && data.projection && (
+              <>
+                Proj is W-L after {data.projection.label.toLowerCase()} if every betting
+                favourite wins, and the arrow is where that would move you in the table.
+                {data.projection.unprojected > 0 &&
+                  ` ${data.projection.unprojected} of ${data.projection.games} games have no line and are left out.`}{" "}
+              </>
+            )}
             Ceiling is current points plus every remaining scheduled game, less any games
             between two of your own teams.{" "}
             {data.postseasonScheduled
@@ -437,6 +470,18 @@ function Style() {
     .stakes{color:var(--amber);font-weight:700;font-size:12px;width:30px;text-align:right;flex-shrink:0}
     .line{color:var(--muted);font-size:11.5px;white-space:nowrap;flex-shrink:0}
     .self{color:var(--amber);font-style:normal;font-size:11px;white-space:nowrap}
+    .proj{color:var(--muted);white-space:nowrap}
+    /* the projected column makes the leaderboard 7 wide, which overruns a
+       375px phone at the default padding */
+    @media (max-width:430px){
+      th{padding-left:2px;padding-right:2px;letter-spacing:.06em}
+      td{padding-left:2px;padding-right:2px}
+      .name{font-size:15px} .pts{font-size:16px}
+      td.mono,.proj{font-size:12px}
+      .arrow{margin-left:2px}
+    }
+    .arrow{margin-left:4px;font-size:9px;vertical-align:1px}
+    .arrow.up{color:var(--teal)} .arrow.down{color:var(--red)} .arrow.flat{color:var(--muted);opacity:.6}
     .upset{color:var(--teal);font-style:normal;font-size:11px;white-space:nowrap}
     .fav{color:var(--teal)}
     .dog{color:var(--red)}

@@ -151,6 +151,9 @@ function build(doc, owners, games, lines) {
 
   const headToHead = [];
   const upcoming = [];
+  /* Every upcoming game involving a drafted team, not just the both-drafted
+     ones in gamesOfWeek: a team beating an undrafted opponent still scores. */
+  const scheduled = [];
   const seenTeams = new Set();
   const collisionLoss = {};
 
@@ -171,6 +174,9 @@ function build(doc, owners, games, lines) {
       if (oh && oa && oh.manager === oa.manager) {
         const lesser = Math.min(val(oh.tier), val(oa.tier));
         collisionLoss[oh.manager] = (collisionLoss[oh.manager] ?? 0) + lesser;
+      }
+      if (oh || oa) {
+        scheduled.push({ key: sortKey(g), id: g.id, home: h, away: a, oh, oa });
       }
       if (oh && oa) {
         upcoming.push({
@@ -244,6 +250,8 @@ function build(doc, owners, games, lines) {
     (x, y) => y.points - x.points || y.wins - x.wins || x.manager.localeCompare(y.manager)
   );
 
+  const projection = project(table, scheduled, lines, val);
+
   const byConference = {};
   for (const c of ALL_CONFS) byConference[c] = [];
   for (const rec of all.values()) {
@@ -272,6 +280,7 @@ function build(doc, owners, games, lines) {
     postseasonScheduled: games.some((g) => isPost(g)),
     linesFetchedAt: lines.fetchedAt,
     standings: table,
+    projection,
     byWeek: buildByWeek(doc, owners, games, PTS),
     gamesOfWeek: {
       label: gow.length ? (gow[0].seasonType === "postseason" ? `Postseason ${gow[0].week}` : `Week ${gow[0].week}`) : null,
@@ -279,6 +288,67 @@ function build(doc, owners, games, lines) {
     },
     byConference,
     headToHead: headToHead.sort((a, b) => String(a.date).localeCompare(String(b.date))),
+  };
+}
+
+/* Projects the next scheduled week by handing every game to the side the book
+   favours. Deliberately naive: a spread is a market probability, not a verdict,
+   so this is "if every favourite holds", not a forecast. Pick-ems and unpriced
+   games are counted as unprojected rather than guessed at. */
+function project(table, scheduled, lines, val) {
+  const keys = [...new Set(scheduled.map((s) => s.key))].sort();
+  if (!keys.length) return null;
+  const key = keys[0];
+  const week = scheduled.filter((s) => s.key === key);
+
+  const delta = {};
+  for (const row of table) delta[row.manager] = { wins: 0, losses: 0, points: 0 };
+
+  let projected = 0, unprojected = 0;
+  for (const g of week) {
+    const line = lines.games[g.id] ?? null;
+    if (!line || !line.favorite) { unprojected++; continue; }
+    projected++;
+    for (const [team, o] of [[g.home, g.oh], [g.away, g.oa]]) {
+      if (!o) continue;
+      if (team === line.favorite) {
+        delta[o.manager].wins++;
+        delta[o.manager].points += val(o.tier);
+      } else {
+        delta[o.manager].losses++;
+      }
+    }
+  }
+
+  const proj = table.map((r) => ({
+    manager: r.manager,
+    wins: r.wins + delta[r.manager].wins,
+    losses: r.losses + delta[r.manager].losses,
+    points: r.points + delta[r.manager].points,
+  }));
+  proj.sort((x, y) => y.points - x.points || y.wins - x.wins || x.manager.localeCompare(y.manager));
+
+  const rankNow = new Map(table.map((r, i) => [r.manager, i]));
+  const rankProj = new Map(proj.map((r, i) => [r.manager, i]));
+
+  const managers = {};
+  for (const r of proj) {
+    managers[r.manager] = {
+      wins: r.wins, losses: r.losses, points: r.points,
+      gained: delta[r.manager].points,
+      /* positive means climbing the table, i.e. a smaller index */
+      rankDelta: rankNow.get(r.manager) - rankProj.get(r.manager),
+    };
+  }
+
+  const [ord, wk] = key.split("|");
+  return {
+    key,
+    label: ord === "1" ? `Postseason ${Number(wk)}` : `Week ${Number(wk)}`,
+    games: week.length,
+    projected,
+    unprojected,
+    managers,
   };
 }
 
@@ -343,6 +413,11 @@ for (const s of out.standings) {
 const priced = out.gamesOfWeek.games.filter((g) => g.spread).length;
 console.log(`games of the week (${out.gamesOfWeek.label ?? "none"}): ${out.gamesOfWeek.games.length}` +
   (lines.fetchedAt ? `, ${priced} with a spread` : ", no lines file"));
+if (out.projection) {
+  const p = out.projection;
+  console.log(`projection (${p.label}): ${p.projected}/${p.games} games priced` +
+    (p.unprojected ? `, ${p.unprojected} unprojected` : ""));
+}
 const upsets = out.headToHead.filter((h) => h.upset).length;
 console.log(`head to head played: ${out.headToHead.length}` + (upsets ? `, ${upsets} upset(s)` : ""));
 
