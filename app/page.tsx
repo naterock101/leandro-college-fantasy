@@ -367,9 +367,11 @@ export default function Page() {
                   <span className="mu">
                     {g.away.manager ? <><b>{cap(g.away.manager)}</b>&rsquo;s{" "}</> : null}
                     <span className={side(g.away.team, g.spread)}>{g.away.draft}</span>
+                    {!g.away.manager && <span className="undr"> undrafted</span>}
                     <span className="at">{g.neutral ? " vs " : " at "}</span>
                     {g.home.manager ? <><b>{cap(g.home.manager)}</b>&rsquo;s{" "}</> : null}
                     <span className={side(g.home.team, g.spread)}>{g.home.draft}</span>
+                    {!g.home.manager && <span className="undr"> undrafted</span>}
                     {g.sameManager && <em className="self"> both his</em>}
                   </span>
                   {g.spread && <span className="mono line">{g.spread.formatted}</span>}
@@ -558,6 +560,9 @@ function Style() {
     .stakes{color:var(--amber);font-weight:700;font-size:12px;width:30px;text-align:right;flex-shrink:0}
     .line{color:var(--muted);font-size:11.5px;white-space:nowrap;flex-shrink:0}
     .self{color:var(--amber);font-style:normal;font-size:11px;white-space:nowrap}
+    /* an opponent nobody drafted has no owner to name, and a bare team name
+       beside "Nathan's ..." otherwise reads as missing data */
+    .undr{color:var(--muted);opacity:.65;font-size:11px;white-space:nowrap}
     .proj{color:var(--muted);white-space:nowrap}
     /* the projected column makes the leaderboard 7 wide, which overruns a
        375px phone at the default padding */
