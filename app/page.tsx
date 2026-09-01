@@ -47,6 +47,13 @@ type Data = {
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
+/* "fav" or "dog" for one side of a matchup. A pick-em has no favourite and an
+   unpriced game has no line, and in both cases neither side gets coloured. */
+const side = (
+  team: string,
+  spread: { favorite: string | null } | null
+) => (!spread?.favorite ? "" : spread.favorite === team ? "fav" : "dog");
+
 /* Rows can come from different books, and CFBD spells the same one both
    "DraftKings" and "Draft Kings", so list what is actually on screen. */
 const books = (games: { spread: { provider: string } | null }[]) => {
@@ -238,9 +245,11 @@ export default function Page() {
                 <div className="gow" key={i}>
                   <span className="mono muted d">{shortDate(g.date)}</span>
                   <span className="mu">
-                    <b>{cap(g.away.manager)}</b>&rsquo;s {g.away.draft}
+                    <b>{cap(g.away.manager)}</b>&rsquo;s{" "}
+                    <span className={side(g.away.team, g.spread)}>{g.away.draft}</span>
                     <span className="at">{g.neutral ? " vs " : " at "}</span>
-                    <b>{cap(g.home.manager)}</b>&rsquo;s {g.home.draft}
+                    <b>{cap(g.home.manager)}</b>&rsquo;s{" "}
+                    <span className={side(g.home.team, g.spread)}>{g.home.draft}</span>
                     {g.sameManager && <em className="self"> both his</em>}
                   </span>
                   {g.spread && <span className="mono line">{g.spread.formatted}</span>}
@@ -268,7 +277,7 @@ export default function Page() {
                     <b>{cap(h.winner.manager)}</b>&rsquo;s {h.winner.team} beat <b>{cap(h.loser.manager)}</b>&rsquo;s {h.loser.team}
                     {h.sameManager && <em className="self"> own goal</em>}
                     {h.upset && (
-                      <em className="upset" title={`Closing line ${h.spread!.formatted}`}> upset</em>
+                      <em className="upset"> upset · {h.spread!.formatted}</em>
                     )}
                   </span>
                   <span className="mono muted">{h.score}</span>
@@ -373,7 +382,7 @@ export default function Page() {
 function Style() {
   return (
     <style>{`
-    :root{--ink:#0D1520;--panel:#141F2E;--rule:#2A3D53;--chalk:#E9EEF4;--muted:#7E8FA3;--amber:#F0A83C;--teal:#49B49E}
+    :root{--ink:#0D1520;--panel:#141F2E;--rule:#2A3D53;--chalk:#E9EEF4;--muted:#7E8FA3;--amber:#F0A83C;--teal:#49B49E;--red:#D9697F}
     body{margin:0;background:var(--ink);color:var(--chalk);
       font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
     .wrap{max-width:760px;margin:0 auto;padding:20px 14px 70px}
@@ -428,7 +437,9 @@ function Style() {
     .stakes{color:var(--amber);font-weight:700;font-size:12px;width:30px;text-align:right;flex-shrink:0}
     .line{color:var(--muted);font-size:11.5px;white-space:nowrap;flex-shrink:0}
     .self{color:var(--amber);font-style:normal;font-size:11px;white-space:nowrap}
-    .upset{color:var(--teal);font-style:normal;font-size:11px;white-space:nowrap;cursor:help}
+    .upset{color:var(--teal);font-style:normal;font-size:11px;white-space:nowrap}
+    .fav{color:var(--teal)}
+    .dog{color:var(--red)}
     .toggle{display:flex;gap:7px;align-items:center;font-size:12.5px;color:var(--muted);margin-bottom:4px}
     .filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
     .dd{position:relative}
