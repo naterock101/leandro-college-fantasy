@@ -47,7 +47,8 @@ type Data = {
   byConference: Record<string, {
     team: string; tier: "p4" | "g5"; wins: number; losses: number;
     points: number; remaining: number; manager: string | null }[]>;
-  headToHead: { date: string; score: string; sameManager: boolean; upset: boolean;
+  headToHead: { week: number; seasonType: string;
+                date: string; score: string; sameManager: boolean; upset: boolean;
                 spread: { spread: number; favorite: string | null; formatted: string;
                           overUnder: number | null; provider: string } | null;
                 winner: { team: string; manager: string }; loser: { team: string; manager: string } }[];
@@ -73,10 +74,34 @@ const books = (games: { spread: { provider: string } | null }[]) => {
 const shortDate = (d?: string) =>
   d ? new Date(d).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "";
 
+/* Folds accents and punctuation so "san jose st" finds "San Jose State" and
+   "texas am" finds "Texas A&M". */
+const norm = (s: string) =>
+  s.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+
+/* Three dropdowns now close on an outside click, so it lives in one place.
+   `set` must be a state setter or another stable function, since the effect
+   resubscribes whenever it changes identity. */
+function useClickAway(
+  open: boolean,
+  ref: React.RefObject<HTMLDivElement | null>,
+  set: (v: boolean) => void
+) {
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) set(false);
+    };
+    document.addEventListener("mousedown", away);
+    return () => document.removeEventListener("mousedown", away);
+  }, [open, ref, set]);
+}
+
 export default function Page() {
   const [data, setData] = useState<Data | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [tab, setTab] = useState<"league" | "teams">("league");
+  const [tab, setTab] = useState<"league" | "teams" | "h2h">("league");
   const [week, setWeek] = useState(-1);
   const [open, setOpen] = useState<string | null>(null);
   /* empty = every conference. Storing the selection rather than the exclusion
@@ -85,10 +110,20 @@ export default function Page() {
   const [draftSel, setDraftSel] = useState<"all" | "drafted" | "undrafted">("all");
   const [confOpen, setConfOpen] = useState(false);
   const ddRef = useRef<HTMLDivElement>(null);
+  /* free text over school names, so "is Baylor taken" is one keystroke rather
+     than a scroll through 130-odd rows */
+  const [q, setQ] = useState("");
   /* empty = no manager filter, which shows only the head-to-heads */
   const [gowSel, setGowSel] = useState<string[]>([]);
   const [gowOpen, setGowOpen] = useState(false);
   const gowRef = useRef<HTMLDivElement>(null);
+  /* empty = every manager */
+  const [h2hSel, setH2hSel] = useState<string[]>([]);
+  const [h2hOpen, setH2hOpen] = useState(false);
+  const h2hRef = useRef<HTMLDivElement>(null);
+  /* "cross" drops a manager's own teams playing each other, which is the
+     history everyone actually argues about */
+  const [h2hScope, setH2hScope] = useState<"cross" | "all">("cross");
 
   useEffect(() => {
     let alive = true;
@@ -105,23 +140,9 @@ export default function Page() {
     return () => { alive = false; clearInterval(id); };
   }, []);
 
-  useEffect(() => {
-    if (!confOpen) return;
-    const away = (e: MouseEvent) => {
-      if (ddRef.current && !ddRef.current.contains(e.target as Node)) setConfOpen(false);
-    };
-    document.addEventListener("mousedown", away);
-    return () => document.removeEventListener("mousedown", away);
-  }, [confOpen]);
-
-  useEffect(() => {
-    if (!gowOpen) return;
-    const away = (e: MouseEvent) => {
-      if (gowRef.current && !gowRef.current.contains(e.target as Node)) setGowOpen(false);
-    };
-    document.addEventListener("mousedown", away);
-    return () => document.removeEventListener("mousedown", away);
-  }, [gowOpen]);
+  useClickAway(confOpen, ddRef, setConfOpen);
+  useClickAway(gowOpen, gowRef, setGowOpen);
+  useClickAway(h2hOpen, h2hRef, setH2hOpen);
 
   /* One flat table of every FBS team, ranked on points across all ten
      conferences rather than within each one. */
@@ -140,15 +161,29 @@ export default function Page() {
     return m;
   }, [allTeams]);
 
-  const teamRows = useMemo(
-    () =>
-      allTeams.filter(
-        (t) =>
-          (confSel.length === 0 || confSel.includes(t.conf)) &&
-          (draftSel === "all" || (draftSel === "drafted" ? !!t.manager : !t.manager))
-      ),
-    [allTeams, confSel, draftSel]
-  );
+  /* The searchable words, which is not the same as "the box is non-empty": a
+     query of pure punctuation normalises away to nothing and must be treated as
+     no search at all, or the caption claims a filter that never ran. */
+  const words = useMemo(() => norm(q).split(" ").filter(Boolean), [q]);
+  const searching = words.length > 0;
+
+  /* Two passes, because neither alone is enough. Every word has to hit, in any
+     order, so "state san" still finds San Jose State; and the whole query runs
+     again with the spaces closed up, so "texas am" finds Texas A&M, whose
+     ampersand normalises to a word break. */
+  const teamRows = useMemo(() => {
+    const tight = words.join("");
+    const hit = (team: string) => {
+      const hay = norm(team);
+      return words.every((w) => hay.includes(w)) || hay.replace(/ /g, "").includes(tight);
+    };
+    return allTeams.filter(
+      (t) =>
+        (confSel.length === 0 || confSel.includes(t.conf)) &&
+        (draftSel === "all" || (draftSel === "drafted" ? !!t.manager : !t.manager)) &&
+        (!searching || hit(t.team))
+    );
+  }, [allTeams, confSel, draftSel, words, searching]);
 
   /* A poll that falls back to the bundled copy can return fewer weeks than the
      one this index was picked against, so never trust it to still be in range. */
@@ -175,6 +210,20 @@ export default function Page() {
         (g.home.manager && gowSel.includes(g.home.manager))
     );
   }, [data, gowSel]);
+
+  /* headToHead is written oldest first; the history reads newest first. */
+  const h2hGames = useMemo(() => {
+    if (!data) return [];
+    return data.headToHead
+      .filter((h) => (h2hScope === "cross" ? !h.sameManager : true))
+      .filter(
+        (h) =>
+          h2hSel.length === 0 ||
+          h2hSel.includes(h.winner.manager) ||
+          h2hSel.includes(h.loser.manager)
+      )
+      .reverse();
+  }, [data, h2hScope, h2hSel]);
 
   const board = useMemo(() => {
     if (!data) return null;
@@ -212,6 +261,7 @@ export default function Page() {
       <nav className="tabs">
         <button className={tab === "league" ? "on" : ""} onClick={() => setTab("league")}>Leaderboard</button>
         <button className={tab === "teams" ? "on" : ""} onClick={() => setTab("teams")}>All teams</button>
+        <button className={tab === "h2h" ? "on" : ""} onClick={() => setTab("h2h")}>Head to head</button>
       </nav>
 
       {tab === "league" && (
@@ -389,25 +439,6 @@ export default function Page() {
             </section>
           )}
 
-          {data.headToHead.length > 0 && (
-            <section>
-              <h2>Head to head</h2>
-              <p className="muted sm">The league tiebreaker.</p>
-              {data.headToHead.slice().reverse().map((h, i) => (
-                <div className="gow" key={i}>
-                  <span className="mono muted d">{shortDate(h.date)}</span>
-                  <span className="mu">
-                    <b>{cap(h.winner.manager)}</b>&rsquo;s {h.winner.team} beat <b>{cap(h.loser.manager)}</b>&rsquo;s {h.loser.team}
-                    {h.sameManager && <em className="self"> own goal</em>}
-                    {h.upset && (
-                      <em className="upset"> upset · {h.spread!.formatted}</em>
-                    )}
-                  </span>
-                  <span className="mono muted">{h.score}</span>
-                </div>
-              ))}
-            </section>
-          )}
         </>
       )}
 
@@ -462,10 +493,27 @@ export default function Page() {
                 </button>
               ))}
             </div>
+
+            <div className="sw">
+              <input
+                className="search"
+                type="search"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Search a team"
+                aria-label="Search for a team"
+              />
+              {q && (
+                <button className="clear" onClick={() => setQ("")} aria-label="Clear search">
+                  ×
+                </button>
+              )}
+            </div>
           </div>
 
           <p className="asof">
-            {teamRows.length} team{teamRows.length === 1 ? "" : "s"}, ranked by points.
+            {teamRows.length} team{teamRows.length === 1 ? "" : "s"}
+            {searching && <> matching &ldquo;{q.trim()}&rdquo;</>}, ranked by points.
           </p>
 
           <table className="tt">
@@ -494,7 +542,98 @@ export default function Page() {
               ))}
             </tbody>
           </table>
-          {!teamRows.length && <p className="caption">No teams match that filter.</p>}
+          {!teamRows.length && (
+            <p className="caption">
+              {searching
+                ? `No team matching \u201C${q.trim()}\u201D. Check the conference and drafted filters too.`
+                : "No teams match that filter."}
+            </p>
+          )}
+        </>
+      )}
+
+      {tab === "h2h" && (
+        <>
+          <div className="filters">
+            <div className="dd" ref={h2hRef}>
+              <button
+                className={`ddbtn ${h2hSel.length ? "act" : ""}`}
+                onClick={() => setH2hOpen((o) => !o)}
+                aria-expanded={h2hOpen}
+              >
+                {h2hSel.length === 0
+                  ? "All managers"
+                  : h2hSel.length === 1
+                  ? cap(h2hSel[0])
+                  : `${h2hSel.length} managers`}
+                <span className={`ddcaret ${h2hOpen ? "up" : ""}`}>▾</span>
+              </button>
+              {h2hOpen && (
+                <div className="ddmenu">
+                  <label className="ddopt">
+                    <input
+                      type="checkbox"
+                      checked={h2hSel.length === 0}
+                      onChange={() => setH2hSel([])}
+                    />
+                    <span className="ddname">All managers</span>
+                  </label>
+                  <div className="ddsep" />
+                  {managers.map((m) => (
+                    <label key={m} className="ddopt">
+                      <input
+                        type="checkbox"
+                        checked={h2hSel.includes(m)}
+                        onChange={() =>
+                          setH2hSel((v) => (v.includes(m) ? v.filter((x) => x !== m) : [...v, m]))
+                        }
+                      />
+                      <span className="ddname">{cap(m)}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="seg">
+              {(["cross", "all"] as const).map((k) => (
+                <button key={k} className={h2hScope === k ? "on" : ""} onClick={() => setH2hScope(k)}>
+                  {k === "cross" ? "Different managers" : "All"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <p className="asof">
+            {h2hGames.length} scored game{h2hGames.length === 1 ? "" : "s"}, newest first.{" "}
+            {h2hScope === "cross"
+              ? "Both teams drafted, by two different managers - the league tiebreaker."
+              : "Every scored game between two drafted teams, own goals included."}
+          </p>
+
+          {h2hGames.map((h, i) => (
+            <div className="gow" key={`${h.date}-${h.winner.team}-${i}`}>
+              <span className="mono muted d">{shortDate(h.date)}</span>
+              <span className="mu">
+                <b>{cap(h.winner.manager)}</b>&rsquo;s {h.winner.team} beat{" "}
+                <b>{cap(h.loser.manager)}</b>&rsquo;s {h.loser.team}
+                {h.sameManager && <em className="self"> own goal</em>}
+                {h.upset && <em className="upset"> upset · {h.spread!.formatted}</em>}
+              </span>
+              <span className="mono muted wk">
+                {h.seasonType === "postseason" ? `P${h.week}` : `Wk ${h.week}`}
+              </span>
+              <span className="mono muted score">{h.score}</span>
+            </div>
+          ))}
+
+          {!h2hGames.length && (
+            <p className="caption">
+              {data.headToHead.length === 0
+                ? "No game between two drafted teams has been scored yet."
+                : "No games match that filter."}
+            </p>
+          )}
         </>
       )}
       <Style />
@@ -523,7 +662,8 @@ function Style() {
       text-transform:uppercase;color:var(--muted)}
     .tabs{display:flex;gap:6px;margin-bottom:14px}
     .tabs button{flex:1;background:transparent;border:1px solid var(--rule);color:var(--muted);
-      border-radius:6px;padding:9px;font-size:13px;font-weight:600;cursor:pointer}
+      border-radius:6px;padding:9px 4px;font-size:13px;font-weight:600;cursor:pointer;
+      font-family:inherit;white-space:nowrap}
     .tabs button.on{background:var(--chalk);border-color:var(--chalk);color:var(--ink)}
     .weeks{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px}
     .weeks button{background:transparent;border:1px solid var(--rule);color:var(--muted);
@@ -608,6 +748,23 @@ function Style() {
     .owner.un{color:var(--muted);opacity:.65}
     .sm2{font-size:14px}
     .wl{font-size:11.5px}
+    .sw{position:relative;display:flex;align-items:center;flex:1;min-width:130px;max-width:230px}
+    .search{width:100%;background:transparent;border:1px solid var(--rule);color:var(--chalk);
+      border-radius:6px;padding:7px 26px 7px 11px;font-size:12.5px;font-family:inherit}
+    .search::placeholder{color:var(--muted)}
+    .search:focus{outline:none;border-color:var(--amber)}
+    /* the UA's own clear affordance is a light glyph on a dark field, so it is
+       replaced rather than styled */
+    .search::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none}
+    .clear{position:absolute;right:6px;background:transparent;border:0;color:var(--muted);
+      font-size:16px;line-height:1;padding:2px 4px;cursor:pointer;font-family:inherit}
+    .clear:hover{color:var(--chalk)}
+    .wk{font-size:11px;width:34px;text-align:right;flex-shrink:0;opacity:.75}
+    .score{width:44px;text-align:right;flex-shrink:0}
+    @media (max-width:430px){
+      .tabs button{font-size:12px;padding:9px 2px}
+      .sw{max-width:none}
+    }
   `}</style>
   );
 }

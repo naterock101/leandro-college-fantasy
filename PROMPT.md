@@ -37,7 +37,7 @@ Working and tested:
 - `scripts/build-standings.mjs` - fetches CFBD, validates, computes, writes JSON
 - `scripts/verify-teams.mjs` - diffs roster names against CFBD `/teams`
 - `data/rosters.json` - all 80 teams mapped, validated for the one-per-conference rule
-- `app/page.tsx` - two-tab UI, leaderboard and all-teams
+- `app/page.tsx` - three-tab UI, leaderboard, all-teams and head-to-head
 - `.github/workflows/poll.yml` - cron on a football-shaped schedule
 - `fixtures/` - sample input and output so you can run everything with no API key
 
@@ -119,10 +119,17 @@ Tab 1, Leaderboard: columns are Manager, W-L, Points, Games Left, Ceiling. Tap a
 row to expand that manager's ten teams with per-team record and points. A week
 selector switches the table to cumulative standings after any past week, which
 is how you audit a number that moved. Below it, "Games of the week" lists
-upcoming matchups where both teams are drafted, and a head-to-head log.
+upcoming matchups where both teams are drafted.
 
 Tab 2, All teams: every FBS team grouped by conference, ranked by points, tagged
-with its drafter or "undrafted". Has an undrafted-only filter.
+with its drafter or "undrafted". Has an undrafted-only filter and a search box,
+which is how you check whether a team is already taken. The search folds accents
+and punctuation, so "san jose st" and "texas am" both hit.
+
+Tab 3, Head to head: the log of scored games where both teams are drafted,
+newest first, filterable by manager. Defaults to the two-different-managers
+games, which are the tiebreaker; the other setting also shows a manager's own
+teams playing each other, tagged "own goal".
 
 Styling is inline in a `<Style />` component, no CSS framework, no chart
 library, zero runtime dependencies beyond React and Next. Keep it that way
