@@ -126,10 +126,16 @@ with its drafter or "undrafted". Has an undrafted-only filter and a search box,
 which is how you check whether a team is already taken. The search folds accents
 and punctuation, so "san jose st" and "texas am" both hit.
 
-Tab 3, Head to head: the log of scored games where both teams are drafted,
-newest first, filterable by manager. Defaults to the two-different-managers
-games, which are the tiebreaker; the other setting also shows a manager's own
-teams playing each other, tagged "own goal".
+Tab 3, Activity: two views over the same manager filter. "Head to head" is the
+log of scored games where both teams are drafted, newest first, defaulting to
+the two-different-managers games, which are the tiebreaker; its other setting
+also shows a manager's own teams playing each other, tagged "own goal".
+"Timeline" is every scored game with a drafted team on either side, grouped by
+week, newest week first, with the points the win was worth. A team that lost to
+an undrafted opponent appears there with a blank points column, and under a
+manager filter the week total counts only that manager's own wins - their team
+losing to another manager's team is listed but its points are dimmed, because
+they belong to the winner.
 
 Styling is inline in a `<Style />` component, no CSS framework, no chart
 library, zero runtime dependencies beyond React and Next. Keep it that way

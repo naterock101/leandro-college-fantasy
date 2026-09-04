@@ -52,7 +52,14 @@ type Data = {
                 spread: { spread: number; favorite: string | null; formatted: string;
                           overUnder: number | null; provider: string } | null;
                 winner: { team: string; manager: string }; loser: { team: string; manager: string } }[];
+  /* Absent from any payload the bot wrote before the timeline shipped, so the
+     page must render without it rather than assume the bot has caught up. */
+  results?: { key: string; week: number; seasonType: string; date: string;
+              score: string; points: number; h2h: boolean; sameManager: boolean;
+              upset: boolean; line: string | null;
+              winner: ScoredSide; loser: ScoredSide }[];
 };
+type ScoredSide = { team: string; manager: string | null };
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -98,6 +105,22 @@ function useClickAway(
   }, [open, ref, set]);
 }
 
+/* "Adam's Buffalo", or the bare school when nobody drafted it. Undrafted sides
+   are the common case in the timeline, so they are labelled rather than left
+   sitting next to an owned team looking like missing data. */
+function Owned({ side }: { side: ScoredSide }) {
+  return side.manager ? (
+    <>
+      <b>{cap(side.manager)}</b>&rsquo;s {side.team}
+    </>
+  ) : (
+    <>
+      {side.team}
+      <span className="undr"> undrafted</span>
+    </>
+  );
+}
+
 export default function Page() {
   const [data, setData] = useState<Data | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -124,6 +147,8 @@ export default function Page() {
   /* "cross" drops a manager's own teams playing each other, which is the
      history everyone actually argues about */
   const [h2hScope, setH2hScope] = useState<"cross" | "all">("cross");
+  /* head to head is the argument, the timeline is the whole week */
+  const [view, setView] = useState<"h2h" | "timeline">("h2h");
 
   useEffect(() => {
     let alive = true;
@@ -225,6 +250,44 @@ export default function Page() {
       .reverse();
   }, [data, h2hScope, h2hSel]);
 
+  /* Grouped by week and newest first, so the top of the page is last Saturday.
+     Within a week the games stay in kickoff order, which is how people
+     remember them. */
+  const timeline = useMemo(() => {
+    const all = data?.results ?? [];
+    const keep = all.filter(
+      (r) =>
+        h2hSel.length === 0 ||
+        (r.winner.manager && h2hSel.includes(r.winner.manager)) ||
+        (r.loser.manager && h2hSel.includes(r.loser.manager))
+    );
+    const weeks = new Map<string, typeof keep>();
+    for (const r of keep) {
+      if (!weeks.has(r.key)) weeks.set(r.key, []);
+      weeks.get(r.key)!.push(r);
+    }
+    return [...weeks.entries()]
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([key, games]) => ({
+        key,
+        label: games[0].seasonType === "postseason"
+          ? `Postseason ${games[0].week}`
+          : `Week ${games[0].week}`,
+        games,
+        /* Points belong to the winner, so a filtered week counts only the wins
+           the selected managers actually had - their team losing to another
+           manager's team is in `games`, but those points are not theirs.
+           Unfiltered, this is every point the league scored that week. */
+        points: games.reduce(
+          (n, g) =>
+            g.winner.manager && (h2hSel.length === 0 || h2hSel.includes(g.winner.manager))
+              ? n + g.points
+              : n,
+          0
+        ),
+      }));
+  }, [data, h2hSel]);
+
   const board = useMemo(() => {
     if (!data) return null;
     if (weekIdx < 0) return data.standings.map((r) => ({ ...r, delta: 0, live: true }));
@@ -261,7 +324,7 @@ export default function Page() {
       <nav className="tabs">
         <button className={tab === "league" ? "on" : ""} onClick={() => setTab("league")}>Leaderboard</button>
         <button className={tab === "teams" ? "on" : ""} onClick={() => setTab("teams")}>All teams</button>
-        <button className={tab === "h2h" ? "on" : ""} onClick={() => setTab("h2h")}>Head to head</button>
+        <button className={tab === "h2h" ? "on" : ""} onClick={() => setTab("h2h")}>Activity</button>
       </nav>
 
       {tab === "league" && (
@@ -596,43 +659,111 @@ export default function Page() {
             </div>
 
             <div className="seg">
-              {(["cross", "all"] as const).map((k) => (
-                <button key={k} className={h2hScope === k ? "on" : ""} onClick={() => setH2hScope(k)}>
-                  {k === "cross" ? "Different managers" : "All"}
+              {(["h2h", "timeline"] as const).map((k) => (
+                <button key={k} className={view === k ? "on" : ""} onClick={() => setView(k)}>
+                  {k === "h2h" ? "Head to head" : "Timeline"}
                 </button>
               ))}
             </div>
+
+            {view === "h2h" && (
+              <div className="seg">
+                {(["cross", "all"] as const).map((k) => (
+                  <button key={k} className={h2hScope === k ? "on" : ""} onClick={() => setH2hScope(k)}>
+                    {k === "cross" ? "Different managers" : "All"}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
-          <p className="asof">
-            {h2hGames.length} scored game{h2hGames.length === 1 ? "" : "s"}, newest first.{" "}
-            {h2hScope === "cross"
-              ? "Both teams drafted, by two different managers - the league tiebreaker."
-              : "Every scored game between two drafted teams, own goals included."}
-          </p>
+          {view === "h2h" && (
+            <>
+              <p className="asof">
+                {h2hGames.length} scored game{h2hGames.length === 1 ? "" : "s"}, newest first.{" "}
+                {h2hScope === "cross"
+                  ? "Both teams drafted, by two different managers - the league tiebreaker."
+                  : "Every scored game between two drafted teams, own goals included."}
+              </p>
 
-          {h2hGames.map((h, i) => (
-            <div className="gow" key={`${h.date}-${h.winner.team}-${i}`}>
-              <span className="mono muted d">{shortDate(h.date)}</span>
-              <span className="mu">
-                <b>{cap(h.winner.manager)}</b>&rsquo;s {h.winner.team} beat{" "}
-                <b>{cap(h.loser.manager)}</b>&rsquo;s {h.loser.team}
-                {h.sameManager && <em className="self"> own goal</em>}
-                {h.upset && <em className="upset"> upset · {h.spread!.formatted}</em>}
-              </span>
-              <span className="mono muted wk">
-                {h.seasonType === "postseason" ? `P${h.week}` : `Wk ${h.week}`}
-              </span>
-              <span className="mono muted score">{h.score}</span>
-            </div>
-          ))}
+              {h2hGames.map((h, i) => (
+                <div className="gow" key={`${h.date}-${h.winner.team}-${i}`}>
+                  <span className="mono muted d">{shortDate(h.date)}</span>
+                  <span className="mu">
+                    <b>{cap(h.winner.manager)}</b>&rsquo;s {h.winner.team} beat{" "}
+                    <b>{cap(h.loser.manager)}</b>&rsquo;s {h.loser.team}
+                    {h.sameManager && <em className="self"> own goal</em>}
+                    {h.upset && <em className="upset"> upset · {h.spread!.formatted}</em>}
+                  </span>
+                  <span className="mono muted wk">
+                    {h.seasonType === "postseason" ? `P${h.week}` : `Wk ${h.week}`}
+                  </span>
+                  <span className="mono muted score">{h.score}</span>
+                </div>
+              ))}
 
-          {!h2hGames.length && (
-            <p className="caption">
-              {data.headToHead.length === 0
-                ? "No game between two drafted teams has been scored yet."
-                : "No games match that filter."}
-            </p>
+              {!h2hGames.length && (
+                <p className="caption">
+                  {data.headToHead.length === 0
+                    ? "No game between two drafted teams has been scored yet."
+                    : "No games match that filter."}
+                </p>
+              )}
+            </>
+          )}
+
+          {view === "timeline" && (
+            <>
+              <p className="asof">
+                Every scored game with a drafted team in it, newest week first.{" "}
+                {h2hSel.length > 0 && `Filtered to ${h2hSel.map(cap).join(", ")}.`}
+              </p>
+
+              {timeline.map((w) => (
+                <section key={w.key}>
+                  <h2>
+                    {w.label}
+                    <span className="cw">
+                      {w.games.length} game{w.games.length === 1 ? "" : "s"} · {w.points} pts
+                    </span>
+                  </h2>
+                  {w.games.map((g, i) => (
+                    <div className="gow" key={`${g.date}-${g.winner.team}-${i}`}>
+                      <span className="mono muted d">{shortDate(g.date)}</span>
+                      <span className="mu">
+                        <Owned side={g.winner} /> beat <Owned side={g.loser} />
+                        {g.sameManager && <em className="self"> own goal</em>}
+                        {g.upset && g.line && <em className="upset"> upset · {g.line}</em>}
+                      </span>
+                      <span className="mono muted score">{g.score}</span>
+                      {/* Points belong to the winner. Under a manager filter the
+                          list still shows the games their teams lost, so a badge
+                          that is not theirs is dimmed - otherwise a filtered week
+                          reads as "+3" on a game they lost while the heading above
+                          it correctly says 0. A loss worth nothing to anyone gets
+                          a blank, which says it more plainly than a 0. */}
+                      <span
+                        className={`mono stakes${
+                          g.winner.manager && (h2hSel.length === 0 || h2hSel.includes(g.winner.manager))
+                            ? ""
+                            : " them"
+                        }`}
+                      >
+                        {g.points ? `+${g.points}` : ""}
+                      </span>
+                    </div>
+                  ))}
+                </section>
+              ))}
+
+              {!timeline.length && (
+                <p className="caption">
+                  {data.results
+                    ? "No scored games match that filter."
+                    : "The timeline arrives with the next standings refresh."}
+                </p>
+              )}
+            </>
           )}
         </>
       )}
@@ -759,6 +890,8 @@ function Style() {
     .clear{position:absolute;right:6px;background:transparent;border:0;color:var(--muted);
       font-size:16px;line-height:1;padding:2px 4px;cursor:pointer;font-family:inherit}
     .clear:hover{color:var(--chalk)}
+    /* a points badge that belongs to a manager the filter is not about */
+    .stakes.them{color:var(--muted);opacity:.55;font-weight:400}
     .wk{font-size:11px;width:34px;text-align:right;flex-shrink:0;opacity:.75}
     .score{width:44px;text-align:right;flex-shrink:0}
     @media (max-width:430px){

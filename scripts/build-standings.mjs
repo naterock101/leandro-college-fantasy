@@ -140,6 +140,13 @@ function build(doc, owners, games, lines) {
     }
   }
 
+  /* The timeline prints school names and owners and nothing else, so its sides
+     are the same {team, manager} pair headToHead uses - not the conference and
+     long draft name the upcoming games list needs. Across a full season that is
+     the difference between a lean payload and one the bot recommits every ten
+     minutes and every open phone refetches every two. */
+  const scoredSide = (team, o) => ({ team, manager: o ? o.manager : null });
+
   const all = new Map();
   const touch = (team, conf) => {
     if (!team) return null;
@@ -150,6 +157,12 @@ function build(doc, owners, games, lines) {
   };
 
   const headToHead = [];
+  /* Every scored game with a drafted team on either side, oldest first. This is
+     the timeline: Buffalo belongs in it the moment it plays, whoever it played.
+     headToHead is the subset where both sides are drafted, and stays its own
+     array because the page has read it under that name since the first deploy
+     and a browser holding cached JS must not break on a reshaped payload. */
+  const results = [];
   /* Every upcoming game involving a drafted team, each flagged h2h when both
      sides are drafted. The UI shows only the h2h ones until you filter to a
      manager, at which point it needs that manager's whole slate. */
@@ -211,12 +224,31 @@ function build(doc, owners, games, lines) {
       else { T.losses++; M.losses++; }
     }
 
+    /* The stored line is whatever the books had when build-lines last ran,
+       which for a finished game is the closing line. A pick-em has no favourite
+       and so can never be an upset, and a game the books never priced simply
+       goes untagged. */
+    const line = lines.games[g.id] ?? null;
+    const upset = Boolean(line && line.favorite && line.favorite !== winner);
+
+    if (oh || oa) {
+      const ow = owners.get(winner);
+      results.push({
+        key: sortKey(g), week: weekOf(g), seasonType: seasonType(g), date: startDate(g),
+        winner: scoredSide(winner, ow),
+        loser: scoredSide(loser, owners.get(loser)),
+        score: `${Math.max(hp, ap)}-${Math.min(hp, ap)}`,
+        /* what the win was worth to its owner, and 0 when an undrafted team
+           beat a drafted one, which is the shape of a bad Saturday */
+        points: ow ? val(ow.tier) : 0,
+        h2h: Boolean(oh && oa),
+        sameManager: Boolean(oh && oa && oh.manager === oa.manager),
+        upset,
+        line: line ? line.formatted : null,
+      });
+    }
+
     if (owners.has(winner) && owners.has(loser)) {
-      /* The stored line is whatever the books had when build-lines last ran,
-         which for a finished game is the closing line. A pick-em has no
-         favourite and so can never be an upset, and a game the books never
-         priced simply goes untagged. */
-      const line = lines.games[g.id] ?? null;
       headToHead.push({
         week: weekOf(g), seasonType: seasonType(g), date: startDate(g),
         winner: { team: winner, manager: owners.get(winner).manager },
@@ -224,7 +256,7 @@ function build(doc, owners, games, lines) {
         score: `${Math.max(hp, ap)}-${Math.min(hp, ap)}`,
         sameManager: owners.get(winner).manager === owners.get(loser).manager,
         spread: line,
-        upset: Boolean(line && line.favorite && line.favorite !== winner),
+        upset,
       });
     }
   }
@@ -290,6 +322,8 @@ function build(doc, owners, games, lines) {
     },
     byConference,
     headToHead: headToHead.sort((a, b) => String(a.date).localeCompare(String(b.date))),
+    results: results.sort((a, b) => a.key.localeCompare(b.key) ||
+                                    String(a.date).localeCompare(String(b.date))),
   };
 }
 
@@ -422,6 +456,8 @@ if (out.projection) {
 }
 const upsets = out.headToHead.filter((h) => h.upset).length;
 console.log(`head to head played: ${out.headToHead.length}` + (upsets ? `, ${upsets} upset(s)` : ""));
+console.log(`scored games with a drafted team: ${out.results.length}` +
+  ` across ${new Set(out.results.map((r) => r.key)).size} week(s)`);
 
 if (DRY) {
   console.log("dry run, not writing");
