@@ -144,9 +144,6 @@ export default function Page() {
   const [h2hSel, setH2hSel] = useState<string[]>([]);
   const [h2hOpen, setH2hOpen] = useState(false);
   const h2hRef = useRef<HTMLDivElement>(null);
-  /* "cross" drops a manager's own teams playing each other, which is the
-     history everyone actually argues about */
-  const [h2hScope, setH2hScope] = useState<"cross" | "all">("cross");
   /* head to head is the argument, the timeline is the whole week */
   const [view, setView] = useState<"h2h" | "timeline">("h2h");
 
@@ -240,7 +237,6 @@ export default function Page() {
   const h2hGames = useMemo(() => {
     if (!data) return [];
     return data.headToHead
-      .filter((h) => (h2hScope === "cross" ? !h.sameManager : true))
       .filter(
         (h) =>
           h2hSel.length === 0 ||
@@ -248,11 +244,10 @@ export default function Page() {
           h2hSel.includes(h.loser.manager)
       )
       .reverse();
-  }, [data, h2hScope, h2hSel]);
+  }, [data, h2hSel]);
 
-  /* Grouped by week and newest first, so the top of the page is last Saturday.
-     Within a week the games stay in kickoff order, which is how people
-     remember them. */
+  /* Newest first the whole way down: weeks descend, and within a week the games
+     descend too, so the very top of the page is the last game that finished. */
   const timeline = useMemo(() => {
     const all = data?.results ?? [];
     const keep = all.filter(
@@ -273,7 +268,7 @@ export default function Page() {
         label: games[0].seasonType === "postseason"
           ? `Postseason ${games[0].week}`
           : `Week ${games[0].week}`,
-        games,
+        games: games.slice().reverse(),
         /* Points belong to the winner, so a filtered week counts only the wins
            the selected managers actually had - their team losing to another
            manager's team is in `games`, but those points are not theirs.
@@ -666,24 +661,13 @@ export default function Page() {
               ))}
             </div>
 
-            {view === "h2h" && (
-              <div className="seg">
-                {(["cross", "all"] as const).map((k) => (
-                  <button key={k} className={h2hScope === k ? "on" : ""} onClick={() => setH2hScope(k)}>
-                    {k === "cross" ? "Different managers" : "All"}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
 
           {view === "h2h" && (
             <>
               <p className="asof">
-                {h2hGames.length} scored game{h2hGames.length === 1 ? "" : "s"}, newest first.{" "}
-                {h2hScope === "cross"
-                  ? "Both teams drafted, by two different managers - the league tiebreaker."
-                  : "Every scored game between two drafted teams, own goals included."}
+                {h2hGames.length} scored game{h2hGames.length === 1 ? "" : "s"}, newest first.
+                Every game with a drafted team on both sides - the league tiebreaker.
               </p>
 
               {h2hGames.map((h, i) => (
@@ -715,7 +699,7 @@ export default function Page() {
           {view === "timeline" && (
             <>
               <p className="asof">
-                Every scored game with a drafted team in it, newest week first.{" "}
+                Every scored game with a drafted team in it, newest first.{" "}
                 {h2hSel.length > 0 && `Filtered to ${h2hSel.map(cap).join(", ")}.`}
               </p>
 

@@ -127,13 +127,13 @@ which is how you check whether a team is already taken. The search folds accents
 and punctuation, so "san jose st" and "texas am" both hit.
 
 Tab 3, Activity: two views over the same manager filter. "Head to head" is the
-log of scored games where both teams are drafted, newest first, defaulting to
-the two-different-managers games, which are the tiebreaker; its other setting
-also shows a manager's own teams playing each other, tagged "own goal".
+log of every scored game where both teams are drafted, newest first - the league
+tiebreaker, with a manager's own two teams playing each other tagged "own goal".
 "Timeline" is every scored game with a drafted team on either side, grouped by
-week, newest week first, with the points the win was worth. A team that lost to
-an undrafted opponent appears there with a blank points column, and under a
-manager filter the week total counts only that manager's own wins - their team
+week, with the points the win was worth. Both views run newest first the whole
+way down: the weeks descend and the games inside each week descend too. A team
+that lost to an undrafted opponent appears with a blank points column, and under
+a manager filter the week total counts only that manager's own wins - their team
 losing to another manager's team is listed but its points are dimmed, because
 they belong to the winner.
 
