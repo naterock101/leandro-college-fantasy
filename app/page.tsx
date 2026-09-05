@@ -957,7 +957,10 @@ function Style() {
     .clear{position:absolute;right:6px;background:transparent;border:0;color:var(--muted);
       font-size:16px;line-height:1;padding:2px 4px;cursor:pointer;font-family:inherit}
     .clear:hover{color:var(--chalk)}
-    .livewrap h2{margin-top:4px}
+    /* this follows the standings small print, which is dense and low contrast,
+       so it needs a clearer break than the 26px an ordinary section heading
+       gets - the live block should read as its own thing, not as a footnote */
+    .livewrap h2{margin-top:32px}
     /* a kickoff time needs more room than the "Sep 3" the other rows carry */
     .livewrap .gow .d{width:58px}
     .livehead{display:flex;align-items:center;gap:7px}
