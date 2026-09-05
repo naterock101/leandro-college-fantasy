@@ -129,11 +129,13 @@ and punctuation, so "san jose st" and "texas am" both hit.
 Tab 3, Activity: two views over the same manager filter. "Head to head" is the
 log of every scored game where both teams are drafted, newest first - the league
 tiebreaker, with a manager's own two teams playing each other tagged "own goal".
-"Timeline" opens with "On the field", the league games in progress right now,
-and then every scored game with a drafted team on either side, grouped by week,
-with the points the win was worth.
+"Timeline" is every scored game with a drafted team on either side, grouped by
+week, with the points the win was worth.
 
-"On the field" costs nothing to produce. CFBD's /games carries no clock, period
+"On the field", the league games in progress right now, sits on the leaderboard
+above games of the week, and shows the whole league rather than a selection: the
+manager picker below it belongs to games of the week, and narrowing a section
+above that control by it would read as a bug. It costs nothing to produce. CFBD's /games carries no clock, period
 or status, so a game in flight is inferred in the browser: it is still in the
 upcoming list, its kickoff has passed, and it started less than five and a half
 hours ago. That last bound matters because outside the Saturday window the bot

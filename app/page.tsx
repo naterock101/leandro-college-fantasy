@@ -267,7 +267,11 @@ export default function Page() {
       .reverse();
   }, [data, h2hSel]);
 
-  /* Games that have kicked off and are not yet in the payload as final. The bot
+  /* Every league game in progress, unfiltered: this sits at the top of the
+     leaderboard, above the manager picker that belongs to games of the week, so
+     narrowing it by a control further down the page would read as a bug.
+
+     Games that have kicked off and are not yet in the payload as final. The bot
      writes only completed games as results, so anything still sitting in the
      upcoming list whose start time has passed is on the field right now.
 
@@ -280,15 +284,10 @@ export default function Page() {
     return data.gamesOfWeek.games
       .filter((g) => {
         const kickoff = new Date(g.date).getTime();
-        if (!(kickoff <= now && now - kickoff < LIVE_WINDOW_MS)) return false;
-        return (
-          h2hSel.length === 0 ||
-          (g.away.manager && h2hSel.includes(g.away.manager)) ||
-          (g.home.manager && h2hSel.includes(g.home.manager))
-        );
+        return kickoff <= now && now - kickoff < LIVE_WINDOW_MS;
       })
       .sort((a, b) => String(a.date).localeCompare(String(b.date)));
-  }, [data, now, h2hSel]);
+  }, [data, now]);
 
   /* Newest first the whole way down: weeks descend, and within a week the games
      descend too, so the very top of the page is the last game that finished. */
@@ -459,6 +458,46 @@ export default function Page() {
               ? "Bowl and playoff games are now scheduled and are included."
               : "Conference championship, bowl and playoff games are not projected. They will raise these numbers once they are scheduled in December."}
           </p>
+
+          {liveGames.length > 0 && (
+            <section className="livewrap">
+              <h2>
+                <span className="livehead">
+                  <span className="dot" />
+                  On the field
+                </span>
+                <span className="cw">
+                  {liveGames.length} game{liveGames.length === 1 ? "" : "s"}
+                </span>
+              </h2>
+              {liveGames.map((g, i) => (
+                <div className="gow" key={`${g.date}-${g.home.team}-${i}`}>
+                  <span className="mono muted d">{kickoff(g.date)}</span>
+                  <span className="mu">
+                    {g.away.manager ? <><b>{cap(g.away.manager)}</b>&rsquo;s </> : null}
+                    {g.away.team}
+                    {!g.away.manager && <span className="undr"> undrafted</span>}
+                    <span className="at">{g.neutral ? " vs " : " at "}</span>
+                    {g.home.manager ? <><b>{cap(g.home.manager)}</b>&rsquo;s </> : null}
+                    {g.home.team}
+                    {!g.home.manager && <span className="undr"> undrafted</span>}
+                    {g.sameManager && <em className="self"> both his</em>}
+                  </span>
+                  {/* the feed carries a score for a game in flight only
+                      sometimes, so the column is often empty by design */}
+                  <span className="mono muted score">
+                    {g.partial ? `${g.partial.away}-${g.partial.home}` : ""}
+                  </span>
+                  <span className="mono stakes">{g.stakes}pt</span>
+                </div>
+              ))}
+              <p className="caption">
+                Kicked off and not yet final as of the last refresh
+                {data.generatedAt && `, ${shortTime(data.generatedAt)}`}. Scores
+                appear only when the feed is carrying them.
+              </p>
+            </section>
+          )}
 
           {data.gamesOfWeek.games.length > 0 && (
             <section>
@@ -742,46 +781,6 @@ export default function Page() {
 
           {view === "timeline" && (
             <>
-              {liveGames.length > 0 && (
-                <section className="livewrap">
-                  <h2>
-                    <span className="livehead">
-                      <span className="dot" />
-                      On the field
-                    </span>
-                    <span className="cw">
-                      {liveGames.length} game{liveGames.length === 1 ? "" : "s"}
-                    </span>
-                  </h2>
-                  {liveGames.map((g, i) => (
-                    <div className="gow" key={`${g.date}-${g.home.team}-${i}`}>
-                      <span className="mono muted d">{kickoff(g.date)}</span>
-                      <span className="mu">
-                        {g.away.manager ? <><b>{cap(g.away.manager)}</b>&rsquo;s </> : null}
-                        {g.away.team}
-                        {!g.away.manager && <span className="undr"> undrafted</span>}
-                        <span className="at">{g.neutral ? " vs " : " at "}</span>
-                        {g.home.manager ? <><b>{cap(g.home.manager)}</b>&rsquo;s </> : null}
-                        {g.home.team}
-                        {!g.home.manager && <span className="undr"> undrafted</span>}
-                        {g.sameManager && <em className="self"> both his</em>}
-                      </span>
-                      {/* the feed carries a score for a game in flight only
-                          sometimes, so the column is often empty by design */}
-                      <span className="mono muted score">
-                        {g.partial ? `${g.partial.away}-${g.partial.home}` : ""}
-                      </span>
-                      <span className="mono stakes">{g.stakes}pt</span>
-                    </div>
-                  ))}
-                  <p className="caption">
-                    Kicked off and not yet final as of the last refresh
-                    {data.generatedAt && `, ${shortTime(data.generatedAt)}`}. Scores
-                    appear only when the feed is carrying them.
-                  </p>
-                </section>
-              )}
-
               <p className="asof">
                 Every scored game with a drafted team in it, newest first.{" "}
                 {h2hSel.length > 0 && `Filtered to ${h2hSel.map(cap).join(", ")}.`}
