@@ -129,8 +129,20 @@ and punctuation, so "san jose st" and "texas am" both hit.
 Tab 3, Activity: two views over the same manager filter. "Head to head" is the
 log of every scored game where both teams are drafted, newest first - the league
 tiebreaker, with a manager's own two teams playing each other tagged "own goal".
-"Timeline" is every scored game with a drafted team on either side, grouped by
-week, with the points the win was worth. Both views run newest first the whole
+"Timeline" opens with "On the field", the league games in progress right now,
+and then every scored game with a drafted team on either side, grouped by week,
+with the points the win was worth.
+
+"On the field" costs nothing to produce. CFBD's /games carries no clock, period
+or status, so a game in flight is inferred in the browser: it is still in the
+upcoming list, its kickoff has passed, and it started less than five and a half
+hours ago. That last bound matters because outside the Saturday window the bot
+runs only every eight hours, so a finished game can sit in the upcoming list for
+most of a day. Because it is computed against the wall clock rather than the
+payload, the list is right the moment a game kicks off, with no refresh needed.
+Scores are shown only if the feed happens to be carrying one, which in practice
+it is not: live scoring lives on /scoreboard, a second call per run that would
+put the cron over the free tier. Do not add it without redoing the API budget. Both views run newest first the whole
 way down: the weeks descend and the games inside each week descend too. A team
 that lost to an undrafted opponent appears with a blank points column, and under
 a manager filter the week total counts only that manager's own wins - their team

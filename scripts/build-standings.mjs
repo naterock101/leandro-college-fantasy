@@ -192,6 +192,16 @@ function build(doc, owners, games, lines) {
         const sideOf = (team, o) =>
           o ? { team, manager: o.manager, tier: o.tier, conf: o.conf, draft: o.draft }
             : { team, manager: null, tier: null, conf: null, draft: team };
+        /* CFBD's /games carries no clock, period or status, so a game in flight
+           is only ever "kicked off and not yet marked complete". If the feed
+           happens to be carrying a partial score for one, pass it through; when
+           it is not, the row still stands on the fact that the game started.
+           Live detail proper lives on /scoreboard, which is a second call per
+           run and would put the cron over the free tier's 1,000 a month. */
+        const lhp = homePts(g), lap = awayPts(g);
+        const partial = typeof lhp === "number" && typeof lap === "number"
+          ? { home: lhp, away: lap }
+          : undefined;
         upcoming.push({
           key: sortKey(g), id: g.id, week: weekOf(g), seasonType: seasonType(g), date: startDate(g),
           away: sideOf(a, oa),
@@ -201,6 +211,7 @@ function build(doc, owners, games, lines) {
           sameManager: Boolean(oh && oa && oh.manager === oa.manager),
           stakes: Math.max(oh ? val(oh.tier) : 0, oa ? val(oa.tier) : 0),
           spread: lines.games[g.id] ?? null,
+          partial,
         });
       }
       continue;

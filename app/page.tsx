@@ -42,6 +42,9 @@ type Data = {
   gamesOfWeek: { label: string | null; games: {
     date: string; away: Side; home: Side; neutral: boolean; sameManager: boolean;
     stakes: number; h2h: boolean;
+    /* only present when the feed happened to be carrying a score for a game
+       that had started but was not yet final */
+    partial?: { home: number; away: number };
     spread: { spread: number; favorite: string | null; formatted: string;
               overUnder: number | null; provider: string } | null }[] };
   byConference: Record<string, {
@@ -78,8 +81,17 @@ const books = (games: { spread: { provider: string } | null }[]) => {
   if (!seen.length) return "the book";
   return seen.length === 1 ? seen[0] : seen.slice(0, -1).join(", ") + " and " + seen[seen.length - 1];
 };
+/* Nothing in college football runs past five and a half hours, so a game that
+   kicked off longer ago than this has finished whatever the payload still says. */
+const LIVE_WINDOW_MS = 5.5 * 60 * 60 * 1000;
+
 const shortDate = (d?: string) =>
   d ? new Date(d).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "";
+/* a game in flight started today, so the clock is the useful part, not the date */
+const kickoff = (d: string) =>
+  new Date(d).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+const shortTime = (d: string) =>
+  new Date(d).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 
 /* Folds accents and punctuation so "san jose st" finds "San Jose State" and
    "texas am" finds "Texas A&M". */
@@ -146,6 +158,15 @@ export default function Page() {
   const h2hRef = useRef<HTMLDivElement>(null);
   /* head to head is the argument, the timeline is the whole week */
   const [view, setView] = useState<"h2h" | "timeline">("h2h");
+
+  /* The live list is a function of the wall clock as much as of the payload:
+     a game becomes "in progress" by kicking off, with no new data involved. A
+     minute is fine granularity for a three hour game. */
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -245,6 +266,29 @@ export default function Page() {
       )
       .reverse();
   }, [data, h2hSel]);
+
+  /* Games that have kicked off and are not yet in the payload as final. The bot
+     writes only completed games as results, so anything still sitting in the
+     upcoming list whose start time has passed is on the field right now.
+
+     The upper bound matters: outside the Saturday window the bot runs every
+     eight hours, so a game that finished at noon can sit in this list until the
+     evening run retires it. Nothing runs past five and a half hours, so beyond
+     that the entry is stale rather than live and is dropped. */
+  const liveGames = useMemo(() => {
+    if (!data) return [];
+    return data.gamesOfWeek.games
+      .filter((g) => {
+        const kickoff = new Date(g.date).getTime();
+        if (!(kickoff <= now && now - kickoff < LIVE_WINDOW_MS)) return false;
+        return (
+          h2hSel.length === 0 ||
+          (g.away.manager && h2hSel.includes(g.away.manager)) ||
+          (g.home.manager && h2hSel.includes(g.home.manager))
+        );
+      })
+      .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  }, [data, now, h2hSel]);
 
   /* Newest first the whole way down: weeks descend, and within a week the games
      descend too, so the very top of the page is the last game that finished. */
@@ -698,6 +742,46 @@ export default function Page() {
 
           {view === "timeline" && (
             <>
+              {liveGames.length > 0 && (
+                <section className="livewrap">
+                  <h2>
+                    <span className="livehead">
+                      <span className="dot" />
+                      On the field
+                    </span>
+                    <span className="cw">
+                      {liveGames.length} game{liveGames.length === 1 ? "" : "s"}
+                    </span>
+                  </h2>
+                  {liveGames.map((g, i) => (
+                    <div className="gow" key={`${g.date}-${g.home.team}-${i}`}>
+                      <span className="mono muted d">{kickoff(g.date)}</span>
+                      <span className="mu">
+                        {g.away.manager ? <><b>{cap(g.away.manager)}</b>&rsquo;s </> : null}
+                        {g.away.team}
+                        {!g.away.manager && <span className="undr"> undrafted</span>}
+                        <span className="at">{g.neutral ? " vs " : " at "}</span>
+                        {g.home.manager ? <><b>{cap(g.home.manager)}</b>&rsquo;s </> : null}
+                        {g.home.team}
+                        {!g.home.manager && <span className="undr"> undrafted</span>}
+                        {g.sameManager && <em className="self"> both his</em>}
+                      </span>
+                      {/* the feed carries a score for a game in flight only
+                          sometimes, so the column is often empty by design */}
+                      <span className="mono muted score">
+                        {g.partial ? `${g.partial.away}-${g.partial.home}` : ""}
+                      </span>
+                      <span className="mono stakes">{g.stakes}pt</span>
+                    </div>
+                  ))}
+                  <p className="caption">
+                    Kicked off and not yet final as of the last refresh
+                    {data.generatedAt && `, ${shortTime(data.generatedAt)}`}. Scores
+                    appear only when the feed is carrying them.
+                  </p>
+                </section>
+              )}
+
               <p className="asof">
                 Every scored game with a drafted team in it, newest first.{" "}
                 {h2hSel.length > 0 && `Filtered to ${h2hSel.map(cap).join(", ")}.`}
@@ -874,6 +958,16 @@ function Style() {
     .clear{position:absolute;right:6px;background:transparent;border:0;color:var(--muted);
       font-size:16px;line-height:1;padding:2px 4px;cursor:pointer;font-family:inherit}
     .clear:hover{color:var(--chalk)}
+    .livewrap h2{margin-top:4px}
+    /* a kickoff time needs more room than the "Sep 3" the other rows carry */
+    .livewrap .gow .d{width:58px}
+    .livehead{display:flex;align-items:center;gap:7px}
+    .dot{width:7px;height:7px;border-radius:50%;background:var(--red);flex-shrink:0;
+      animation:pulse 2s ease-in-out infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+    /* a viewer who has asked for less motion still needs to see the dot, just
+       not the blink */
+    @media (prefers-reduced-motion:reduce){.dot{animation:none}}
     /* a points badge that belongs to a manager the filter is not about */
     .stakes.them{color:var(--muted);opacity:.55;font-weight:400}
     .wk{font-size:11px;width:34px;text-align:right;flex-shrink:0;opacity:.75}
