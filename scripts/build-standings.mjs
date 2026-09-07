@@ -402,10 +402,15 @@ function project(table, upcoming, lines, val) {
 function buildByWeek(doc, owners, games, PTS) {
   const names = Object.keys(doc.managers);
   const buckets = new Map();
+  /* Every rostered game the week holds, played or not, so a week can be shown
+     as progress ("64/65 scored") rather than a bare count. A game between two
+     rostered teams is one game here, same as in the played buckets. */
+  const scheduled = new Map();
   for (const g of games) {
-    if (!isDone(g)) continue;
     if (!owners.has(home(g)) && !owners.has(away(g))) continue;
     const k = sortKey(g);
+    scheduled.set(k, (scheduled.get(k) ?? 0) + 1);
+    if (!isDone(g)) continue;
     if (!buckets.has(k)) buckets.set(k, []);
     buckets.get(k).push(g);
   }
@@ -434,6 +439,7 @@ function buildByWeek(doc, owners, games, PTS) {
       seasonType: ord === "1" ? "postseason" : "regular",
       week: Number(wk),
       games: buckets.get(k).length,
+      scheduled: scheduled.get(k) ?? buckets.get(k).length,
       delta,
       cumulative: JSON.parse(JSON.stringify(running)),
     });

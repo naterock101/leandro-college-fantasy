@@ -31,6 +31,9 @@ type Data = {
   postseasonScheduled: boolean;
   standings: Row[];
   byWeek: { key: string; label: string; seasonType: string; week: number; games: number;
+            /* total rostered games the week holds; absent in snapshots built
+               before it was added, so always read it through a fallback */
+            scheduled?: number;
             delta: Record<string, number>;
             cumulative: Record<string, { points: number; wins: number; losses: number }> }[];
   linesFetchedAt: string | null;
@@ -65,6 +68,12 @@ type Data = {
 type ScoredSide = { team: string; manager: string | null };
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/* "8/9", or just "8" when the snapshot predates the scheduled field. Defaulting
+   the denominator to the played count would read as a finished week, so a
+   missing total drops the fraction rather than inventing one. */
+const tally = (played: number, total?: number) =>
+  typeof total === "number" ? `${played}/${total}` : `${played}`;
 
 /* "fav" or "dog" for one side of a matchup. A pick-em has no favourite and an
    unpriced game has no line, and in both cases neither side gets coloured. */
@@ -344,6 +353,14 @@ export default function Page() {
 
   const live = weekIdx < 0;
   const stamp = new Date(data.generatedAt);
+  /* Weeks appear in byWeek only once they have a played game, so summing them
+     covers the season to date - every week already under way - and never the
+     ones still ahead. That makes the live pair the sum of the week pairs.
+     One week short of a total leaves the season without one either. */
+  const scored = data.byWeek.reduce((n, w) => n + w.games, 0);
+  const slated = data.byWeek.every((w) => typeof w.scheduled === "number")
+    ? data.byWeek.reduce((n, w) => n + (w.scheduled ?? 0), 0)
+    : undefined;
 
   return (
     <main className="wrap">
@@ -370,12 +387,18 @@ export default function Page() {
           <div className="weeks">
             <button className={live ? "on" : ""} onClick={() => setWeek(-1)}>Live</button>
             {data.byWeek.map((w, i) => (
-              <button key={w.key} className={weekIdx === i ? "on" : ""} onClick={() => setWeek(i)} title={`${w.games} games`}>
+              <button key={w.key} className={weekIdx === i ? "on" : ""} onClick={() => setWeek(i)} title={`${tally(w.games, w.scheduled)} games scored`}>
                 {w.seasonType === "postseason" ? `P${w.week}` : w.week}
               </button>
             ))}
           </div>
-          {!live && <p className="asof">As of {data.byWeek[weekIdx].label.toLowerCase()} · {data.byWeek[weekIdx].games} games scored</p>}
+          {data.byWeek.length > 0 && (
+            <p className="asof">
+              {live
+                ? `Season to date · ${tally(scored, slated)} games scored`
+                : `As of ${data.byWeek[weekIdx].label.toLowerCase()} · ${tally(data.byWeek[weekIdx].games, data.byWeek[weekIdx].scheduled)} games scored`}
+            </p>
+          )}
 
           <table>
             <thead>
