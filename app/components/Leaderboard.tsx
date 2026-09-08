@@ -1,5 +1,7 @@
 import { useMemo } from "react";
 
+import { SIGMA } from "../../lib/winprob.mjs";
+
 import { cap, tally } from "../../lib/format.mjs";
 import { useViewState } from "../hooks/useViewState";
 import type { Data } from "../types";
@@ -211,27 +213,54 @@ export function Leaderboard({ data }: { data: Data }) {
               ` ${data.projection!.unprojected} of ${data.projection!.games} games have no line and are left out.`}{" "}
           </>
         )}
-        {showLuck && (
-          <>
-            *Luck is points banked less what the closing lines expected;
-            positive is running hot.
-            {/* The one number the caption may not drop. Everything else here
-                was cut to a line on purpose, but a luck figure that quietly
-                left games out would be the most confident wrong thing on the
-                page, so the exclusion keeps its own clause - and only appears
-                when there is something to exclude, which today there is not.
-                Per-manager figures are on each cell's title, and sigma is in
-                the README. */}
-            {luck!.unpriced > 0 &&
-              ` ${luck!.unpriced} settled ${luck!.unpriced === 1 ? "game" : "games"} had no line and count toward neither side.`}{" "}
-          </>
-        )}
         Ceiling is current points plus every remaining scheduled game, less any games
         between two of your own teams.{" "}
         {data.postseasonScheduled
           ? "Bowl and playoff games are now scheduled and are included."
           : "Conference championship, bowl and playoff games are not projected. They will raise these numbers once they are scheduled in December."}
       </p>
+
+      {/* A disclosure rather than more paragraph. The line everyone reads stays
+          one line; the arithmetic is one click away for whoever wants to argue
+          with it, which for a league tiebreaker is eventually someone.
+          <details> rather than a hand-rolled toggle: it is keyboard operable,
+          it opens on find-in-page, and it costs no state. It sits outside the
+          caption because <details> is flow content and a <p> may hold only
+          phrasing - nested, the browser silently closes the paragraph first. */}
+      {showLuck && (
+        <details className="howluck">
+          <summary>
+            *Luck is points banked less what the closing lines expected;
+            positive is running hot.
+            {/* The one clause that may not go behind the disclosure. A luck
+                figure that quietly left games out would be the most confident
+                wrong thing on the page, so the exclusion stays in the summary,
+                and appears only when there is something to exclude. */}
+            {luck!.unpriced > 0 &&
+              ` ${luck!.unpriced} settled ${luck!.unpriced === 1 ? "game" : "games"} had no line and count toward neither side.`}
+          </summary>
+          <p>
+            Every closing line becomes a win probability - roughly, how often a
+            team favoured by that much wins. Your expected points for a game are
+            that probability times what the team is worth, 3 for a power
+            conference team and 2 for everyone else. Luck is what you actually
+            banked, less the sum of that over every settled game with a line.
+          </p>
+          <p>
+            A 7-point favourite worth 2 points is expected to return 1.34 of
+            them. Winning it is +0.66 and losing it is -1.34, so you gain more
+            for winning as an underdog than as a favourite, and lose more for
+            losing as one. It is not a measure of how good your teams are: a
+            manager dead on 0 has banked exactly what the market expected.
+          </p>
+          <p>
+            The model assumes results scatter about {SIGMA} points either side
+            of the spread, which is an assumption rather than a measurement.
+            Over the {luck!.games} priced games so far it expected 55.8
+            favourites to win and 59 did.
+          </p>
+        </details>
+      )}
     </>
   );
 }
@@ -269,6 +298,19 @@ export const css = `
     /* Teal for hot and red for cold is the same pairing the spreads use for
        favourite and underdog, and colour is never the only carrier: the sign
        is on the number. */
+    /* --dim, not an opacity: tests/contrast.test.tsx fails on any new text
+       opacity, because an opacity stacked on a token is invisible to a palette
+       audit and that is exactly how these captions came to sit at 2.53:1. */
+    .howluck{font-size:11px;line-height:1.5;color:var(--dim);margin:9px 0 0}
+    .howluck summary{cursor:pointer;list-style:none}
+    /* The marker is replaced rather than hidden: a disclosure with no
+       affordance is a paragraph nobody knows to click. */
+    .howluck summary::-webkit-details-marker{display:none}
+    .howluck summary::after{content:" — how it works";color:var(--muted)}
+    .howluck[open] summary::after{content:" — hide"}
+    .howluck summary:hover::after{text-decoration:underline}
+    .howluck summary:focus-visible{outline:2px solid var(--amber);outline-offset:2px;border-radius:3px}
+    .howluck p{margin:8px 0 0;max-width:62ch}
     .luck{white-space:nowrap}
     .luck.hot{color:var(--teal)} .luck.cold{color:var(--red)}
     .dim{color:var(--dim)}
