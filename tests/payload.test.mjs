@@ -20,7 +20,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFileSync, mkdtempSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdtempSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -132,6 +132,37 @@ test("a core path the siblings cannot be named from is refused, not guessed at",
     { encoding: "utf8" });
   assert.notEqual(r.status, 0, "silently wrote something under a name nobody asked for");
   assert.match(r.stderr, /standings\.json/);
+});
+
+test("--lines reads the spreads from where the run keeps them", () => {
+  /* The workflow writes every payload file straight into a worktree of the
+     `data` branch, which is also where the merge-only lines file lives now.
+     Without this the builder would go on reading public/lines.json out of the
+     code checkout - a path that no longer holds a lines file at all - and
+     would quietly publish a season with no spreads on it. */
+  const dir = mkdtempSync(join(tmpdir(), "payload-"));
+  const lines = join(dir, "lines.json");
+  const doc = read(join(ROOT, "fixtures/sample-lines.json"));
+  doc.fetchedAt = "2001-02-03T04:05:06.000Z";
+  writeFileSync(lines, JSON.stringify(doc));
+
+  const out = join(dir, "standings.json");
+  const r = spawnSync(process.execPath,
+    [join(ROOT, "scripts/build-standings.mjs"), "--fixture", GAMES,
+      "--lines", lines, "--out", out, "--union"],
+    { encoding: "utf8" });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(read(out).linesFetchedAt, doc.fetchedAt);
+});
+
+test("a fixture build with no --lines still reads the fixture, never the live file", () => {
+  /* The hermeticity guarantee the golden depends on. --lines is an explicit
+     instruction and overrides it; the absence of --lines must not quietly
+     start reading public/lines.json again, whose fetchedAt moves every few
+     hours and made the golden undiffable. */
+  const { out } = runBuilder("--union");
+  assert.equal(read(out).linesFetchedAt,
+    read(join(ROOT, "fixtures/sample-lines.json")).fetchedAt);
 });
 
 /* ------------------------------------------------------------------ */

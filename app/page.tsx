@@ -2,19 +2,50 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { LIVE_WINDOW_MS } from "../lib/games.mjs";
+import { classify } from "../lib/games.mjs";
+import { LAZY, mergePayload } from "../lib/payload.mjs";
 import { cap, tally, norm, shortDate, kickoff, shortTime } from "../lib/format.mjs";
 
 /* Reads the JSON the GitHub Action commits. Fetching from raw.githubusercontent
-   rather than /standings.json means data updates without a Vercel redeploy,
-   which matters because the bot commits every 10 minutes during games. */
-const SOURCE =
-  "https://raw.githubusercontent.com/naterock101/leandro-college-fantasy/main/public/standings.json";
+   rather than the bundled copy means data updates without a Vercel redeploy,
+   which matters because the bot commits every 10 minutes during games.
 
-/* Fallback for local dev and for the window before the bot's first commit
-   exists on main: the copy bundled with this deploy. Stale by design, only
-   reached when the live fetch fails. */
-const FALLBACK = "/standings.json";
+   The branch is `data`, not `main`: an orphan branch holding the payload and
+   nothing else, so main's history is code again and Vercel - which watches
+   main - never sees a data commit at all. Its files sit at the branch root
+   rather than under public/, because there is no site on that branch for
+   public/ to mean anything about. */
+const SOURCE =
+  "https://raw.githubusercontent.com/naterock101/leandro-college-fantasy/data";
+
+/* The copy bundled with this deploy, reached only when the live fetch fails:
+   local dev, an offline visitor, a raw.githubusercontent outage, and the
+   window between deploying this and the `data` branch existing at all. Frozen
+   at whatever was committed to main, and deliberately not refreshed by the
+   bot - keeping it current is what would put data commits back on main. */
+const bundled = (file: string) => `/${file}.json`;
+const remote = (file: string) => `${SOURCE}/${file}.json`;
+
+/* The core is on screen the moment the page opens; the other two are ~70% of
+   the bytes and neither is visible until a tab is clicked. Names match the
+   files the builder writes, via lib/payload.mjs. */
+type Lazy = keyof typeof LAZY;
+const NEEDS: Record<Tab, Lazy | null> = { league: null, teams: "teams", h2h: "results" };
+type Tab = "league" | "teams" | "h2h";
+
+/* idle: nobody has opened the tab that needs it. failed: we asked and did not
+   get it, which is a different sentence from "nothing has happened yet" and
+   must not be shown as one. */
+type Load = "idle" | "loading" | "ready" | "failed";
+
+/* 60 seconds while a game is on, five minutes otherwise. The bot writes every
+   10 minutes at its fastest and raw.githubusercontent holds a 300s CDN cache
+   in front of it, so the old flat 120s spent most of its polls asking a
+   question that could not have a new answer. A minute during a game is under
+   the CDN window, so the first poll after a commit lands within about a minute
+   of it becoming visible; five minutes off-season matches the cache exactly. */
+const POLL_LIVE_MS = 60_000;
+const POLL_IDLE_MS = 5 * 60_000;
 
 type TeamRow = {
   team: string; draft: string; conf: string; tier: "p4" | "g5";
@@ -88,6 +119,18 @@ const why = (u: { reason: string; date: string }) =>
     ? `Ended level on ${shortDate(u.date)}, and this league has no half wins.`
     : `Marked final on ${shortDate(u.date)} with no score in the feed.`;
 
+/* What a tab says instead of its own empty state while its file is not here.
+   The distinction is the whole point of having it: an empty array reads the
+   same whether nothing has happened yet or the fetch failed, and only one of
+   those is the site's fault. Returns null once the file has arrived, and the
+   tab's own copy takes over. */
+const lazyNote = (st: Load) =>
+  st === "ready"
+    ? null
+    : st === "failed"
+    ? "That part of the payload did not load. The page tries again on its next refresh."
+    : "Loading…";
+
 /* "fav" or "dog" for one side of a matchup. A pick-em has no favourite and an
    unpriced game has no line, and in both cases neither side gets coloured. */
 const side = (
@@ -139,9 +182,24 @@ function Owned({ side }: { side: ScoredSide }) {
 }
 
 export default function Page() {
-  const [data, setData] = useState<Data | null>(null);
+  /* The always-fetched file and the two that arrive when their tab is opened,
+     kept apart in state and put together for the render. Every consumer below
+     goes on reading one object with every section on it - mergePayload fills
+     an absent section with an empty collection rather than undefined, so a
+     file that 404s costs a tab its contents and never the whole page. */
+  const [core, setCore] = useState<Record<string, any> | null>(null);
+  const [parts, setParts] = useState<Partial<Record<Lazy, any>>>({});
+  const [load, setLoad] = useState<Record<Lazy, Load>>({ results: "idle", teams: "idle" });
+  /* Which lazy files this session is following. A tab opened once keeps its
+     file refreshing with the core thereafter, so switching back to it shows
+     the same instant as the leaderboard rather than a stale snapshot. */
+  const [want, setWant] = useState<Lazy[]>([]);
+  const data = useMemo(
+    () => (core ? (mergePayload(core, parts) as Data) : null),
+    [core, parts]
+  );
   const [err, setErr] = useState<string | null>(null);
-  const [tab, setTab] = useState<"league" | "teams" | "h2h">("league");
+  const [tab, setTab] = useState<Tab>("league");
   const [week, setWeek] = useState(-1);
   const [open, setOpen] = useState<string | null>(null);
   /* empty = every conference. Storing the selection rather than the exclusion
@@ -173,19 +231,23 @@ export default function Page() {
     return () => clearInterval(id);
   }, []);
 
+  /* Opening a tab is what asks for its file. Adding to the list restarts the
+     polling effect below, which fetches immediately, so the first open is a
+     request and every later open is already-loaded data. */
   useEffect(() => {
-    let alive = true;
-    const grab = (url: string) =>
-      fetch(`${url}?t=${Date.now()}`, { cache: "no-store" })
-        .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))));
-    const load = () =>
-      grab(SOURCE)
-        .catch(() => grab(FALLBACK))
-        .then((d) => { if (alive) { setData(d); setErr(null); } })
-        .catch((e) => alive && setErr(e.message));
-    load();
-    const id = setInterval(load, 120_000);
-    return () => { alive = false; clearInterval(id); };
+    const f = NEEDS[tab];
+    if (f) setWant((w) => (w.includes(f) ? w : [...w, f]));
+  }, [tab]);
+
+  /* A phone left open through a twelve hour Saturday used to poll about 360
+     times in a pocket. The tab being hidden is the one signal that says nobody
+     can see the answer. */
+  const [visible, setVisible] = useState(true);
+  useEffect(() => {
+    const sync = () => setVisible(!document.hidden);
+    sync();
+    document.addEventListener("visibilitychange", sync);
+    return () => document.removeEventListener("visibilitychange", sync);
   }, []);
 
   useClickAway(confOpen, ddRef, setConfOpen);
@@ -286,13 +348,83 @@ export default function Page() {
      that the entry is stale rather than live and is dropped. */
   const liveGames = useMemo(() => {
     if (!data) return [];
+    /* Asked of the shared classifier rather than recomputed here. A row in
+       gamesOfWeek carries a kickoff and no completion flag - the builder puts
+       only scheduled and live games in that list - so the kickoff is the whole
+       input, and going through classify is what keeps the page and the builder
+       from drifting apart on what "live" means. That drift was the dead-week
+       bug: the page already knew a game abandoned eight hours ago was not live
+       and the builder did not. */
     return data.gamesOfWeek.games
-      .filter((g) => {
-        const kick = new Date(g.date).getTime();
-        return kick <= now && now - kick < LIVE_WINDOW_MS;
-      })
+      .filter((g) => classify({ startDate: g.date }, now) === "live")
       .sort((a, b) => String(a.date).localeCompare(String(b.date)));
   }, [data, now]);
+
+  /* ---------------------------------------------------------------- */
+
+  /* The one place anything is fetched. It restarts when the cadence changes,
+     when a tab asks for a new file, and when the tab comes back into view, and
+     it fetches once immediately on every one of those - so returning to a
+     phone shows the current score straight away rather than after waiting out
+     an interval that was not running.
+
+     Deliberately placed after liveGames rather than at the top of the
+     component: the cadence is a function of the data, and the alternative was
+     a second definition of "is anything on" living up there. The cost is one
+     extra fetch when the first payload turns the cadence from idle to live,
+     and that fetch is a 304. */
+  const pollMs = liveGames.length ? POLL_LIVE_MS : POLL_IDLE_MS;
+  const everLoaded = useRef(false);
+  useEffect(() => {
+    /* The first load happens even in a background tab, so a link opened in one
+       is rendered by the time it is looked at. After that, hidden means no
+       requests at all until it comes back. */
+    if (!visible && everLoaded.current) return;
+    let alive = true;
+
+    /* No cache-busting query string, and `no-cache` rather than `no-store`.
+       Both of the old settings had the same effect: `?t=` made every poll a
+       URL nothing had ever seen, and `no-store` tells the browser not to keep
+       a copy it could revalidate against, so between them every poll pulled
+       the whole body. `no-cache` still goes to the network every single time -
+       it is not weaker - but it goes conditionally, and raw.githubusercontent
+       answers a matching If-None-Match with a 304 and no body at all. */
+    const json = (url: string) =>
+      fetch(url, { cache: "no-cache" })
+        .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))));
+    /* Live copy first, deploy-time copy second, per file. */
+    const grab = (file: string) => json(remote(file)).catch(() => json(bundled(file)));
+
+    const poll = () => {
+      everLoaded.current = true;
+      grab("standings")
+        .then((d) => { if (alive) { setCore(d); setErr(null); } })
+        .catch((e) => { if (alive) setErr(e.message); });
+
+      for (const f of want) {
+        setLoad((s) => (s[f] === "idle" ? { ...s, [f]: "loading" } : s));
+        grab(f)
+          .then((d) => {
+            if (!alive) return;
+            setParts((p) => ({ ...p, [f]: d }));
+            setLoad((s) => ({ ...s, [f]: "ready" }));
+          })
+          /* A refresh that fails after the file once arrived leaves the tab
+             showing what it has. Only a file we have never had reads as
+             failed, because that is the only case where the tab is empty and
+             the reason matters. */
+          .catch(() => {
+            if (!alive) return;
+            setLoad((s) => ({ ...s, [f]: s[f] === "ready" ? "ready" : "failed" }));
+          });
+      }
+    };
+
+    poll();
+    if (!visible) return () => { alive = false; };
+    const id = setInterval(poll, pollMs);
+    return () => { alive = false; clearInterval(id); };
+  }, [visible, pollMs, want]);
 
   /* Grouped by the week the game belonged to, oldest first. A game abandoned in
      week 1 stays filed under week 1 however many weeks later it is read,
@@ -763,9 +895,10 @@ export default function Page() {
           </table>
           {!teamRows.length && (
             <p className="caption">
-              {searching
-                ? `No team matching \u201C${q.trim()}\u201D. Check the conference and drafted filters too.`
-                : "No teams match that filter."}
+              {lazyNote(load.teams) ??
+                (searching
+                  ? `No team matching \u201C${q.trim()}\u201D. Check the conference and drafted filters too.`
+                  : "No teams match that filter.")}
             </p>
           )}
         </>
@@ -849,9 +982,10 @@ export default function Page() {
 
               {!h2hGames.length && (
                 <p className="caption">
-                  {data.headToHead.length === 0
-                    ? "No game between two drafted teams has been scored yet."
-                    : "No games match that filter."}
+                  {lazyNote(load.results) ??
+                    (data.headToHead.length === 0
+                      ? "No game between two drafted teams has been scored yet."
+                      : "No games match that filter.")}
                 </p>
               )}
             </>
@@ -903,9 +1037,7 @@ export default function Page() {
 
               {!timeline.length && (
                 <p className="caption">
-                  {data.results
-                    ? "No scored games match that filter."
-                    : "The timeline arrives with the next standings refresh."}
+                  {lazyNote(load.results) ?? "No scored games match that filter."}
                 </p>
               )}
             </>

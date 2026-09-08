@@ -9,15 +9,19 @@
  *
  * Env: CFBD_API_KEY
  * Usage: node scripts/build-standings.mjs [--dry] [--fixture path.json]
- *                                         [--out path.json] [--now iso] [--union]
+ *                                         [--lines path.json] [--out path.json]
+ *                                         [--now iso] [--union]
  *
  * Three files come out, not one - standings.json, results.json, teams.json -
  * because the page fetches the first on every poll and the other two only once
  * the tab that needs them is opened. lib/payload.mjs owns which key goes where.
  *
- * --fixture also swaps public/lines.json for fixtures/sample-lines.json and
- * pins the clock, so a fixture build reads nothing that moves and its output is
+ * --fixture also swaps the lines file for fixtures/sample-lines.json and pins
+ * the clock, so a fixture build reads nothing that moves and its output is
  * reproducible.
+ *
+ * --lines says where the lines file is. The workflow keeps it in the `data`
+ * worktree alongside everything else it writes.
  *
  * --out redirects the write away from public/. It names the core file, and the
  * other two are named from its prefix. Regenerating the sample fixture must use
@@ -41,7 +45,6 @@ import { splitPayload } from "../lib/payload.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ROSTERS = resolve(ROOT, "data/rosters.json");
-const LINES = resolve(ROOT, "public/lines.json");
 const FIXTURE_LINES = resolve(ROOT, "fixtures/sample-lines.json");
 const API = "https://api.collegefootballdata.com/games";
 
@@ -61,6 +64,14 @@ const flagValue = (name) => {
 
 const FIXTURE = flagValue("--fixture");
 const OUT = resolve(ROOT, flagValue("--out") ?? "public/standings.json");
+/* Where build-lines.mjs left its file. The workflow keeps every data file in a
+   worktree of the `data` branch and passes both scripts a matching --out and
+   --lines, so the two never have to agree about a path by convention and there
+   is no copy step between them that could be dropped. Dropping one would have
+   been quiet and expensive: the builder would read a lines file that is not
+   there and publish a season with no spreads on it. */
+const LINES_FLAG = flagValue("--lines");
+const LINES = resolve(ROOT, LINES_FLAG ?? "public/lines.json");
 /* Writes the whole payload to OUT as one file instead of the three the site
    fetches. Only `npm run fixture:regen` passes it: a golden split across three
    files is three diffs to read, and could not state the one invariant worth
@@ -115,7 +126,10 @@ const NOW = (() => {
    through linesFetchedAt, and a golden file that drifts cannot be diffed in
    CI, which is the only thing a golden file is for. */
 function loadLines() {
-  if (FIXTURE) {
+  /* --lines names a file outright and so beats the fixture's default. Without
+     it a fixture build reads the committed fixture and never the live file,
+     which is what keeps the golden diffable. */
+  if (FIXTURE && !LINES_FLAG) {
     /* Unlike the live file this one is not optional: silently falling back to
        no spreads would change the golden output rather than fail, which is the
        wrong way round for a file whose whole job is determinism. */

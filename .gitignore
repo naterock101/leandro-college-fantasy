@@ -6,3 +6,11 @@ next-env.d.ts
 .env.local
 .DS_Store
 tsconfig.tsbuildinfo
+
+# The merge-only lines file lives on the data branch and nowhere else. A local
+# `npm run lines` writes one here; committing it to main would create a second,
+# stale copy of the only record of the season closing lines.
+public/lines.json
+
+# The data-branch worktree the Action checks out.
+.data/
