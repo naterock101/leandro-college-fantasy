@@ -406,8 +406,8 @@ for a price we did not watch arrive.
 
 **What `closed` can and cannot tell you.** It comes from ESPN's
 `competitions[0].status.type.completed`, which is reliable but only for the
-dates a run actually asks for. `build-lines.mjs` asks for yesterday, today and
-tomorrow, Eastern - and yesterday is in that list precisely so a game that went
+dates a run actually asks for. `build-lines.mjs` asks for yesterday through a
+week out, Eastern - and yesterday is in that list precisely so a game that went
 final overnight is seen as final before it scrolls out of the window. Two
 honest limits follow. Games already complete before this was deployed will
 never be marked, because nothing will ask for their date again. And if the
@@ -421,6 +421,20 @@ That parameter is an **Eastern** calendar day, not a UTC one: `dates=20260905`
 returns games from 16:00Z that day through 02:30Z the next. Computing the
 window in UTC would put every Saturday night game on the wrong date, which on a
 Saturday night poll is the only game anyone is looking at.
+
+**Why a week and not a day.** The window started at yesterday-to-tomorrow, and
+the first run after the cutover - a Tuesday - priced nothing at all: it reached
+Wednesday, and the games anyone cared about were the following Saturday. That
+made "ESPN is the primary source" true only from Thursday, leaving Sunday to
+Wednesday on the CFBD call at 7-hour granularity, which is the freshness this
+was all meant to improve. Seven days out is the number that reaches the next
+Saturday from any day, including from a Saturday. Re-run on the same Tuesday it
+went from 0 priced games to 55, all 49 of that Saturday's included.
+
+Nine requests a run rather than three. None of them touches the CFBD budget -
+ESPN is unmetered, cached at `max-age=3`, and fetched per date independently,
+so a date it has nothing for costs an empty array and nothing else. The CFBD
+call remains throttled to one per seven hours and remains the only spend.
 
 ### Normalisation
 

@@ -295,25 +295,49 @@ describe("ESPN normalisation", () => {
        would already have rolled to the 6th and would ask ESPN for a day whose
        late games it is in the middle of. */
     const satNight = new Date("2026-09-06T02:00:00.000Z");
-    assert.deepEqual(espnDates(satNight), ["20260904", "20260905", "20260906"]);
+    assert.deepEqual(espnDates(satNight).slice(0, 3), ["20260904", "20260905", "20260906"]);
   });
 
   test("the fetch window survives the November clock change", () => {
     /* The crons are annotated "Eastern is UTC-4 through Nov 1, UTC-5 after",
        which is precisely the seam a hand-rolled offset would get wrong. */
     const beforeFallBack = new Date("2026-11-01T04:30:00.000Z"); // 00:30 EDT, Nov 1
-    assert.deepEqual(espnDates(beforeFallBack), ["20261031", "20261101", "20261102"]);
+    assert.deepEqual(espnDates(beforeFallBack).slice(0, 3), ["20261031", "20261101", "20261102"]);
     const afterFallBack = new Date("2026-11-01T06:30:00.000Z"); // 01:30 EST, Nov 1
-    assert.deepEqual(espnDates(afterFallBack), ["20261031", "20261101", "20261102"]);
+    assert.deepEqual(espnDates(afterFallBack).slice(0, 3), ["20261031", "20261101", "20261102"]);
   });
 
-  test("the fetch window is three days and always includes yesterday", () => {
+  test("the fetch window always includes yesterday", () => {
     /* Yesterday is the one that catches a game going final, which is the only
        moment `closed` can ever be recorded before ESPN drops the odds. */
     const d = espnDates(new Date("2026-09-12T18:00:00.000Z"));
-    assert.equal(d.length, 3);
     assert.equal(d[0], "20260911");
     assert.equal(d[1], "20260912");
+  });
+
+  test("the fetch window reaches the next Saturday from every day of the week", () => {
+    /* The point of ESPN being primary is that spreads are current, and the
+       games that matter are the coming weekend's. A window that stops at
+       tomorrow prices nothing from Sunday to Wednesday: on those days ESPN
+       returns an empty slate, and the only thing refreshing spreads is the
+       CFBD call, at 7-hour granularity. Verified against the live season -
+       the first run after cutover was a Tuesday and ESPN priced zero games.
+
+       Reaching seven days out is what makes "primary" true rather than
+       true-on-Fridays, and it costs nothing: ESPN is unmetered. */
+    const eastern = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit",
+    });
+    /* Sunday 2026-09-06 through Saturday 2026-09-12, one run per weekday at
+       noon Eastern. Every one of them must be able to see 2026-09-12, and the
+       Saturday run must see the Saturday after it rather than only itself. */
+    for (let i = 0; i < 7; i++) {
+      const noonEt = new Date(Date.parse("2026-09-06T16:00:00.000Z") + i * 86400000);
+      const want = i === 6 ? "20260919" : "20260912";
+      const got = espnDates(noonEt);
+      assert.ok(got.includes(want),
+        `a run on ${eastern.format(noonEt)} cannot see ${want}; window was ${got.join(",")}`);
+    }
   });
 
   test("formatSpread states the favourite laying points", () => {
