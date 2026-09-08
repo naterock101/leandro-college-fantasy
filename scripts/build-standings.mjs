@@ -274,11 +274,12 @@ function build(doc, owners, games, lines) {
           home: scoredSide(h, oh),
           /* Names the state, never a cause. The feed cannot tell weather from a
              forfeit from its own outage, and a page that guessed would be
-             confidently wrong in front of eight people who watched the game. */
-          /* By the time a game is unusable, two numeric scores can only be
-             equal ones, so the tie is read off the scores being there at all.
-             Comparing hp === ap directly would call a game the feed never
-             scored a tie, since null === null. */
+             confidently wrong in front of eight people who watched the game.
+
+             By the time a game is unusable, two numeric scores can only be
+             equal ones, so the tie is read off the scores being present rather
+             than compared: hp === ap would call a game the feed never scored a
+             tie, since null === null. */
           reason: state === "stalled" ? "no result"
             : typeof hp === "number" && typeof ap === "number" ? "tied"
               : "no score",
