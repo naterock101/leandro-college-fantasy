@@ -73,6 +73,28 @@ describe("the logo beside a school", () => {
     expect(miami!.getAttribute("src")).not.toBe(redhawks!.getAttribute("src"));
   });
 
+  test("a near miss resolves to nothing, however near it is", () => {
+    /* The pair above is necessary and not sufficient, which is worth saying
+       because the first draft of this file stopped there. `Miami` and
+       `Miami (OH)` both come out right under a lookup that scans the sorted
+       keys for a prefix, because `Miami` sorts first and wins its own scan:
+       the bug passes the test written for it. What no loose match survives is
+       a string that is close to a key and is not one, so that is what is
+       asserted - each of these matches something under startsWith, endsWith or
+       includes in one direction or the other, and must match nothing here. */
+    for (const near of [
+      "Miam",
+      "Miami (OH) Redhawks",
+      "Ohio Stat",
+      "miami",
+      "Miami ",
+      "State",
+    ]) {
+      const { container } = render(<TeamName team={near} />);
+      expect(container.querySelector("img"), `"${near}" matched something`).toBeNull();
+    }
+  });
+
   test("is fixed in both dimensions so a slow one shifts nothing", () => {
     const { container } = render(<TeamName team="Iowa" />);
     const img = container.querySelector("img")!;
