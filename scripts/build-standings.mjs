@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Builds public/standings.json from CollegeFootballData.
+ * Builds the site's payload from CollegeFootballData.
  *
  * One upstream call per run: the full season, both season types. Conference
  * championship games come back as seasonType "regular", bowls and playoff
@@ -9,26 +9,35 @@
  *
  * Env: CFBD_API_KEY
  * Usage: node scripts/build-standings.mjs [--dry] [--fixture path.json]
- *                                         [--out path.json] [--now iso]
+ *                                         [--out path.json] [--now iso] [--union]
+ *
+ * Three files come out, not one - standings.json, results.json, teams.json -
+ * because the page fetches the first on every poll and the other two only once
+ * the tab that needs them is opened. lib/payload.mjs owns which key goes where.
  *
  * --fixture also swaps public/lines.json for fixtures/sample-lines.json and
  * pins the clock, so a fixture build reads nothing that moves and its output is
  * reproducible.
  *
- * --out redirects the write away from public/standings.json. Regenerating the
- * sample fixture must use it: writing the fixture build to the live file, even
- * for the moment before copying it back, publishes synthetic standings to
- * anyone whose page happens to poll in that window.
+ * --out redirects the write away from public/. It names the core file, and the
+ * other two are named from its prefix. Regenerating the sample fixture must use
+ * it: writing the fixture build to the live file, even for the moment before
+ * copying it back, publishes synthetic standings to anyone whose page happens
+ * to poll in that window.
+ *
+ * --union writes everything to the one path instead, which is how the golden
+ * fixture stays a single diffable file.
  */
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
   pick, home, away, homePts, awayPts, homeConf, awayConf,
   startDate, seasonType, weekOf, isDone, isPost, sortKey, classify,
 } from "../lib/games.mjs";
+import { splitPayload } from "../lib/payload.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ROSTERS = resolve(ROOT, "data/rosters.json");
@@ -52,6 +61,13 @@ const flagValue = (name) => {
 
 const FIXTURE = flagValue("--fixture");
 const OUT = resolve(ROOT, flagValue("--out") ?? "public/standings.json");
+/* Writes the whole payload to OUT as one file instead of the three the site
+   fetches. Only `npm run fixture:regen` passes it: a golden split across three
+   files is three diffs to read, and could not state the one invariant worth
+   stating, which is that the split loses nothing. Splitting is therefore the
+   default, so a workflow that forgot a flag would fail loudly on a missing
+   file rather than quietly publish a 92KB core again. */
+const UNION = args.includes("--union");
 
 /* The instant the whole build is judged against: which games have kicked off,
    which have been abandoned, and the generatedAt the page prints. One value
@@ -575,6 +591,32 @@ if (DRY) {
     process.exit(1);
   }
   mkdirSync(dirname(OUT), { recursive: true });
-  writeFileSync(OUT, JSON.stringify(out, null, 2) + "\n");
-  console.log(`wrote ${OUT}`);
+  const write = (path, doc) => {
+    writeFileSync(path, JSON.stringify(doc, null, 2) + "\n");
+    console.log(`wrote ${path}`);
+  };
+
+  if (UNION) {
+    write(OUT, out);
+  } else {
+    /* The siblings are named off the core's own basename rather than fixed, so
+       `--out fixtures/sample-standings.json` cannot scatter a bare
+       `results.json` next to a `sample-` prefixed golden. A path the prefix
+       cannot be read from is refused: guessing at it would put the payload
+       somewhere nobody goes looking, which reads as a missing section on the
+       site and as a successful run in the log. */
+    const base = basename(OUT);
+    if (!base.endsWith("standings.json")) {
+      console.error(`--out must name a *standings.json file; got ${base}.`);
+      console.error("The results and teams files are named from its prefix.");
+      process.exit(1);
+    }
+    const prefix = base.slice(0, -"standings.json".length);
+    const parts = splitPayload(out);
+    write(OUT, parts.core);
+    for (const [file, doc] of Object.entries(parts)) {
+      if (file === "core") continue;
+      write(join(dirname(OUT), `${prefix}${file}.json`), doc);
+    }
+  }
 }

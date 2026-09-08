@@ -40,8 +40,13 @@ const rostered = (games) => games.filter((g) => OWNED.has(home(g)) || OWNED.has(
 /** @param {string} [now] ISO instant to build against, or the fixture's own pin */
 function runBuilder(now) {
   const out = join(mkdtempSync(join(tmpdir(), "standings-")), "out.json");
+  /* --union, because everything below asserts about the payload as a whole and
+     the split is not what is under test here. The split's own guarantee - that
+     the three files it writes recombine into exactly this object - is asserted
+     in tests/payload.test.mjs, which is what lets this file go on treating the
+     payload as one thing. */
   const r = spawnSync(process.execPath,
-    [join(ROOT, "scripts/build-standings.mjs"), "--fixture", GAMES, "--out", out,
+    [join(ROOT, "scripts/build-standings.mjs"), "--fixture", GAMES, "--out", out, "--union",
       ...(now ? ["--now", now] : [])],
     { encoding: "utf8" });
   assert.equal(r.status, 0, `builder exited ${r.status}\n${r.stderr}`);
