@@ -57,8 +57,13 @@ export const base = `
     .asof{font-size:12px;color:var(--muted);margin:0 0 10px}
     .caption{font-size:11px;line-height:1.5;color:var(--dim);margin:9px 0 0}
     table{width:100%;border-collapse:collapse}
+    /* Left, because a th defaults to centre and a td does not, so every
+       header without .r sat centred over a column of left-aligned names -
+       far enough off to read as a mistake at the widths these tables use.
+       .r still right-aligns the numeric columns over their numeric cells. */
     th{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);
-      font-family:ui-monospace,Menlo,monospace;font-weight:600;padding:0 5px 7px;border-bottom:1px solid var(--rule)}
+      font-family:ui-monospace,Menlo,monospace;font-weight:600;padding:0 5px 7px;
+      text-align:left;border-bottom:1px solid var(--rule)}
     td{padding:11px 5px;border-bottom:1px solid rgba(42,61,83,.55)}
     .rank{font-family:ui-monospace,Menlo,monospace;color:var(--muted);width:22px;font-size:12px}
     .pts{font-family:ui-monospace,Menlo,monospace;font-size:18px;font-weight:700;color:var(--amber)}

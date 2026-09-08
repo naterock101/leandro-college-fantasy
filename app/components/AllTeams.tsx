@@ -123,8 +123,8 @@ export function AllTeams({ data, note }: { data: Data; note: string | null }) {
         <thead>
           <tr>
             <th className="r">#</th>
-            <th style={{ textAlign: "left" }}>Team</th>
-            <th style={{ textAlign: "left" }}>Conf</th>
+            <th>Team</th>
+            <th>Conf</th>
             <th className="r">W-L</th>
             <th className="r">Drafter</th>
             <th className="r">Pts</th>
