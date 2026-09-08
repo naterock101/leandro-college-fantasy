@@ -244,7 +244,9 @@ what step 7 above is for.
 | `npm run standings:dry` | Same, prints the table, writes nothing. |
 | `npm run standings:fixture` | Runs against `fixtures/sample-games.json`. No API call, no key needed. |
 | `npm run fixture:regen` | Rebuilds `fixtures/sample-standings.json` from the sample games. No API call. |
-| `npm test` | `node --test` over `tests/`. No network, no key, no dependency. |
+| `npm test` | Both runners: `node --test` then `vitest run`. No network, no key. |
+| `npm run test:node` | The pure suites only. No dependency at all. |
+| `npm run test:dom` | The component suites only, under jsdom. |
 | `npm run lines` | Fetches betting lines, writes `public/lines.json`. 1 API call. |
 | `npm run lines:dry` | Same, writes nothing. |
 | `npm run dev` | Next.js dev server. |
@@ -265,8 +267,12 @@ compares its union against the golden.
 
 ## Tests
 
-`npm test` runs Node's own test runner. There is no test framework in
-`dependencies` and none at runtime; the whole suite is `node --test`.
+`npm test` runs two runners, because the suite has two halves and they want
+different things.
+
+**`node --test`** owns everything pure - the builders, `lib/`, the payload
+split. It needs no config, no transform and no dependency, and that is worth
+keeping exactly as it is.
 
 - `tests/lib.test.mjs` - the pure functions in `lib/`: the field pickers across
   both CFBD conventions, sort keys, game classification, formatting
@@ -277,11 +283,26 @@ compares its union against the golden.
 - `tests/payload.test.mjs` - the four-file split: that its union is exactly the
   payload, that no key is in two files or in none, and that a lazy file which
   never arrives leaves every tab an empty collection rather than `undefined`
-- `tests/page.test.mjs` - two assertions about the fetch layer's source text.
-  Not how anyone would choose to test a component, and it says so: there is no
-  DOM runner in the repo yet, and both cases are ones where the wrong code
-  looks more correct than the right code, which is when a regression arrives as
-  a tidy-up nobody questions. It goes away when the component split lands one.
+
+**`vitest run`** owns the components, because rendering one needs a DOM and
+`node --test` has not got one.
+
+- `tests/page.test.tsx` - the fetch layer, rendered: a stable URL, a
+  conditional request, the bundled fallback, the cadence, and the pause when
+  the tab is hidden
+- `tests/a11y.test.tsx` - the keyboard, which is the part nobody exercises by
+  accident: the row toggle, Escape and focus return on the dropdowns, arrow
+  keys along the tab strip
+- `tests/contrast.test.tsx` - the token pairs, computed rather than eyeballed
+
+The split between them is by extension - `tests/*.test.mjs` against
+`tests/**/*.test.tsx` - so neither runner can pick up the other's files and
+nothing runs twice. `npm test` chains them with `&&`, so a red pure suite stops
+before the slower one starts; `npm run test:node` and `npm run test:dom` run
+either half alone.
+
+jsdom is the only thing this costs, and it is a `devDependency`. **Runtime
+dependencies are still zero**, which is the rule the whole repo is built on.
 
 Every run is hermetic. `--fixture` reads `fixtures/sample-games.json` and
 `fixtures/sample-lines.json` and nothing else, so the suite makes no network
@@ -568,6 +589,76 @@ Ceiling deliberately does **not** project the postseason. Bowl and playoff games
 are not in the feed until December; when they appear they are counted like any
 other scheduled game. The page shows a caption explaining this, and the
 `postseasonScheduled` flag flips the wording once bowls exist.
+
+## The page
+
+`app/page.tsx` is the shell and nothing else: which tab is open, what has been
+fetched, and where each section goes. Everything that draws anything is a
+component, and the split is by seam rather than by size - each file is one
+thing one person can change without touching another.
+
+| File | Draws |
+|---|---|
+| `app/components/Tabs.tsx` | the tab strip, and the list of tabs itself |
+| `app/components/Leaderboard.tsx` | the week strip, the table, the expanded squad |
+| `app/components/LiveGames.tsx` | "On the field" |
+| `app/components/GamesOfWeek.tsx` | the upcoming week and its spreads |
+| `app/components/Unscored.tsx` | "Never scored" |
+| `app/components/AllTeams.tsx` | the flat FBS table and its filters |
+| `app/components/Activity.tsx` | head to head, and the timeline |
+| `app/components/TeamName.tsx` | one school, wherever it appears |
+| `app/components/Dropdown.tsx` | the multi-select, used three times |
+| `app/components/Style.tsx` | composes the stylesheet, in cascade order |
+
+Styles live with their components, as a `css` export next to the JSX they
+apply to. `app/styles.ts` keeps only what has more than one caller: the tokens,
+the page frame, the table primitives and the `.gow` row shape. There is no CSS
+framework and there will not be one - runtime dependencies are zero.
+
+Two hooks. `useDismiss` closes a dropdown on an outside click or on Escape and
+puts focus back on the trigger. `useViewState` is `useState` that outlives its
+own component: sections unmount when you switch tab, and without it the week
+you had selected, the row you had expanded and the team you had typed would all
+reset on the way back.
+
+### Accessibility
+
+The things that were wrong, and what they are now:
+
+- The leaderboard row was a `<tr onClick>` with no `tabIndex`, `role` or key
+  handler, so the squad detail could not be opened without a pointer at all.
+  The manager cell is a real `<button>` driving `aria-expanded` and
+  `aria-controls`. The row is still clickable, because on a phone the row is
+  the target anyone actually hits.
+- The three dropdowns had `aria-expanded` and nothing behind it: no way to
+  dismiss one from the keyboard and no way back to the control that opened it.
+- The tab strip was three unrelated buttons. It is now `role="tablist"` with a
+  roving `tabindex`, arrow keys, Home and End, and a labelled panel.
+- The live dot said "these are happening now" in red and in motion and in
+  nothing else. The count beside it now says it in words, visibly, and the dot
+  is `aria-hidden`.
+- Every control had its focus ring left to the user agent and the search box
+  switched its own off. There is a `:focus-visible` ring in the tokens.
+
+The contrast audit is `tests/contrast.test.tsx`, and it found the opposite of
+what was expected. `--muted` at `#7E8FA3` on `--ink` was **5.54:1** - already
+past the 4.5:1 WCAG AA asks of text this size. What failed was every rule that
+then dimmed it with `opacity`, none of which is visible from the palette:
+
+| Rule | Before | After |
+|---|---|---|
+| `.caption` at `opacity:.85` | 4.34:1 | 7.28:1 |
+| `.wk` at `.75` | 3.65:1 | 5.54:1 |
+| `.undr`, `.owner.un` at `.65` | 3.05:1 | 5.54:1 |
+| `.arrow.flat` at `.6` | 2.78:1 | 5.54:1 |
+| `.stakes.them` at `.55` | 2.53:1 | 5.54:1 |
+| `.err` (`#C4566B`, body size) | 4.27:1 | 5.48:1 |
+
+So the dimming is a second token rather than an opacity. `--dim` is the old
+`--muted` exactly, and `--muted` moves up to `#94A5B8` to make room above it.
+The test asserts both halves: that every token clears AA on both grounds, and
+that the hierarchy the dimming was for still exists. It also fails on any new
+`opacity` in a text rule, because that is the thing an eye lets past.
 
 ## Correctness guards
 
