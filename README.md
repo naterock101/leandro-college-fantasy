@@ -680,9 +680,18 @@ Never substring match. The traps that make this non-negotiable:
 
 - `Miami` (FL, Nathan) vs `Miami (OH)` (Steve)
 - `Ohio` (Clint) vs `Ohio State` (Adam)
-- `Louisiana` (Adam) vs Louisiana Monroe and Louisiana Tech, both real opponents
-- `Hawai'i` uses an okina (U+02BB), not an apostrophe
-- `San Jose State` is accented in CFBD
+- `Louisiana` (Adam) vs `Louisiana Tech`, a real opponent and a real prefix
+  trap. The third school is `UL Monroe` in CFBD, **not** "Louisiana Monroe" as
+  an earlier revision of this list claimed - that string appears nowhere in the
+  feed.
+- `Hawai'i` is a plain apostrophe, **U+0027**. An earlier revision of this list
+  said it was an okina (U+02BB) and it never was: the roster, the CFBD feed and
+  ESPN all agree on U+0027, verified by code point. That entry was the most
+  dangerous line in this file - anyone "fixing" the roster to match it would
+  have broken the join and scored that team zero for the season, which is
+  precisely the failure this section exists to prevent. Check a claim about a
+  character against the bytes, never against prose.
+- `San José State` is accented in CFBD - **é**, U+00E9
 - `UTSA`, not `UT San Antonio`
 - `Southern Miss`, not `Southern Mississippi`
 - `App State`, not `Appalachian State`
