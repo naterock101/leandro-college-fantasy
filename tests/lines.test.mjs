@@ -18,7 +18,7 @@ import { dirname, resolve, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
-  normProvider, formatSpread, cfbdObservation, espnObservation, mergeLines,
+  normProvider, formatSpread, cfbdObservation, espnObservation, espnDates, mergeLines,
 } from "../lib/lines.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -121,6 +121,19 @@ describe("merge-only retention", () => {
       price: { ...price, spread: -7.5, formatted: "Iowa -7.5" },
     }]);
     assert.equal(moved["1"].seenAt, "2026-09-02T00:00:00.000Z");
+  });
+
+  test("an entry written before seenAt existed survives without gaining a fake one", () => {
+    /* Every entry in the live file predates this phase. They keep their price
+       and can still be marked closed, but we never saw when their price was
+       set, so inventing a seenAt would be worse than leaving it absent - the
+       whole point of the field is to date a closing line. */
+    const legacy = { spread: -10, favorite: "LSU", formatted: "LSU -10", overUnder: 48.5, provider: "Draft Kings" };
+    const merged = mergeLines({ [FINAL_ID]: legacy }, [
+      { id: FINAL_ID, seenAt: T0, closed: true, price: null },
+    ]);
+    assert.deepEqual(merged[FINAL_ID], { ...legacy, closed: true });
+    assert.equal("seenAt" in merged[FINAL_ID], false);
   });
 
   test("a first sighting is inserted", () => {
@@ -275,6 +288,32 @@ describe("ESPN normalisation", () => {
     }
     assert.equal(espnObservation({}, T0), null);
     assert.equal(espnObservation({ id: "1", competitions: [{ odds: [{}] }] }, T0).price, null);
+  });
+
+  test("the fetch window is Eastern days, not UTC ones", () => {
+    /* Saturday 2026-09-05, 22:00 ET, which is Sunday 02:00Z. A UTC window
+       would already have rolled to the 6th and would ask ESPN for a day whose
+       late games it is in the middle of. */
+    const satNight = new Date("2026-09-06T02:00:00.000Z");
+    assert.deepEqual(espnDates(satNight), ["20260904", "20260905", "20260906"]);
+  });
+
+  test("the fetch window survives the November clock change", () => {
+    /* The crons are annotated "Eastern is UTC-4 through Nov 1, UTC-5 after",
+       which is precisely the seam a hand-rolled offset would get wrong. */
+    const beforeFallBack = new Date("2026-11-01T04:30:00.000Z"); // 00:30 EDT, Nov 1
+    assert.deepEqual(espnDates(beforeFallBack), ["20261031", "20261101", "20261102"]);
+    const afterFallBack = new Date("2026-11-01T06:30:00.000Z"); // 01:30 EST, Nov 1
+    assert.deepEqual(espnDates(afterFallBack), ["20261031", "20261101", "20261102"]);
+  });
+
+  test("the fetch window is three days and always includes yesterday", () => {
+    /* Yesterday is the one that catches a game going final, which is the only
+       moment `closed` can ever be recorded before ESPN drops the odds. */
+    const d = espnDates(new Date("2026-09-12T18:00:00.000Z"));
+    assert.equal(d.length, 3);
+    assert.equal(d[0], "20260911");
+    assert.equal(d[1], "20260912");
   });
 
   test("formatSpread states the favourite laying points", () => {

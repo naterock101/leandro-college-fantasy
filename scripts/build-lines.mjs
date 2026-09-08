@@ -44,7 +44,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { cfbdObservation, espnObservation, mergeLines } from "../lib/lines.mjs";
+import { cfbdObservation, espnObservation, espnDates, mergeLines } from "../lib/lines.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ROSTERS = resolve(ROOT, "data/rosters.json");
@@ -123,30 +123,6 @@ const stored = loadStored();
 /* ESPN                                                                */
 /* ------------------------------------------------------------------ */
 
-/* The `dates` parameter is an Eastern calendar day, not a UTC one: a request
-   for 20260905 returns games from 16:00Z that day through 02:30Z the next,
-   which is noon to 22:30 ET. Computing the window in UTC would drop every
-   Saturday night game from the day it belongs to. Intl carries the DST rule,
-   so this stays right across the November change the crons are annotated for. */
-const easternDay = (d) =>
-  new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit",
-  }).format(d).replaceAll("-", "");
-
-/* Yesterday, today, tomorrow, and nothing else. Sweeping the week would be
-   free but pointless; three days is what a run can act on:
-   - tomorrow, so a game is priced before its kickoff even if the next baseline
-     run is the last one before it,
-   - today, for the slate in progress,
-   - yesterday, which is the one that is easy to leave out and must not be. A
-     game that went final overnight is only observable as final while its date
-     is still being fetched, and marking `closed` on the price we already hold
-     is the last thing that can happen to it before ESPN forgets the odds. */
-const espnDates = () => {
-  const day = 24 * 60 * 60 * 1000;
-  return [-1, 0, 1].map((n) => easternDay(new Date(now.getTime() + n * day)));
-};
-
 async function fetchEspnDoc(url) {
   const res = await fetch(url, { headers: { accept: "application/json" } });
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
@@ -189,7 +165,7 @@ async function readEspn() {
      public endpoint that we are about to hit every ten minutes, so being
      unhurried is the polite default. One date failing must not lose the rest,
      which is why the catch is inside the loop. */
-  for (const date of espnDates()) {
+  for (const date of espnDates(now)) {
     try {
       absorb(await fetchEspnDoc(`${ESPN_API}?dates=${date}&groups=${ESPN_GROUP}`), date);
     } catch (e) {

@@ -53,9 +53,18 @@ const OUT = resolve(ROOT, flagValue("--out") ?? "public/standings.json");
 
 /* ------------------------------------------------------------------ */
 
-/* Written by scripts/build-lines.mjs on the 8-hourly cron only, so most runs
-   read a file they did not create. Missing or unreadable means no spreads this
-   run, never a failure: standings must not depend on the betting feed.
+/* Written by scripts/build-lines.mjs, which the workflow runs immediately
+   before this script on every run. Still read rather than required: that step
+   exits 0 on any feed failure and leaves the previous file in place, so this
+   one must cope with a file that is missing, stale, or was last written hours
+   ago. Missing or unreadable means no spreads this run, never a failure -
+   standings must not depend on the betting feed.
+
+   The file is merge-only, so an entry here may be older than fetchedAt and
+   carries its own `seenAt` and `closed`. Those ride along inside the entry and
+   need nothing from this function; `closed` is what makes the stored price of
+   a finished game identifiable as a closing line, which matters because ESPN
+   deletes a game's odds the moment it goes final.
 
    A fixture build reads the committed fixture instead, and never touches the
    live file. Reading live lines made the golden output drift on the wall clock
