@@ -4,8 +4,15 @@ name: Tests
 # needs a secret; this one makes no network call and needs no key, so it costs
 # nothing, runs on every push and pull request, and can never fail because the
 # upstream API was slow or down.
+#
+# `data` is excluded because it is not code. It is an orphan branch holding the
+# payload the bot writes, up to 144 pushes on a Saturday, and there is no
+# package.json on it to install or test. The bot also puts [skip ci] in those
+# commit messages, which GitHub honours; this is the lock that keeps holding if
+# someone drops the message convention.
 on:
   push:
+    branches-ignore: [data]
   pull_request:
 
 jobs:

@@ -36,6 +36,36 @@ jobs:
         with:
           node-version: "20"
 
+      # Everything this job writes lives on `data`, an orphan branch carrying
+      # the payload and nothing else. It shares no commit with main, so main's
+      # history is code again and Vercel - which builds from main - never sees
+      # a data commit at all. Before this, 34 of the repo's first 49 commits
+      # were the bot's, and phase 2 made it worse by refreshing lines.json on
+      # every run: roughly 5,000 commits by December, burying every real change.
+      #
+      # A worktree rather than a second checkout because the code and the data
+      # have to be in the workspace at the same time - the scripts run from one
+      # and write into the other. --depth=1 because nothing here reads the
+      # branch's history; it only appends to it.
+      #
+      # The rm and the prune are for a re-run on a workspace that is not
+      # actually fresh: `worktree add` fails on an existing directory, and
+      # fails again on stale .git/worktrees metadata after that directory is
+      # removed. Both are cheap and both are no-ops on a clean runner. The
+      # ordering matters - prune only forgets metadata whose directory is gone.
+      - name: Check out the data branch
+        run: |
+          if ! git ls-remote --exit-code --heads origin data >/dev/null; then
+            echo "::error::The 'data' branch does not exist on the remote."
+            echo "It has to be created and pushed once by hand. See the"
+            echo "bootstrap section of README.md."
+            exit 1
+          fi
+          rm -rf .data
+          git worktree prune
+          git fetch --depth=1 origin data
+          git worktree add -B data .data origin/data
+
       # Runs on every run now, not just the baseline. Its primary source is
       # ESPN's public scoreboard, which needs no key and spends no CFBD budget,
       # so spreads go from 8-hour to 10-minute freshness for free.
@@ -44,36 +74,65 @@ jobs:
       # literally, and a README warning that the two had to be changed
       # together or lines would silently stop refreshing. That coupling is
       # gone: build-lines.mjs throttles its own CFBD call against the
-      # cfbdFetchedAt it writes into public/lines.json, so the crons above can
-      # be re-timed freely without changing the bill. See the script header.
+      # cfbdFetchedAt it writes into the lines file, so the crons above can be
+      # re-timed freely without changing the bill. See the script header.
       #
       # It exits 0 on every feed failure - the lines are optional and a stale
       # spread must never redden a run whose job is standings. The one
-      # non-zero exit is an unparseable public/lines.json, which is a human
-      # problem and must not be papered over: the file is merge-only and holds
-      # every closing line of the season.
+      # non-zero exit is an unparseable lines file, which is a human problem
+      # and must not be papered over: the file is merge-only and holds every
+      # closing line of the season. .data/lines.json is now the only copy of
+      # it anywhere, which is why nothing below force-pushes that branch.
       - name: Refresh betting lines
         env:
           CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
-        run: node scripts/build-lines.mjs
+        run: node scripts/build-lines.mjs --out .data/lines.json
 
-      # Reads public/lines.json if it is there. Kept as a separate file so a
-      # run whose lines step degraded still re-attaches the spreads already on
-      # disk rather than blanking them.
+      # Three files out, not one: the page fetches standings.json on every
+      # poll and the other two only when the tab that needs them is opened.
+      #
+      # --lines points at the file the step above just wrote. The two paths are
+      # passed explicitly rather than agreed by convention so there is no copy
+      # step between the scripts to forget - forgetting it would have been
+      # quiet and expensive, publishing a season with no spreads on it.
       - name: Build standings
         env:
           CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
-        run: node scripts/build-standings.mjs
+        run: node scripts/build-standings.mjs --lines .data/lines.json --out .data/standings.json
 
+      # `git -C .data` throughout: the worktree is a working tree of the same
+      # repository, so it inherits the credentials actions/checkout configured
+      # on origin and needs no token of its own.
+      #
+      # [skip ci] survives the move and is still doing work, for a different
+      # reason than before. It no longer has anything to say to Vercel, which
+      # does not watch this branch - .data/vercel.json says so from the branch
+      # itself, which is where Vercel reads that setting. It is there for
+      # GitHub Actions, which honours it and which would otherwise run
+      # test.yml on every one of these pushes. test.yml also ignores the
+      # branch outright, so this is the second of two locks on the same door;
+      # the commit message is the one that keeps working if someone re-adds
+      # `push:` without a filter.
       - name: Commit if changed
         run: |
-          if git diff --quiet -- public/standings.json public/lines.json; then
+          # status rather than `diff --quiet`: a payload file that is new
+          # rather than changed - the next split, a first run on a fresh
+          # branch - is untracked, and a diff cannot see it. That would be a
+          # run that quietly committed nothing and reported success.
+          if [ -z "$(git -C .data status --porcelain)" ]; then
             echo "no change, skipping commit"
             exit 0
           fi
-          git config user.name  "standings-bot"
-          git config user.email "standings-bot@users.noreply.github.com"
-          git add public/standings.json public/lines.json
-          # [skip ci] keeps Vercel from redeploying on every data commit.
-          git commit -m "standings: $(date -u '+%Y-%m-%d %H:%M UTC') [skip ci]"
-          git push
+          git -C .data config user.name  "standings-bot"
+          git -C .data config user.email "standings-bot@users.noreply.github.com"
+          git -C .data add -A
+          git -C .data commit -m "standings: $(date -u '+%Y-%m-%d %H:%M UTC') [skip ci]"
+          git -C .data push origin data
+
+      # A runner is thrown away after the job, so this cannot matter to the
+      # next run. It matters to anyone who runs these steps locally, where a
+      # worktree left registered after a failure is exactly the state that
+      # makes the next attempt fail on something unrelated to what broke.
+      - name: Release the worktree
+        if: always()
+        run: git worktree remove --force .data || true
