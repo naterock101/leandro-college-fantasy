@@ -23,13 +23,25 @@ import type { Data } from "../types";
    match eight colours to eight names by memory, which is exactly the task
    colour-blindness makes impossible and everyone else finds tedious.
 
-   Exported because the tests invert the plotted geometry back into points to
-   check it against the hidden table, and hard-coding the padding in the test
-   would mean a change here silently stops the test measuring anything. */
-export const GEOM = { W: 720, H: 300, padL: 30, padR: 112, padT: 14, padB: 26 };
+   The vertical half is fixed and the horizontal half is not: `W` is the width
+   of a season with weeks in it, and a single scored week draws a much narrower
+   box instead. Only the height and the vertical padding are load-bearing for
+   the tests, which invert a plotted y back into points to check it against the
+   hidden table - hard-coding those in the test would mean a change here
+   silently stops the test measuring anything. */
+export const GEOM = { W: 460, H: 280, padL: 30, padR: 124, padT: 14, padB: 26 };
 
 const plotW = GEOM.W - GEOM.padL - GEOM.padR;
 const plotH = GEOM.H - GEOM.padT - GEOM.padB;
+
+/* One week is a column of dots, not a race, and stretching that column across
+   580 units of empty grid draws a chart that looks broken rather than early.
+   So the plot collapses to the width of the markers themselves and the svg
+   goes with it - which turns the one-week case into the dot plot it actually
+   is, and turns back into a race the moment a second Saturday lands. Worth
+   the special case because the league spends the first week of every season
+   looking at it, and this season is there now. */
+const spanOf = (n: number) => (n <= 1 ? 30 : plotW);
 
 /* Enough precision that inverting a coordinate lands back on the integer it
    came from, short enough that the points attribute stays readable. */
@@ -76,10 +88,8 @@ type Series = {
 /** Where a value sits vertically, given the top of the axis. */
 const yAt = (v: number, top: number) => GEOM.H - GEOM.padB - (v / top) * plotH;
 
-/* One week puts its single point at the right-hand edge, next to the label
-   that names it, rather than in the middle of an axis it does not span. */
 const xAt = (i: number, n: number) =>
-  GEOM.padL + (n <= 1 ? plotW : (i / (n - 1)) * plotW);
+  GEOM.padL + (n <= 1 ? spanOf(n) : (i / (n - 1)) * plotW);
 
 export function TrendsChart({
   byWeek,
@@ -128,7 +138,7 @@ export function TrendsChart({
        most of them. Push them apart from the top down, then lift the whole
        column if it has run off the bottom; the label may end up a few pixels
        off its line, which is what the matching colour and dash are for. */
-    const GAP = 13;
+    const GAP = 17;
     const labels = series
       .filter((s) => s.coords.length)
       .map((s) => ({
@@ -162,9 +172,20 @@ export function TrendsChart({
   /* Five gridlines including both ends: enough to read a value off without
      drawing a ruler through eight lines. */
   const ticks = [0, 1, 2, 3, 4].map((k) => (top * k) / 4);
-  /* Every week label at four weeks, every second or third by December. Twelve
-     labels in 580 units would overlap; the gridline is still there. */
+  /* Every week label at four weeks, every second or third by December: twelve
+     labels across 306 units would overlap. The last week is labelled too, but
+     only when it is a full step clear of the previous one - at twelve weeks
+     and a step of two, W12 lands one unit from W11 and the pair reads as a
+     smudge, and the gutter already says where the season has got to. */
   const every = Math.ceil(weeks.length / 9);
+  const lastTick = Math.floor((weeks.length - 1) / every) * every;
+  const tick = (i: number) =>
+    i % every === 0 || (i === weeks.length - 1 && weeks.length - 1 - lastTick >= every);
+  const span = spanOf(weeks.length);
+  /* Where the plot stops and the gutter of names starts. */
+  const gutter = GEOM.padL + span;
+
+  const box = gutter + GEOM.padR;
 
   return (
     <>
@@ -173,12 +194,22 @@ export function TrendsChart({
             version of this and not a supplement to it. Announcing the svg as
             well would read a second, worse copy of the same data - so the
             drawing is hidden and the table is not. */}
-        <svg viewBox={`0 0 ${GEOM.W} ${GEOM.H}`} aria-hidden="true" focusable="false">
+        {/* Never drawn bigger than its own units. The type inside an svg
+            scales with the box, so letting a 460-unit chart fill a 732px
+            column would render 12px labels at 19px; capping it at 1:1 fixes
+            the type at the sizes the rest of the page uses, and a phone gets
+            the same chart at about three quarters. */}
+        <svg
+          viewBox={`0 0 ${box} ${GEOM.H}`}
+          style={{ maxWidth: box }}
+          aria-hidden="true"
+          focusable="false"
+        >
           {ticks.map((v, i) => (
             <g key={i}>
               <line
                 x1={GEOM.padL}
-                x2={GEOM.padL + plotW}
+                x2={gutter}
                 y1={r(yAt(v, top))}
                 y2={r(yAt(v, top))}
                 className="grid"
@@ -190,7 +221,7 @@ export function TrendsChart({
           ))}
 
           {weeks.map((w, i) =>
-            i % every === 0 || i === weeks.length - 1 ? (
+            tick(i) ? (
               <text
                 key={w.key}
                 x={r(xAt(i, weeks.length))}
@@ -246,15 +277,15 @@ export function TrendsChart({
               {/* A sample of the line itself, so the dash pattern is beside
                   the name rather than only out in the plot. */}
               <line
-                x1={GEOM.padL + plotW + 5}
-                x2={GEOM.padL + plotW + 21}
+                x1={gutter + 5}
+                x2={gutter + 21}
                 y1={r(y)}
                 y2={r(y)}
                 stroke={s.style.stroke}
                 strokeDasharray={s.style.dash}
                 strokeWidth="2"
               />
-              <text x={GEOM.padL + plotW + 25} y={r(y) + 4} className="nm" fill={s.style.stroke}>
+              <text x={gutter + 25} y={r(y) + 4} className="nm" fill={s.style.stroke}>
                 {cap(s.manager)}
                 <tspan className="nmp"> {points}</tspan>
               </text>
@@ -295,12 +326,13 @@ export function TrendsChart({
 }
 
 export const css = `
+    .race{margin-bottom:6px}
     .race svg{width:100%;height:auto;display:block;overflow:visible}
     .race .grid{stroke:var(--rule);stroke-width:1}
-    .race .ax{font-family:ui-monospace,Menlo,monospace;font-size:10px;fill:var(--muted)}
+    .race .ax{font-family:ui-monospace,Menlo,monospace;font-size:12px;fill:var(--muted)}
     .race .ax.r{text-anchor:end} .race .ax.mid{text-anchor:middle}
-    .race .nm{font-size:12px;font-weight:600}
-    .race .nmp{font-family:ui-monospace,Menlo,monospace;font-size:11px;font-weight:400}
+    .race .nm{font-size:15px;font-weight:600}
+    .race .nmp{font-family:ui-monospace,Menlo,monospace;font-size:13px;font-weight:400}
     /* Off the screen but in the accessibility tree, which display:none and
        visibility:hidden are both the wrong side of. The 1px box with a clip on
        it is the standard trick and the reason it is not simply width:0 is that
