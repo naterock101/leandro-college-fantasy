@@ -10,6 +10,9 @@
  * Env: CFBD_API_KEY
  * Usage: node scripts/build-standings.mjs [--dry] [--fixture path.json] [--out path.json]
  *
+ * --fixture also swaps public/lines.json for fixtures/sample-lines.json, so a
+ * fixture build reads nothing that moves and its output is reproducible.
+ *
  * --out redirects the write away from public/standings.json. Regenerating the
  * sample fixture must use it: writing the fixture build to the live file, even
  * for the moment before copying it back, publishes synthetic standings to
@@ -20,9 +23,15 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import {
+  pick, home, away, homePts, awayPts, homeConf, awayConf,
+  startDate, seasonType, weekOf, isDone, isPost, sortKey,
+} from "../lib/games.mjs";
+
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ROSTERS = resolve(ROOT, "data/rosters.json");
 const LINES = resolve(ROOT, "public/lines.json");
+const FIXTURE_LINES = resolve(ROOT, "fixtures/sample-lines.json");
 const API = "https://api.collegefootballdata.com/games";
 
 const args = process.argv.slice(2);
@@ -43,32 +52,27 @@ const FIXTURE = flagValue("--fixture");
 const OUT = resolve(ROOT, flagValue("--out") ?? "public/standings.json");
 
 /* ------------------------------------------------------------------ */
-/* field access: v2 is camelCase, snake_case kept as a fallback        */
-/* ------------------------------------------------------------------ */
-
-const pick = (g, ...names) => {
-  for (const n of names) if (g[n] !== undefined && g[n] !== null) return g[n];
-  return undefined;
-};
-const home = (g) => pick(g, "homeTeam", "home_team");
-const away = (g) => pick(g, "awayTeam", "away_team");
-const homePts = (g) => pick(g, "homePoints", "home_points");
-const awayPts = (g) => pick(g, "awayPoints", "away_points");
-const homeConf = (g) => pick(g, "homeConference", "home_conference");
-const awayConf = (g) => pick(g, "awayConference", "away_conference");
-const startDate = (g) => pick(g, "startDate", "start_date");
-const seasonType = (g) => pick(g, "seasonType", "season_type") ?? "regular";
-const weekOf = (g) => pick(g, "week") ?? 0;
-const isDone = (g) => pick(g, "completed") === true;
-const isPost = (g) => seasonType(g) === "postseason";
-const sortKey = (g) => `${isPost(g) ? 1 : 0}|${String(weekOf(g)).padStart(2, "0")}`;
-
-/* ------------------------------------------------------------------ */
 
 /* Written by scripts/build-lines.mjs on the 8-hourly cron only, so most runs
    read a file they did not create. Missing or unreadable means no spreads this
-   run, never a failure: standings must not depend on the betting feed. */
+   run, never a failure: standings must not depend on the betting feed.
+
+   A fixture build reads the committed fixture instead, and never touches the
+   live file. Reading live lines made the golden output drift on the wall clock
+   through linesFetchedAt, and a golden file that drifts cannot be diffed in
+   CI, which is the only thing a golden file is for. */
 function loadLines() {
+  if (FIXTURE) {
+    /* Unlike the live file this one is not optional: silently falling back to
+       no spreads would change the golden output rather than fail, which is the
+       wrong way round for a file whose whole job is determinism. */
+    if (!existsSync(FIXTURE_LINES)) {
+      console.error(`A --fixture build needs ${FIXTURE_LINES}, which is missing.`);
+      process.exit(1);
+    }
+    const doc = JSON.parse(readFileSync(FIXTURE_LINES, "utf8"));
+    return { fetchedAt: doc.fetchedAt ?? null, games: doc.games ?? {} };
+  }
   if (!existsSync(LINES)) return { fetchedAt: null, games: {} };
   try {
     const doc = JSON.parse(readFileSync(LINES, "utf8"));

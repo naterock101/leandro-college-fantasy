@@ -1,0 +1,31 @@
+name: Tests
+
+# Deliberately separate from poll.yml. That workflow spends the CFBD budget and
+# needs a secret; this one makes no network call and needs no key, so it costs
+# nothing, runs on every push and pull request, and can never fail because the
+# upstream API was slow or down.
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # node --test is built in, so the suite itself has no dependencies. The
+      # install is only here for the Next build below.
+      - run: npm ci
+
+      - name: Unit and golden tests
+        run: npm test
+
+      # The page imports lib/*.mjs directly. Building is the only thing that
+      # proves those imports resolve under Next, so a broken shared module
+      # fails here rather than on Vercel.
+      - name: Build the site
+        run: npm run build

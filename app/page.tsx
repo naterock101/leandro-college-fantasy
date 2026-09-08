@@ -2,6 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { LIVE_WINDOW_MS } from "../lib/games.mjs";
+import { cap, tally, norm, shortDate, kickoff, shortTime } from "../lib/format.mjs";
+
 /* Reads the JSON the GitHub Action commits. Fetching from raw.githubusercontent
    rather than /standings.json means data updates without a Vercel redeploy,
    which matters because the bot commits every 10 minutes during games. */
@@ -67,14 +70,6 @@ type Data = {
 };
 type ScoredSide = { team: string; manager: string | null };
 
-const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-
-/* "8/9", or just "8" when the snapshot predates the scheduled field. Defaulting
-   the denominator to the played count would read as a finished week, so a
-   missing total drops the fraction rather than inventing one. */
-const tally = (played: number, total?: number) =>
-  typeof total === "number" ? `${played}/${total}` : `${played}`;
-
 /* "fav" or "dog" for one side of a matchup. A pick-em has no favourite and an
    unpriced game has no line, and in both cases neither side gets coloured. */
 const side = (
@@ -90,23 +85,6 @@ const books = (games: { spread: { provider: string } | null }[]) => {
   if (!seen.length) return "the book";
   return seen.length === 1 ? seen[0] : seen.slice(0, -1).join(", ") + " and " + seen[seen.length - 1];
 };
-/* Nothing in college football runs past five and a half hours, so a game that
-   kicked off longer ago than this has finished whatever the payload still says. */
-const LIVE_WINDOW_MS = 5.5 * 60 * 60 * 1000;
-
-const shortDate = (d?: string) =>
-  d ? new Date(d).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "";
-/* a game in flight started today, so the clock is the useful part, not the date */
-const kickoff = (d: string) =>
-  new Date(d).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-const shortTime = (d: string) =>
-  new Date(d).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-
-/* Folds accents and punctuation so "san jose st" finds "San Jose State" and
-   "texas am" finds "Texas A&M". */
-const norm = (s: string) =>
-  s.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
 /* Three dropdowns now close on an outside click, so it lives in one place.
    `set` must be a state setter or another stable function, since the effect
@@ -292,8 +270,8 @@ export default function Page() {
     if (!data) return [];
     return data.gamesOfWeek.games
       .filter((g) => {
-        const kickoff = new Date(g.date).getTime();
-        return kickoff <= now && now - kickoff < LIVE_WINDOW_MS;
+        const kick = new Date(g.date).getTime();
+        return kick <= now && now - kick < LIVE_WINDOW_MS;
       })
       .sort((a, b) => String(a.date).localeCompare(String(b.date)));
   }, [data, now]);
