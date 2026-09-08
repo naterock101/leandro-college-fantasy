@@ -4,6 +4,7 @@ import { cap, tally } from "../../lib/format.mjs";
 import { SIGMA } from "../../lib/winprob.mjs";
 import { useViewState } from "../hooks/useViewState";
 import type { Data } from "../types";
+import { TeamName } from "./TeamName";
 
 /**
  * The table, the week strip above it and the small print under it.
@@ -167,7 +168,7 @@ export function Leaderboard({ data }: { data: Data }) {
                     {teams.map((t) => (
                       <div className="team" key={t.team}>
                         <span className={`tier ${t.tier}`}>{t.tier === "p4" ? 3 : 2}</span>
-                        <span className="tn">{t.draft}</span>
+                        <TeamName team={t.team} label={t.draft} className="tn" />
                         <span className="mono muted cf">{t.conf}</span>
                         <span className="mono wl">{t.wins}-{t.losses}</span>
                         <span className="mono tp">{t.points}</span>
