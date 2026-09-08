@@ -13,7 +13,7 @@
  * behaviour rather than about a regex over a string.
  */
 
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { fireEvent, screen } from "@testing-library/react";
 
 import { LIVE_WINDOW_MS } from "../lib/games.mjs";
@@ -87,7 +87,7 @@ describe("what counts as live", () => {
     stubFetch();
     await renderPage(new Date(kickoff + 60 * 60 * 1000));
     expect(onTheField()).not.toBeNull();
-    expect(screen.getByText("1 game")).toBeTruthy();
+    expect(screen.getByText("1 game in progress")).toBeTruthy();
   });
 
   test("a game past the live window is not", async () => {
@@ -100,6 +100,38 @@ describe("what counts as live", () => {
     stubFetch();
     await renderPage(new Date(kickoff - 1));
     expect(onTheField()).toBeNull();
+  });
+});
+
+describe("the clock", () => {
+  /* Which games are on is a function of the wall clock as much as of the
+     payload, so the page ticks a minute at a time. Phase 3 stopped the poll
+     running in a pocket and this was outside its scope, so the ticker went on
+     waking a hidden tab every sixty seconds all Saturday - the same battery
+     argument, and a smaller saving only because it is a smaller wakeup. */
+  test("stops ticking when nobody can see it", async () => {
+    stubFetch();
+    await renderPage();
+    expect(vi.getTimerCount(), "a visible page has a poll and a ticker").toBeGreaterThan(0);
+    await setHidden(true);
+    expect(vi.getTimerCount(), "a hidden page should have nothing scheduled").toBe(0);
+  });
+
+  test("catches up on the way back rather than waiting out the interval", async () => {
+    const kickoff = new Date("2026-09-12T16:00:00.000Z").getTime();
+    stubFetch();
+    await renderPage(new Date(kickoff + 60 * 60 * 1000));
+    expect(screen.queryByRole("heading", { name: /on the field/i })).not.toBeNull();
+
+    await setHidden(true);
+    /* Long enough that every game in the fixture has run out of its window. */
+    vi.setSystemTime(new Date(kickoff + 24 * 60 * 60 * 1000));
+    await setHidden(false);
+
+    expect(
+      screen.queryByRole("heading", { name: /on the field/i }),
+      "the first thing a returning reader sees must be now, not whenever they last looked"
+    ).toBeNull();
   });
 });
 

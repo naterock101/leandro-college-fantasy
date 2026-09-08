@@ -162,14 +162,17 @@ export const css = `
     .tconf{font-size:10.5px;white-space:nowrap}
     .tname{font-size:13.5px}
     .owner{font-size:11.5px;color:var(--teal);text-align:right;white-space:nowrap}
-    .owner.un{color:var(--muted);opacity:.65}
+    .owner.un{color:var(--dim)}
     .sm2{font-size:14px}
     .wl{font-size:11.5px}
     .sw{position:relative;display:flex;align-items:center;flex:1;min-width:130px;max-width:230px}
     .search{width:100%;background:transparent;border:1px solid var(--rule);color:var(--chalk);
       border-radius:6px;padding:7px 26px 7px 11px;font-size:12.5px;font-family:inherit}
     .search::placeholder{color:var(--muted)}
+    /* The border change is the pointer affordance; the ring is the keyboard
+       one, and this rule used to remove it for both. */
     .search:focus{outline:none;border-color:var(--amber)}
+    .search:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
     /* the UA's own clear affordance is a light glyph on a dark field, so it is
        replaced rather than styled */
     .search::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none}

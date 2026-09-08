@@ -57,6 +57,11 @@ export const FIXTURE_NOW = new Date("2026-09-12T18:00:00.000Z");
 export async function renderPage(now: Date = FIXTURE_NOW) {
   vi.useFakeTimers({ shouldAdvanceTime: true });
   vi.setSystemTime(now);
+  /* setHidden shadows the property on the document itself, and the document
+     outlives the test that did it. A page mounted into a document still
+     marked hidden schedules nothing, which reads as the feature under test
+     being broken rather than as the last test leaking. */
+  Object.defineProperty(document, "hidden", { value: false, configurable: true });
   const view = render(<Page />);
   /* The first fetch resolves a microtask later, so every test would otherwise
      open on the "Loading…" state. */

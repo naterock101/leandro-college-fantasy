@@ -197,6 +197,6 @@ export function Activity({ data, note }: { data: Data; note: string | null }) {
 export const css = `
     .upset{color:var(--teal);font-style:normal;font-size:11px;white-space:nowrap}
     /* a points badge that belongs to a manager the filter is not about */
-    .stakes.them{color:var(--muted);opacity:.55;font-weight:400}
-    .wk{font-size:11px;width:34px;text-align:right;flex-shrink:0;opacity:.75}
+    .stakes.them{color:var(--dim);font-weight:400}
+    .wk{font-size:11px;width:34px;text-align:right;flex-shrink:0;color:var(--dim)}
 `;

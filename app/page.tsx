@@ -11,7 +11,7 @@ import { GamesOfWeek } from "./components/GamesOfWeek";
 import { Leaderboard } from "./components/Leaderboard";
 import { LiveGames } from "./components/LiveGames";
 import { Style } from "./components/Style";
-import { TABS, Tabs } from "./components/Tabs";
+import { panelId, TABS, tabId, Tabs } from "./components/Tabs";
 import { Unscored } from "./components/Unscored";
 import { ViewState } from "./hooks/useViewState";
 import type { Data, Lazy, Load, Tab } from "./types";
@@ -109,9 +109,21 @@ export default function Page() {
      minute is fine granularity for a three hour game. */
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
+    /* And it stops while nobody can see it, for the same reason the poll does.
+       Phase 3 took the poll out of a pocket and left this behind, so a phone
+       on a Saturday still woke every sixty seconds to work out that a game it
+       was not showing anyone had ended.
+
+       Coming back sets the clock before scheduling the next tick, because the
+       time kept moving while the tab was hidden: a reader who opens their
+       phone an hour later must see the games that are on now, not the ones
+       that were on when they last looked. Without that line the page would be
+       up to a minute stale at exactly the moment someone is looking at it. */
+    if (!visible) return;
+    setNow(Date.now());
     const id = setInterval(() => setNow(Date.now()), 60_000);
     return () => clearInterval(id);
-  }, []);
+  }, [visible]);
 
   /* Opening a tab is what asks for its file. Adding to the list restarts the
      polling effect below, which fetches immediately, so the first open is a
@@ -261,18 +273,24 @@ export default function Page() {
 
       <Tabs active={tab} onSelect={setTab} />
 
-      {tab === "league" && (
-        <>
-          <Leaderboard data={data} />
-          <LiveGames games={liveGames} generatedAt={data.generatedAt} />
-          <GamesOfWeek data={data} />
-          <Unscored data={data} />
-        </>
-      )}
+      {/* One panel, named by whichever tab is on. Only the open tab is
+          rendered: the other two would otherwise be in the document for a
+          screen reader to walk into, and All teams in particular would be a
+          table of nothing at all until its file arrives. */}
+      <div role="tabpanel" id={panelId(tab)} aria-labelledby={tabId(tab)}>
+        {tab === "league" && (
+          <>
+            <Leaderboard data={data} />
+            <LiveGames games={liveGames} generatedAt={data.generatedAt} />
+            <GamesOfWeek data={data} />
+            <Unscored data={data} />
+          </>
+        )}
 
-      {tab === "teams" && <AllTeams data={data} note={lazyNote(load.teams)} />}
+        {tab === "teams" && <AllTeams data={data} note={lazyNote(load.teams)} />}
 
-      {tab === "h2h" && <Activity data={data} note={lazyNote(load.results)} />}
+        {tab === "h2h" && <Activity data={data} note={lazyNote(load.results)} />}
+      </div>
 
       <Style />
     </main>

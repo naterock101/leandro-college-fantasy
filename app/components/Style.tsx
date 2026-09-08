@@ -23,8 +23,18 @@ import { css as activity } from "./Activity";
  * split does not remove, and it is a one-line append rather than a hunk in the
  * middle of two hundred lines of somebody else's CSS.
  */
+export const sheet = [
+  base,
+  tabs,
+  dropdown,
+  leaderboard,
+  live,
+  gamesOfWeek,
+  unscored,
+  allTeams,
+  activity,
+].join("");
+
 export function Style() {
-  return (
-    <style>{[base, tabs, dropdown, leaderboard, live, gamesOfWeek, unscored, allTeams, activity].join("")}</style>
-  );
+  return <style>{sheet}</style>;
 }

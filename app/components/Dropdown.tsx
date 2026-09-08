@@ -1,6 +1,6 @@
 import { useRef, type ReactNode } from "react";
 
-import { useClickAway } from "../hooks/useClickAway";
+import { useDismiss } from "../hooks/useDismiss";
 import { useViewState } from "../hooks/useViewState";
 
 export type Option = { value: string; label: string; badge?: ReactNode };
@@ -41,20 +41,26 @@ export function Dropdown({
 }) {
   const [open, setOpen] = useViewState(`${name}.open`, false);
   const ref = useRef<HTMLDivElement>(null);
-  useClickAway(open, ref, setOpen);
+  const trigger = useRef<HTMLButtonElement>(null);
+  useDismiss(open, ref, setOpen, trigger);
+  const menu = `${name}-menu`;
 
   return (
     <div className="dd" ref={ref}>
       <button
+        ref={trigger}
         className={`ddbtn ${selected.length ? "act" : ""}`}
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
+        aria-controls={menu}
       >
         {summary}
-        <span className={`ddcaret ${open ? "up" : ""}`}>▾</span>
+        {/* the caret repeats what aria-expanded already says, so it is
+            decoration and is announced as nothing */}
+        <span className={`ddcaret ${open ? "up" : ""}`} aria-hidden="true">▾</span>
       </button>
       {open && (
-        <div className="ddmenu">
+        <div className="ddmenu" id={menu} role="group" aria-label={allLabel}>
           <label className="ddopt">
             <input type="checkbox" checked={selected.length === 0} onChange={onClear} />
             <span className="ddname">{allLabel}</span>

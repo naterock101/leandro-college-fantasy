@@ -72,11 +72,32 @@ export function Leaderboard({ data }: { data: Data }) {
         <tbody>
           {board.map((r, i) => {
             const isOpen = open === r.manager;
+            const detail = `squad-${r.manager}`;
+            const toggle = () => setOpen(isOpen ? null : r.manager);
             const teams = Object.values(r.teams).sort((a, b) => b.points - a.points || a.draft.localeCompare(b.draft));
             return [
-              <tr key={r.manager} className="row" onClick={() => setOpen(isOpen ? null : r.manager)}>
+              /* The row stays clickable, because on a phone the row is the
+                 target anyone actually hits. The button inside it is what a
+                 keyboard can reach and what says, out loud, that there is
+                 something here to open - and the guard is so that pressing it
+                 does not also trip the row and toggle twice. */
+              <tr key={r.manager} className="row" onClick={(e) => {
+                if ((e.target as HTMLElement).closest("button")) return;
+                toggle();
+              }}>
                 <td className="r rank">{i + 1}</td>
-                <td className="name">{cap(r.manager)}<span className={`caret ${isOpen ? "up" : ""}`}>›</span></td>
+                <td className="name">
+                  <button
+                    type="button"
+                    className="rowtoggle"
+                    onClick={toggle}
+                    aria-expanded={isOpen}
+                    aria-controls={detail}
+                  >
+                    {cap(r.manager)}
+                    <span className={`caret ${isOpen ? "up" : ""}`} aria-hidden="true">›</span>
+                  </button>
+                </td>
                 <td className="r mono">{r.wins}-{r.losses}</td>
                 {live && data.projection && (() => {
                   const pr = data.projection!.managers[r.manager];
@@ -102,7 +123,7 @@ export function Leaderboard({ data }: { data: Data }) {
               </tr>,
               isOpen && (
                 <tr key={r.manager + "-d"} className="detail">
-                  <td colSpan={live && data.projection ? 7 : 6}>
+                  <td colSpan={live && data.projection ? 7 : 6} id={detail}>
                     {teams.map((t) => (
                       <div className="team" key={t.team}>
                         <span className={`tier ${t.tier}`}>{t.tier === "p4" ? 3 : 2}</span>
@@ -175,5 +196,10 @@ export const css = `
       .arrow{margin-left:2px}
     }
     .arrow{margin-left:4px;font-size:9px;vertical-align:1px}
-    .arrow.up{color:var(--teal)} .arrow.down{color:var(--red)} .arrow.flat{color:var(--muted);opacity:.6}
+    .arrow.up{color:var(--teal)} .arrow.down{color:var(--red)} .arrow.flat{color:var(--dim)}
+    /* The manager cell is a real button now, so it has to be talked back out
+       of looking like one. The row stays clickable for a pointer; this is the
+       thing a keyboard can reach. */
+    .rowtoggle{display:flex;align-items:center;width:100%;background:transparent;border:0;
+      padding:0;margin:0;color:inherit;font:inherit;text-align:left;cursor:pointer}
 `;

@@ -16,11 +16,15 @@ export function LiveGames({ games, generatedAt }: { games: Game[]; generatedAt: 
     <section className="livewrap">
       <h2>
         <span className="livehead">
-          <span className="dot" />
+          {/* The dot said "these are happening now" in red and in motion and
+              in nothing else, which leaves out anyone who cannot see either.
+              The words are in the count beside it rather than hidden behind
+              the dot, so the answer is the same whoever is reading. */}
+          <span className="dot" aria-hidden="true" />
           On the field
         </span>
         <span className="cw">
-          {games.length} game{games.length === 1 ? "" : "s"}
+          {games.length} game{games.length === 1 ? "" : "s"} in progress
         </span>
       </h2>
       {games.map((g, i) => (

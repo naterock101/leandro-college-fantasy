@@ -24,13 +24,27 @@
  */
 
 export const base = `
-    :root{--ink:#0D1520;--panel:#141F2E;--rule:#2A3D53;--chalk:#E9EEF4;--muted:#7E8FA3;--amber:#F0A83C;--teal:#49B49E;--red:#D9697F}
+    /* Two greys, and no opacity anywhere near text.
+       The audit that produced these is tests/contrast.test.tsx, and it found
+       the opposite of what was expected. The old --muted, #7E8FA3, was already
+       over the 4.5:1 WCAG AA asks of text this size: 5.54:1 on --ink. What
+       failed was every rule that then dimmed it with an opacity - a caption at
+       .85 came out at 4.34:1, "undrafted" at .65 at 3.05:1, a dimmed points
+       badge at .55 at 2.53:1 - and none of that is visible from the palette,
+       which is why it is now a test and not a look.
+       So the dimming is a second token instead. --dim is the old --muted
+       exactly, and --muted moves up to make room above it: 7.28:1 and 5.54:1
+       on --ink, 6.59:1 and 5.02:1 on --panel. Everything a reader sees passes,
+       and the hierarchy the opacity was for is still there. */
+    :root{--ink:#0D1520;--panel:#141F2E;--rule:#2A3D53;--chalk:#E9EEF4;--muted:#94A5B8;--dim:#7E8FA3;--amber:#F0A83C;--teal:#49B49E;--red:#D9697F}
     body{margin:0;background:var(--ink);color:var(--chalk);
       font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
     .wrap{max-width:760px;margin:0 auto;padding:20px 14px 70px}
     .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
     .muted{color:var(--muted)} .sm{font-size:12px} .r{text-align:right}
-    .err{color:#C4566B}
+    /* #C4566B was 4.27:1 on --ink, under AA at body size, and this is the
+       one sentence on the page that has to be read when nothing else works. */
+    .err{color:var(--red)}
     header{border-bottom:2px solid var(--rule);padding-bottom:14px;margin-bottom:14px}
     h1{font-family:Georgia,serif;font-size:26px;line-height:1.15;letter-spacing:-.02em;margin:8px 0 6px}
     .brand{display:flex;align-items:center;gap:14px}
@@ -41,7 +55,7 @@ export const base = `
     .cw{font-family:ui-monospace,Menlo,monospace;font-size:9px;letter-spacing:.1em;
       text-transform:uppercase;color:var(--muted)}
     .asof{font-size:12px;color:var(--muted);margin:0 0 10px}
-    .caption{font-size:11px;line-height:1.5;color:var(--muted);margin:9px 0 0;opacity:.85}
+    .caption{font-size:11px;line-height:1.5;color:var(--dim);margin:9px 0 0}
     table{width:100%;border-collapse:collapse}
     th{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);
       font-family:ui-monospace,Menlo,monospace;font-weight:600;padding:0 5px 7px;border-bottom:1px solid var(--rule)}
@@ -60,7 +74,7 @@ export const base = `
     .self{color:var(--amber);font-style:normal;font-size:11px;white-space:nowrap}
     /* an opponent nobody drafted has no owner to name, and a bare team name
        beside "Nathan's ..." otherwise reads as missing data */
-    .undr{color:var(--muted);opacity:.65;font-size:11px;white-space:nowrap}
+    .undr{color:var(--dim);font-size:11px;white-space:nowrap}
     .score{width:44px;text-align:right;flex-shrink:0}
     .filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
     .seg{display:flex;border:1px solid var(--rule);border-radius:6px;overflow:hidden}
@@ -68,4 +82,9 @@ export const base = `
       padding:7px 12px;font-size:12.5px;cursor:pointer;font-family:inherit}
     .seg button:last-child{border-right:0}
     .seg button.on{background:var(--chalk);color:var(--ink);font-weight:600}
+    /* Every control on this page had its focus ring left to the user agent,
+       and one of them switched it off outright. A keyboard reader needs to
+       know where they are; amber is 9.06:1 on the ink, so this is visible
+       rather than technically present. */
+    :focus-visible{outline:2px solid var(--amber);outline-offset:2px}
 `;
