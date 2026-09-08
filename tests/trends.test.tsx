@@ -31,7 +31,7 @@ import { cap } from "../lib/format.mjs";
 import { GEOM } from "../app/components/TrendsChart";
 import { TrendsChart } from "../app/components/TrendsChart";
 import { TrendsMatrix } from "../app/components/TrendsMatrix";
-import { payload, renderPage, stubFetch } from "./helpers";
+import { advance, payload, renderPage, stubFetch } from "./helpers";
 
 const managers: string[] = payload.standings.map((r: any) => r.manager);
 const byWeek: any[] = payload.byWeek;
@@ -74,6 +74,10 @@ const hiddenTable = (root: HTMLElement) => {
 async function openTrends() {
   const view = await renderPage();
   fireEvent.click(screen.getByRole("tab", { name: "Trends" }));
+  /* Opening the tab is what asks for results.json, and the answer arrives a
+     microtask later. Without this every matrix assertion runs against the
+     loading state, which passes the "does not throw" test and nothing else. */
+  await advance(0);
   return view;
 }
 
@@ -106,8 +110,12 @@ describe("the race chart", () => {
       const present = stated.filter((v): v is number => v !== null);
       expect(drawn.length, `${m}: ${drawn.length} points against ${present.length} cells`)
         .toBe(present.length);
+      /* Three decimal places of slack, because the coordinates are rounded to
+         three before they go into the attribute - that is worth about a
+         ten-thousandth of a point once inverted, and the numbers being
+         compared are whole points, so an off-by-one still fails loudly. */
       drawn.forEach((v, i) => {
-        expect(v, `${m}, week ${i + 1}`).toBeCloseTo(present[i], 6);
+        expect(v, `${m}, week ${i + 1}`).toBeCloseTo(present[i], 3);
       });
     }
   });

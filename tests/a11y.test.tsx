@@ -10,10 +10,16 @@
 import { describe, expect, test } from "vitest";
 import { fireEvent, screen, within } from "@testing-library/react";
 
+import { TABS } from "../app/components/Tabs";
 import { renderPage, stubFetch } from "./helpers";
 
 const tabs = () => screen.getByRole("tablist");
 const tab = (name: string) => within(tabs()).getByRole("tab", { name });
+/* Read off the list rather than named, so adding a fifth tab is one line in
+   components/Tabs and not a hunt through this file for whichever assertion
+   happened to be about the end of the strip. */
+const first = () => tab(TABS[0].label);
+const last = () => tab(TABS[TABS.length - 1].label);
 
 describe("the leaderboard row", () => {
   /* It was a <tr onClick> with no tabIndex, no role and no key handler, so the
@@ -103,21 +109,27 @@ describe("the tab strip", () => {
     fireEvent.keyDown(tab("All teams"), { key: "ArrowRight" });
     expect(document.activeElement).toBe(tab("Activity"));
 
-    fireEvent.keyDown(tab("Activity"), { key: "ArrowRight" });
-    expect(document.activeElement, "the end wraps to the start").toBe(tab("Leaderboard"));
+    /* Walk whatever is left of the strip, so this stays a test of wrapping
+       rather than a test of how many tabs there were the day it was written. */
+    while (document.activeElement !== last()) {
+      fireEvent.keyDown(document.activeElement as HTMLElement, { key: "ArrowRight" });
+    }
 
-    fireEvent.keyDown(tab("Leaderboard"), { key: "ArrowLeft" });
-    expect(document.activeElement, "the start wraps to the end").toBe(tab("Activity"));
+    fireEvent.keyDown(last(), { key: "ArrowRight" });
+    expect(document.activeElement, "the end wraps to the start").toBe(first());
+
+    fireEvent.keyDown(first(), { key: "ArrowLeft" });
+    expect(document.activeElement, "the start wraps to the end").toBe(last());
   });
 
   test("Home and End go to the ends", async () => {
     stubFetch();
     await renderPage();
-    tab("Leaderboard").focus();
-    fireEvent.keyDown(tab("Leaderboard"), { key: "End" });
-    expect(document.activeElement).toBe(tab("Activity"));
-    fireEvent.keyDown(tab("Activity"), { key: "Home" });
-    expect(document.activeElement).toBe(tab("Leaderboard"));
+    first().focus();
+    fireEvent.keyDown(first(), { key: "End" });
+    expect(document.activeElement).toBe(last());
+    fireEvent.keyDown(last(), { key: "Home" });
+    expect(document.activeElement).toBe(first());
   });
 
   test("the panel is labelled by its tab", async () => {

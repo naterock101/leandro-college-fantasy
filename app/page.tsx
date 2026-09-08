@@ -11,6 +11,7 @@ import { GamesOfWeek } from "./components/GamesOfWeek";
 import { Leaderboard } from "./components/Leaderboard";
 import { LiveGames } from "./components/LiveGames";
 import { Style } from "./components/Style";
+import { Trends } from "./components/Trends";
 import { panelId, TABS, tabId, Tabs } from "./components/Tabs";
 import { Unscored } from "./components/Unscored";
 import { ViewState } from "./hooks/useViewState";
@@ -290,6 +291,8 @@ export default function Page() {
         {tab === "teams" && <AllTeams data={data} note={lazyNote(load.teams)} />}
 
         {tab === "h2h" && <Activity data={data} note={lazyNote(load.results)} />}
+
+        {tab === "trends" && <Trends data={data} note={lazyNote(load.results)} />}
       </div>
 
       <Style />
