@@ -989,56 +989,126 @@
         "losses": 1,
         "points": 10,
         "gained": 0,
-        "rankDelta": 0
+        "rankDelta": 0,
+        "expectedGained": 0,
+        "expectedPoints": 10
       },
       "nathan": {
         "wins": 4,
         "losses": 3,
         "points": 10,
         "gained": 3,
-        "rankDelta": 0
+        "rankDelta": 0,
+        "expectedGained": 3,
+        "expectedPoints": 10
       },
       "tconn": {
         "wins": 2,
         "losses": 2,
         "points": 6,
         "gained": 0,
-        "rankDelta": 0
+        "rankDelta": 0,
+        "expectedGained": 0,
+        "expectedPoints": 6
       },
       "adam": {
         "wins": 2,
         "losses": 2,
         "points": 4,
         "gained": 2,
-        "rankDelta": 0
+        "rankDelta": 0,
+        "expectedGained": 1.1,
+        "expectedPoints": 3.1
       },
       "charlie": {
         "wins": 1,
         "losses": 2,
         "points": 3,
         "gained": 3,
-        "rankDelta": 0
+        "rankDelta": 0,
+        "expectedGained": 2.9,
+        "expectedPoints": 2.9
       },
       "clint": {
         "wins": 0,
         "losses": 4,
         "points": 0,
         "gained": 0,
-        "rankDelta": 0
+        "rankDelta": 0,
+        "expectedGained": 0.9,
+        "expectedPoints": 0.9
       },
       "leandro": {
         "wins": 0,
         "losses": 1,
         "points": 0,
         "gained": 0,
-        "rankDelta": 0
+        "rankDelta": 0,
+        "expectedGained": 0,
+        "expectedPoints": 0
       },
       "steve": {
         "wins": 0,
         "losses": 0,
         "points": 0,
         "gained": 0,
-        "rankDelta": 0
+        "rankDelta": 0,
+        "expectedGained": 0,
+        "expectedPoints": 0
+      }
+    }
+  },
+  "luck": {
+    "games": 6,
+    "unpriced": 8,
+    "managers": {
+      "devish": {
+        "games": 3,
+        "actual": 5,
+        "expected": 3.9,
+        "delta": 1.1
+      },
+      "nathan": {
+        "games": 2,
+        "actual": 2,
+        "expected": 2.1,
+        "delta": -0.1
+      },
+      "tconn": {
+        "games": 2,
+        "actual": 3,
+        "expected": 3.2,
+        "delta": -0.2
+      },
+      "adam": {
+        "games": 1,
+        "actual": 0,
+        "expected": 1.7,
+        "delta": -1.7
+      },
+      "charlie": {
+        "games": 1,
+        "actual": 0,
+        "expected": 1.8,
+        "delta": -1.8
+      },
+      "clint": {
+        "games": 1,
+        "actual": 0,
+        "expected": 0.8,
+        "delta": -0.8
+      },
+      "leandro": {
+        "games": 0,
+        "actual": 0,
+        "expected": 0,
+        "delta": 0
+      },
+      "steve": {
+        "games": 0,
+        "actual": 0,
+        "expected": 0,
+        "delta": 0
       }
     }
   },
@@ -1936,8 +2006,14 @@
       },
       "score": "30-27",
       "sameManager": false,
-      "spread": null,
-      "upset": false
+      "spread": {
+        "spread": 2.5,
+        "favorite": "Ole Miss",
+        "formatted": "Ole Miss -2.5",
+        "overUnder": 54.5,
+        "provider": "DraftKings"
+      },
+      "upset": true
     }
   ],
   "results": [
@@ -2138,8 +2214,8 @@
       "points": 0,
       "h2h": false,
       "sameManager": false,
-      "upset": false,
-      "line": null
+      "upset": true,
+      "line": "Pittsburgh -3.5"
     },
     {
       "key": "0|02",
@@ -2218,8 +2294,8 @@
       "points": 3,
       "h2h": true,
       "sameManager": false,
-      "upset": false,
-      "line": null
+      "upset": true,
+      "line": "Ole Miss -2.5"
     }
   ]
 }

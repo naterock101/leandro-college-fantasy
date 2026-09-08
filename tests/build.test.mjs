@@ -21,6 +21,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { classify, home, away, isDone, sortKey } from "../lib/games.mjs";
+import { round1 } from "../lib/winprob.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const GAMES = join(ROOT, "fixtures/sample-games.json");
@@ -361,5 +362,156 @@ test("byConference holds every conference and no team from outside one", () => {
     const sorted = [...teams].sort(
       (x, y) => y.points - x.points || y.wins - x.wins || x.team.localeCompare(y.team));
     assert.deepEqual(teams, sorted, `${conf} is out of order`);
+  }
+});
+
+/* ------------------------------------------------------------------ */
+/* win probability, expected points and luck                           */
+/* ------------------------------------------------------------------ */
+
+/* Who owns what, rebuilt here rather than read off the payload, so the
+   assertions below check the builder against the roster file and not against
+   its own output. */
+const OWNER = new Map(
+  Object.entries(rosters.managers).flatMap(([manager, teams]) =>
+    teams.map((t) => [t.cfbd, { manager, tier: t.tier }])));
+const value = (tier) => rosters.scoring[tier];
+
+/** Every rostered game that produced a result, paired with its stored line. */
+const settled = () => rostered(fixtureGames)
+  .filter((g) => classify(g, NOW) === "final")
+  .map((g) => ({ game: g, line: fixtureLines.games[g.id] ?? null }));
+
+test("luck covers every settled game that was priced, and counts the ones that were not", () => {
+  const all = settled();
+  const priced = all.filter((s) => s.line);
+  assert.ok(priced.length, "the fixture prices no completed game");
+  assert.ok(all.length > priced.length,
+    "the fixture no longer holds an unpriced completed game, which is the case this exists for");
+
+  assert.equal(built.luck.games, priced.length, "priced games in the luck ledger");
+  /* The count that has to survive into the payload. A luck number computed over
+     six games of fourteen and presented as a season is worse than no luck
+     number at all, so the excluded count travels with it and the caption reads
+     it out. */
+  assert.equal(built.luck.unpriced, all.length - priced.length, "excluded games");
+});
+
+test("a game with no line moves neither side of anybody's luck", () => {
+  /* Counted from the roster and the lines file, so this is an independent count
+     of how many team-games each manager should have in the ledger. An unpriced
+     game contributes nothing to either manager on it - not a coin flip, not a
+     zero, nothing - so it must not reach `games` either. */
+  const expected = Object.fromEntries(Object.keys(rosters.managers).map((m) => [m, 0]));
+  for (const { game, line } of settled()) {
+    if (!line) continue;
+    for (const team of [home(game), away(game)]) {
+      const o = OWNER.get(team);
+      if (o) expected[o.manager]++;
+    }
+  }
+  for (const [manager, n] of Object.entries(expected)) {
+    assert.equal(built.luck.managers[manager].games, n, `${manager}'s counted games`);
+  }
+
+  /* And the concrete case, so a change that quietly starts counting unpriced
+     games fails with a name attached. Nathan's Texas A&M beat Missouri State
+     45-10 in week 2 and the books never priced it: three points banked that the
+     model is not entitled to an opinion about. */
+  const unpriced = fixtureGames.find((g) => g.id === 20);
+  assert.equal(fixtureLines.games[unpriced.id], undefined, "game 20 acquired a line");
+  assert.equal(built.luck.managers.nathan.games, 2);
+  assert.equal(built.luck.managers.nathan.actual, 2,
+    "an unpriced win was counted into actual points");
+});
+
+test("every manager's luck is their banked points less their expected ones", () => {
+  for (const [manager, l] of Object.entries(built.luck.managers)) {
+    assert.equal(l.delta, round1(l.actual - l.expected), `${manager}'s luck`);
+    assert.ok(l.expected >= 0, `${manager}'s expected points are negative`);
+
+    /* Expected can never exceed what was on offer: it is a sum of p*value with
+       every p at most 1. Recomputed from the roster rather than trusted. */
+    let available = 0;
+    for (const { game, line } of settled()) {
+      if (!line) continue;
+      for (const team of [home(game), away(game)]) {
+        const o = OWNER.get(team);
+        if (o && o.manager === manager) available += value(o.tier);
+      }
+    }
+    assert.ok(l.expected <= available,
+      `${manager} expected ${l.expected} of a possible ${available}`);
+    assert.ok(l.actual <= available, `${manager} banked more than was on offer`);
+  }
+});
+
+test("a manager whose only games went unpriced has no luck either way", () => {
+  /* Leandro's New Mexico and Steve's Wyoming were in one game between them and
+     it never reported, so neither has a settled game at all. Zero here means
+     "nothing to say", which is why the count of excluded games has to be on
+     screen next to it. */
+  for (const m of ["leandro", "steve"]) {
+    assert.deepEqual(built.luck.managers[m], { games: 0, actual: 0, expected: 0, delta: 0 });
+  }
+});
+
+test("the projection gains expected points without losing its old shape", () => {
+  const p = built.projection;
+  /* The naive projection is still there, field for field. A browser holding
+     cached JS reads these and must not meet a reshaped object. */
+  for (const key of ["key", "label", "games", "projected", "unprojected", "managers"]) {
+    assert.ok(key in p, `projection lost ${key}`);
+  }
+  for (const [manager, m] of Object.entries(p.managers)) {
+    for (const key of ["wins", "losses", "points", "gained", "rankDelta"]) {
+      assert.ok(key in m, `${manager} lost projection.${key}`);
+    }
+    assert.equal(typeof m.expectedGained, "number", `${manager}'s expected gain`);
+    assert.equal(typeof m.expectedPoints, "number", `${manager}'s expected total`);
+
+    const now = built.standings.find((r) => r.manager === manager).points;
+    assert.equal(m.expectedPoints, round1(now + m.expectedGained),
+      `${manager}'s expected total is not their points plus their expected gain`);
+  }
+});
+
+test("expected points never exceed the points actually available that week", () => {
+  const p = built.projection;
+  /* The most a manager can take out of the week, counting each side of a game
+     between two of their own teams once - the same games the projection walks.
+     Every probability is at most 1, so the expectation is at most this, and a
+     model that beat it would be one that had stopped being a probability. */
+  const available = {};
+  for (const g of built.gamesOfWeek.games) {
+    for (const sd of [g.home, g.away]) {
+      if (!sd.manager) continue;
+      available[sd.manager] = (available[sd.manager] ?? 0) + built.scoring[sd.tier];
+    }
+  }
+  for (const [manager, m] of Object.entries(p.managers)) {
+    const cap = available[manager] ?? 0;
+    assert.ok(m.expectedGained >= 0, `${manager} expects to lose points by playing`);
+    assert.ok(m.expectedGained <= cap,
+      `${manager} expects ${m.expectedGained} from a week worth ${cap}`);
+    /* Deliberately not asserted: that the honest expectation is under the naive
+       "every favourite wins" projection. It is per *game* - a favourite is
+       handed its whole value there and keeps back the upset share here - and it
+       is not per manager, because a manager who owns only underdogs is given
+       nothing by the naive projection and a real share of a real chance by this
+       one. An ordering between the two columns would be a nice sentence and a
+       false test. */
+  }
+});
+
+test("the projection ignores unpriced games on both counts", () => {
+  const week = built.gamesOfWeek.games;
+  assert.equal(built.projection.games, week.length);
+  assert.equal(built.projection.projected + built.projection.unprojected, week.length);
+  /* A week nobody priced expects nothing, rather than expecting half of it. */
+  if (week.length && week.every((g) => !g.spread)) {
+    for (const m of Object.values(built.projection.managers)) {
+      assert.equal(m.expectedGained, 0);
+    }
   }
 });
