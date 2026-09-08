@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { classify } from "../lib/games.mjs";
 import { LAZY, mergePayload } from "../lib/payload.mjs";
@@ -374,14 +374,24 @@ export default function Page() {
      extra fetch when the first payload turns the cadence from idle to live,
      and that fetch is a 304. */
   const pollMs = liveGames.length ? POLL_LIVE_MS : POLL_IDLE_MS;
-  const everLoaded = useRef(false);
+  /* Mounted, not "this effect run is current". Tying it to the effect run was
+     a bug worth keeping the note for: opening the site in a background tab
+     mounts it visible, resolves document.hidden a tick later, and that state
+     change re-ran the fetch effect - whose cleanup then discarded the very
+     first response, in flight and about to arrive, so the page sat on
+     "Loading…" until someone focused the tab. Reconfiguring the poller is not
+     a reason to throw away a request already on the wire. Set on the way in as
+     well as cleared on the way out, because React's development double-mount
+     would otherwise leave it false for the life of the page. */
+  const alive = useRef(true);
   useEffect(() => {
-    /* The first load happens even in a background tab, so a link opened in one
-       is rendered by the time it is looked at. After that, hidden means no
-       requests at all until it comes back. */
-    if (!visible && everLoaded.current) return;
-    let alive = true;
+    alive.current = true;
+    return () => { alive.current = false; };
+  }, []);
 
+  /* One request per file the page currently wants: the core always, and each
+     lazy file whose tab has been opened. */
+  const refresh = useCallback(() => {
     /* No cache-busting query string, and `no-cache` rather than `no-store`.
        Both of the old settings had the same effect: `?t=` made every poll a
        URL nothing had ever seen, and `no-store` tells the browser not to keep
@@ -395,36 +405,48 @@ export default function Page() {
     /* Live copy first, deploy-time copy second, per file. */
     const grab = (file: string) => json(remote(file)).catch(() => json(bundled(file)));
 
-    const poll = () => {
-      everLoaded.current = true;
-      grab("standings")
-        .then((d) => { if (alive) { setCore(d); setErr(null); } })
-        .catch((e) => { if (alive) setErr(e.message); });
+    grab("standings")
+      .then((d) => { if (alive.current) { setCore(d); setErr(null); } })
+      .catch((e) => { if (alive.current) setErr(e.message); });
 
-      for (const f of want) {
-        setLoad((s) => (s[f] === "idle" ? { ...s, [f]: "loading" } : s));
-        grab(f)
-          .then((d) => {
-            if (!alive) return;
-            setParts((p) => ({ ...p, [f]: d }));
-            setLoad((s) => ({ ...s, [f]: "ready" }));
-          })
-          /* A refresh that fails after the file once arrived leaves the tab
-             showing what it has. Only a file we have never had reads as
-             failed, because that is the only case where the tab is empty and
-             the reason matters. */
-          .catch(() => {
-            if (!alive) return;
-            setLoad((s) => ({ ...s, [f]: s[f] === "ready" ? "ready" : "failed" }));
-          });
-      }
-    };
+    for (const f of want) {
+      setLoad((s) => (s[f] === "idle" ? { ...s, [f]: "loading" } : s));
+      grab(f)
+        .then((d) => {
+          if (!alive.current) return;
+          setParts((p) => ({ ...p, [f]: d }));
+          setLoad((s) => ({ ...s, [f]: "ready" }));
+        })
+        /* A refresh that fails after the file once arrived leaves the tab
+           showing what it has. Only a file we have never had reads as failed,
+           because that is the only case where the tab is empty and the reason
+           matters. */
+        .catch(() => {
+          if (!alive.current) return;
+          setLoad((s) => ({ ...s, [f]: s[f] === "ready" ? "ready" : "failed" }));
+        });
+    }
+  }, [want]);
 
-    poll();
-    if (!visible) return () => { alive = false; };
-    const id = setInterval(poll, pollMs);
-    return () => { alive = false; clearInterval(id); };
-  }, [visible, pollMs, want]);
+  /* Intent: on mount, and every time a tab asks for a file we have not got.
+     Deliberately not gated on visibility. A click is a request whether or not
+     the document calls itself visible, and it does not always - an occluded
+     window and an automated browser both report hidden while being driven, and
+     gating this on visibility cost a newly opened tab its one and only fetch. */
+  useEffect(() => { refresh(); }, [refresh]);
+
+  /* And then on a timer, only while someone can see it. A phone left open
+     through a twelve hour Saturday used to poll about 360 times in a pocket.
+     Coming back fetches immediately rather than waiting out an interval that
+     was never running; a change of cadence only re-times the interval, because
+     nothing about that makes the data any older. */
+  const wasHidden = useRef(false);
+  useEffect(() => {
+    if (!visible) { wasHidden.current = true; return; }
+    if (wasHidden.current) { wasHidden.current = false; refresh(); }
+    const id = setInterval(refresh, pollMs);
+    return () => clearInterval(id);
+  }, [refresh, visible, pollMs]);
 
   /* Grouped by the week the game belonged to, oldest first. A game abandoned in
      week 1 stays filed under week 1 however many weeks later it is read,
