@@ -1,0 +1,219 @@
+{
+  "leagues": [
+    {
+      "id": "23",
+      "name": "NCAA - Football",
+      "abbreviation": "NCAAF"
+    }
+  ],
+  "season": {
+    "type": 2,
+    "year": 2026
+  },
+  "week": {
+    "number": 2
+  },
+  "events": [
+    {
+      "id": "401858433",
+      "date": "2026-09-05T19:30Z",
+      "name": "Boise State Broncos at Oregon Ducks",
+      "shortName": "BOIS @ ORE",
+      "status": {
+        "clock": 462,
+        "displayClock": "7:42",
+        "period": 3,
+        "type": {
+          "id": "2",
+          "name": "STATUS_IN_PROGRESS",
+          "state": "in",
+          "completed": false,
+          "description": "In Progress",
+          "detail": "7:42 - 3rd Quarter",
+          "shortDetail": "7:42 - 3rd"
+        }
+      },
+      "competitions": [
+        {
+          "id": "401858433",
+          "date": "2026-09-05T19:30Z",
+          "neutralSite": false,
+          "competitors": [
+            {
+              "id": "2483",
+              "homeAway": "home",
+              "score": "21",
+              "team": {
+                "id": "2483",
+                "location": "Oregon",
+                "name": "Ducks",
+                "abbreviation": "ORE",
+                "displayName": "Oregon Ducks"
+              }
+            },
+            {
+              "id": "68",
+              "homeAway": "away",
+              "score": "17",
+              "team": {
+                "id": "68",
+                "location": "Boise State",
+                "name": "Broncos",
+                "abbreviation": "BOIS",
+                "displayName": "Boise State Broncos"
+              }
+            }
+          ],
+          "status": {
+            "clock": 462,
+            "displayClock": "7:42",
+            "period": 3,
+            "type": {
+              "id": "2",
+              "name": "STATUS_IN_PROGRESS",
+              "state": "in",
+              "completed": false,
+              "description": "In Progress",
+              "detail": "7:42 - 3rd Quarter",
+              "shortDetail": "7:42 - 3rd"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "401856774",
+      "date": "2026-09-06T02:00Z",
+      "name": "Morgan State Bears at Arizona State Sun Devils",
+      "shortName": "MORG @ ASU",
+      "status": {
+        "clock": 0,
+        "displayClock": "0:00",
+        "period": 2,
+        "type": {
+          "id": "2",
+          "name": "STATUS_IN_PROGRESS",
+          "state": "in",
+          "completed": false,
+          "description": "In Progress",
+          "detail": "Halftime",
+          "shortDetail": "Halftime"
+        }
+      },
+      "competitions": [
+        {
+          "id": "401856774",
+          "date": "2026-09-06T02:00Z",
+          "neutralSite": false,
+          "competitors": [
+            {
+              "id": "9",
+              "homeAway": "home",
+              "score": "28",
+              "team": {
+                "id": "9",
+                "location": "Arizona State",
+                "name": "Sun Devils",
+                "abbreviation": "ASU",
+                "displayName": "Arizona State Sun Devils"
+              }
+            },
+            {
+              "id": "2415",
+              "homeAway": "away",
+              "score": "3",
+              "team": {
+                "id": "2415",
+                "location": "Morgan State",
+                "name": "Bears",
+                "abbreviation": "MORG",
+                "displayName": "Morgan State Bears"
+              }
+            }
+          ],
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 2,
+            "type": {
+              "id": "2",
+              "name": "STATUS_IN_PROGRESS",
+              "state": "in",
+              "completed": false,
+              "description": "In Progress",
+              "detail": "Halftime",
+              "shortDetail": "Halftime"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "401858428",
+      "date": "2026-09-05T23:30Z",
+      "name": "Western Michigan Broncos at Michigan Wolverines",
+      "shortName": "WMU @ MICH",
+      "status": {
+        "clock": 0,
+        "displayClock": "0:00",
+        "period": 4,
+        "type": {
+          "id": "3",
+          "name": "STATUS_FINAL",
+          "state": "post",
+          "completed": true,
+          "description": "Final",
+          "detail": "Final",
+          "shortDetail": "Final"
+        }
+      },
+      "competitions": [
+        {
+          "id": "401858428",
+          "date": "2026-09-05T23:30Z",
+          "neutralSite": false,
+          "competitors": [
+            {
+              "id": "130",
+              "homeAway": "home",
+              "score": "13",
+              "team": {
+                "id": "130",
+                "location": "Michigan",
+                "name": "Wolverines",
+                "abbreviation": "MICH",
+                "displayName": "Michigan Wolverines"
+              }
+            },
+            {
+              "id": "2711",
+              "homeAway": "away",
+              "score": "12",
+              "team": {
+                "id": "2711",
+                "location": "Western Michigan",
+                "name": "Broncos",
+                "abbreviation": "WMU",
+                "displayName": "Western Michigan Broncos"
+              }
+            }
+          ],
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 4,
+            "type": {
+              "id": "3",
+              "name": "STATUS_FINAL",
+              "state": "post",
+              "completed": true,
+              "description": "Final",
+              "detail": "Final",
+              "shortDetail": "Final"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

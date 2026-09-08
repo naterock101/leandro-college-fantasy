@@ -58,6 +58,12 @@ export type Side = { team: string; manager: string | null; tier: Tier | null; dr
 export type ScoredSide = { team: string; manager: string | null };
 
 export type Game = {
+  /* The CFBD game id, which the builder has always written and nothing has
+     read until now. It is also, exactly, ESPN's event id, which is what makes
+     the live overlay a join on a number rather than on a school string.
+     Optional because a payload written before the builder emitted it must not
+     break this page - the overlay simply finds nothing for that row. */
+  id?: number | string;
   date: string; away: Side; home: Side; neutral: boolean; sameManager: boolean;
   stakes: number; h2h: boolean;
   /* only present when the feed happened to be carrying a score for a game
