@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 
 import { cap, tally } from "../../lib/format.mjs";
-import { SIGMA } from "../../lib/winprob.mjs";
 import { useViewState } from "../hooks/useViewState";
 import type { Data } from "../types";
 import { TeamName } from "./TeamName";
@@ -82,7 +81,7 @@ export function Leaderboard({ data }: { data: Data }) {
             <th className="r">W-L</th>
             {showProj && <th className="r">Proj</th>}
             <th className="r">Pts</th>
-            {showLuck && <th className="r">Luck</th>}
+            {showLuck && <th className="r">Luck*</th>}
             <th className="r">{live ? "Left" : "+/-"}</th><th className="r">Ceil</th>
           </tr>
         </thead>
@@ -214,16 +213,17 @@ export function Leaderboard({ data }: { data: Data }) {
         )}
         {showLuck && (
           <>
-            Luck is points banked less points the closing lines expected, over the{" "}
-            {luck!.games} settled {luck!.games === 1 ? "game" : "games"} that had one;
-            positive means running hot.
-            {/* Not a footnote. A luck number that quietly left out half the
-                season would be the most confident wrong figure on the page,
-                so the denominator is in the same sentence as the number. */}
+            *Luck is points banked less what the closing lines expected;
+            positive is running hot.
+            {/* The one number the caption may not drop. Everything else here
+                was cut to a line on purpose, but a luck figure that quietly
+                left games out would be the most confident wrong thing on the
+                page, so the exclusion keeps its own clause - and only appears
+                when there is something to exclude, which today there is not.
+                Per-manager figures are on each cell's title, and sigma is in
+                the README. */}
             {luck!.unpriced > 0 &&
-              ` ${luck!.unpriced} settled ${luck!.unpriced === 1 ? "game" : "games"} were never priced and count toward neither side of it.`}{" "}
-            It assumes results land about {SIGMA} points either side of the
-            spread, which is an assumption and not a measurement.{" "}
+              ` ${luck!.unpriced} settled ${luck!.unpriced === 1 ? "game" : "games"} had no line and count toward neither side.`}{" "}
           </>
         )}
         Ceiling is current points plus every remaining scheduled game, less any games
