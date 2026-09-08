@@ -20,12 +20,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # 22, not 20: the DOM half of the suite runs under vitest and jsdom, and
+      # both of them declare `^22` as their floor. On 20 the pure suite would
+      # still pass and the component suite would not run at all, which is the
+      # worst way for a runner to be missing - green, and testing half of what
+      # it says it tests.
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
 
-      # node --test is built in, so the suite itself has no dependencies. The
-      # install is only here for the Next build below.
+      # node --test is built in, so the pure half of the suite has no
+      # dependencies. The install is here for jsdom and for the Next build.
       - run: npm ci
 
       - name: Unit and golden tests
