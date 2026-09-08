@@ -123,8 +123,16 @@ const stored = loadStored();
 /* ESPN                                                                */
 /* ------------------------------------------------------------------ */
 
+/* "Unreachable" includes "accepts the connection and then says nothing".
+   Without a deadline that is not a degraded run, it is a step that sits there
+   until GitHub's job timeout kills it, every ten minutes. */
+const TIMEOUT_MS = 15_000;
+
 async function fetchEspnDoc(url) {
-  const res = await fetch(url, { headers: { accept: "application/json" } });
+  const res = await fetch(url, {
+    headers: { accept: "application/json" },
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
   const body = await res.json();
   /* A reshaped or error payload usually still parses - an HTML block does not,
@@ -200,6 +208,7 @@ async function readCfbd() {
   try {
     const res = await fetch(`${CFBD_API}?year=${doc.season}`, {
       headers: { Authorization: `Bearer ${key}` },
+      signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
     const games = await res.json();
