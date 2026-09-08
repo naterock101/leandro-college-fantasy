@@ -10,10 +10,25 @@
  * season, and putting it on the 10-minute cron would spend a metered call
  * every run to learn that Iowa's logo is still Iowa's logo.
  *
- *   npm run logos            # CFBD, needs a key, authoritative
- *   npm run logos -- --espn  # ESPN, needs nothing, the fallback
+ *   npm run logos -- --espn  # ESPN. The one that works. Needs no key.
+ *   npm run logos            # CFBD. Authoritative for the KEYS, and its
+ *                            # image URLs currently 403 - see below.
  *
- * WHY CFBD IS THE AUTHORITATIVE SOURCE. `data/rosters.json` joins on the CFBD
+ * READ THIS BEFORE RUNNING THE CFBD PATH. It was run once against the live
+ * API, on 2026-09-08, and wrote 642 entries whose every logo URL returned
+ * **403 Forbidden** from `cdn.collegefootballdata.com` - the CDN named by
+ * CFBD's own /teams response. It reported "80/80 rostered schools resolve"
+ * while doing it, because resolving meant the school string had an entry and
+ * nothing had ever fetched the image. The committed map was overwritten with
+ * a set of broken images that would have rendered as 186 empty boxes.
+ *
+ * A sampled fetch now runs before the write and refuses that outcome. The
+ * CFBD path stays because its school strings are the join and are worth
+ * having; if its CDN starts serving again, the guard passes and nothing else
+ * needs to change. Until then, `--espn` is the path that produces a working
+ * file, and it is what the committed map was built from.
+ *
+ * WHY CFBD IS AUTHORITATIVE FOR THE KEYS. `data/rosters.json` joins on the CFBD
  * `school` string with exact equality and never a substring, because `Miami`
  * and `Miami (OH)` are two teams, so are `Ohio` and `Ohio State`, and
  * `Louisiana` is not Louisiana Monroe or Louisiana Tech. CFBD's /teams gives
@@ -28,8 +43,9 @@
  * favourite on every spread the page renders. This script reuses that same
  * field, and verifies the result the same way, by asserting that all eighty
  * rostered schools resolve. What ESPN cannot give is a school that has not
- * appeared in a game yet, so the coverage report below is the honest limit and
- * the CFBD run is what closes it.
+ * appeared in a game yet, so the coverage report below is the honest limit.
+ * All 80 rostered schools have played, so in practice it closes itself; a
+ * CFBD run would close it in principle if its CDN served the images.
  *
  * WHY THE DARK LOGO. The page is #0D1520. ESPN publishes a `500-dark` variant
  * beside every `500` one and serves the default bytes where no true dark
@@ -40,6 +56,13 @@
  * run covers FBS; the ESPN seed also picked up the FCS teams that turned up as
  * opponents, and those name real rows in Games of the week. Replacing would
  * throw them away for no reason.
+ *
+ * WHY THE HOST MATTERS AND NOT JUST THE BYTES. `thumb()` in TeamName.tsx
+ * rewrites an a.espncdn.com path through ESPN's combiner to 40px, which is the
+ * difference between 270KB and 5.9MB of crests on the All teams table. It
+ * returns every other host untouched. So a map that merely loads is not enough
+ * - one from a host with no resizer is 22x heavier and silently so, which is
+ * why the guard warns about the host separately from the fetch.
  *
  * Env: CFBD_API_KEY (required unless --espn or --fixture)
  * Usage: node scripts/build-logos.mjs [--espn] [--dry] [--replace]
@@ -292,6 +315,66 @@ if (gaps.length) {
   console.error("These join on exact equality, so a near miss is a miss. Check the string");
   console.error("in data/rosters.json against the feed before assuming the feed is wrong.");
   process.exit(1);
+}
+
+/* The run that made this necessary: `npm run logos` with a real key wrote 642
+   entries whose every URL was a 403, and said "80/80 rostered schools resolve"
+   while doing it. "Resolve" meant "the school string has an entry", which is
+   the join this script was written to protect and only half of what it ships.
+   An image URL nobody fetched is exactly the wrong-but-plausible output the
+   rest of this repo refuses to produce, so it is now fetched.
+
+   Two failures, both silent, both caught here:
+
+   1. **The URL does not work.** CFBD's own CDN 403s on the logo paths its
+      /teams response hands out. ESPN's serves them.
+   2. **The host is one the page cannot resize.** `thumb()` in TeamName.tsx
+      rewrites a.espncdn.com paths through ESPN's combiner to 40px, which is a
+      22x cut on the All teams table - median 36KB a crest becomes 1.5KB. It
+      returns any other host untouched, so a working map from elsewhere still
+      quietly costs 5.9MB of images. That is a warning rather than an error:
+      it is slow, not broken, and a future host with its own resizer should
+      not be blocked by this check.
+
+   A sample rather than all 186: enough that a systematically broken source
+   cannot pass, few enough that the script stays quick and polite. */
+const THUMBABLE = "a.espncdn.com";
+const SAMPLE = 8;
+
+if (!FIXTURE) {
+  const picks = rostered
+    .filter((s) => sorted[s]?.logo)
+    .filter((_, i, a) => i % Math.max(1, Math.floor(a.length / SAMPLE)) === 0)
+    .slice(0, SAMPLE);
+  const dead = [];
+  for (const school of picks) {
+    const url = sorted[school].logo;
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(15_000) });
+      if (!res.ok) dead.push(`${school}: HTTP ${res.status}  ${url}`);
+    } catch (e) {
+      dead.push(`${school}: ${e.message}  ${url}`);
+    }
+  }
+  if (dead.length) {
+    console.error("");
+    console.error(`${dead.length} of ${picks.length} sampled logo URLs did not load:`);
+    for (const d of dead) console.error(`  ${d}`);
+    console.error("");
+    console.error("Refusing to write a map of images that will not render. If the source");
+    console.error("has moved its CDN, fix the URL, not this check.");
+    process.exit(1);
+  }
+  const offHost = [...new Set(Object.values(sorted)
+    .map((t) => { try { return new URL(t.logo).host; } catch { return null; } })
+    .filter((h) => h && h !== THUMBABLE))];
+  if (offHost.length) {
+    console.warn(`note: ${offHost.join(", ")} is not ${THUMBABLE}, so thumb() in`);
+    console.warn("      TeamName.tsx cannot resize these and the page will fetch them");
+    console.warn("      at full size. See the comment above THUMBABLE.");
+  } else {
+    console.log(`${picks.length}/${picks.length} sampled logo URLs load, all on ${THUMBABLE}`);
+  }
 }
 
 const out = {
