@@ -1,0 +1,141 @@
+import { useMemo } from "react";
+
+import { cap } from "../../lib/format.mjs";
+import type { Data } from "../types";
+
+/**
+ * Every manager against every other manager, as a record.
+ *
+ * Head to head is the league tiebreaker, and until now it existed only as a
+ * chronological list on the Activity tab - so answering "who wins if we
+ * finish level" meant reading sixty rows and keeping a tally by hand. A grid
+ * answers it by looking at one cell.
+ *
+ * The diagonal is not empty and is not a mistake: a manager owns ten teams,
+ * two of them meet, and one of them wins. Those own goals are flagged
+ * `sameManager` in the payload and are the only games whose two sides have
+ * the same owner, so they land on the diagonal by the same counting rule that
+ * fills every other cell - the cell just says how many rather than a record,
+ * because a manager's record against themselves is always level.
+ */
+/* One flat map keyed by the ordered pair, rather than a map of maps. The
+   separator is a NUL because it is the one character a manager name cannot
+   contain, and a separator that can appear in a name is how "a|b" and "a"
+   plus "|b" end up being the same cell. */
+const pair = (a: string, b: string) => `${a}\u0000${b}`;
+
+export function TrendsMatrix({
+  games,
+  managers,
+  note,
+}: {
+  games: Data["headToHead"];
+  managers: string[];
+  note: string | null;
+}) {
+  const { wins, own } = useMemo(() => {
+    /* Counted once, both directions, from one pass. Building the two halves
+       separately is how a matrix ends up transposed in one corner of itself:
+       the mirror is a property of the data structure here rather than
+       something the render has to remember to do. */
+    const wins = new Map<string, number>();
+    const own = new Map<string, number>();
+    for (const g of games) {
+      if (g.sameManager) {
+        own.set(g.winner.manager, (own.get(g.winner.manager) ?? 0) + 1);
+        continue;
+      }
+      const k = pair(g.winner.manager, g.loser.manager);
+      wins.set(k, (wins.get(k) ?? 0) + 1);
+    }
+    return { wins, own };
+  }, [games]);
+
+  if (!games.length) {
+    /* `note` is the page's word for "this file has not arrived", which is a
+       different sentence from "nothing has happened yet" and must not be
+       shown as one - an 8x8 grid of dashes while results.json is in flight
+       would read as a league where nobody has played anybody. */
+    return (
+      <p className="caption">
+        {note ?? "No game between two drafted teams has been scored yet."}
+      </p>
+    );
+  }
+
+  return (
+    /* Scrolls inside itself. Eight columns and a row header do not fit a
+       375px phone, and the alternative - letting the page scroll sideways -
+       moves the header and the leaderboard off the screen too. The tabindex
+       and the role are not decoration: a scroll container that only responds
+       to a swipe is a table a keyboard reader cannot reach the far side of,
+       and an unlabelled focus stop is worse than none. */
+    <div className="mx" role="region" aria-label="Head to head record" tabIndex={0}>
+      <table className="h2hm">
+        <caption className="vh">
+          Head to head record. Each row is a manager and each column an
+          opponent; the cell is that row&rsquo;s wins and losses against that
+          column. The diagonal counts games between a manager&rsquo;s own two
+          teams.
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col" className="cor">
+              W&ndash;L
+            </th>
+            {managers.map((m) => (
+              <th key={m} scope="col">
+                {cap(m)}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {managers.map((row) => (
+            <tr key={row}>
+              <th scope="row">{cap(row)}</th>
+              {managers.map((col) => {
+                if (row === col) {
+                  const n = own.get(row) ?? 0;
+                  return (
+                    <td key={col} className="dg">
+                      {n === 0 ? "—" : n}
+                    </td>
+                  );
+                }
+                const w = wins.get(pair(row, col)) ?? 0;
+                const l = wins.get(pair(col, row)) ?? 0;
+                return (
+                  <td key={col} className={w + l === 0 ? "nil" : w > l ? "up" : ""}>
+                    {w + l === 0 ? "—" : `${w}-${l}`}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+export const css = `
+    .mx{overflow-x:auto;max-width:100%;padding-bottom:2px}
+    .h2hm{width:auto;min-width:100%;font-family:ui-monospace,Menlo,monospace}
+    .h2hm th,.h2hm td{padding:8px 9px;text-align:center;white-space:nowrap;font-size:12px}
+    .h2hm td{color:var(--muted);border-bottom:1px solid rgba(42,61,83,.55)}
+    /* The row header stays put while the columns run past it, because a
+       record with no name attached to it is not a record. It needs an opaque
+       ground of its own - the page background shows through anything else. */
+    .h2hm th[scope=row],.h2hm .cor{position:sticky;left:0;background:var(--ink);
+      text-align:left;font-size:11.5px;color:var(--chalk);letter-spacing:0;
+      text-transform:none;font-weight:600;border-right:1px solid var(--rule)}
+    .h2hm .cor{z-index:1;color:var(--muted);font-size:9px;letter-spacing:.12em}
+    /* Leading a tiebreaker is the thing a reader is looking for, so it is the
+       only thing that changes weight. Colour is not carrying it - the cell
+       already says 2-1 - which is what keeps the grid readable in greyscale. */
+    .h2hm td.up{color:var(--chalk);font-weight:700}
+    .h2hm td.nil{color:var(--dim)}
+    /* Own goals, the same amber the timeline marks them in. */
+    .h2hm td.dg{color:var(--amber);background:rgba(240,168,60,.08)}
+`;
