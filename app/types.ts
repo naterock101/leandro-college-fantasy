@@ -1,0 +1,115 @@
+/**
+ * The shape of the payload, in one place.
+ *
+ * Every section component reads some slice of `Data`, and before the split
+ * these types were declared once at the top of a single file where that was
+ * free. Re-declaring them per component would not be: two components would
+ * eventually disagree about whether a field is optional, and the one that got
+ * it wrong would be the one that crashes on a payload the bot wrote before
+ * the field existed.
+ *
+ * The optionality here is load-bearing rather than defensive. A browser
+ * holding cached JS must not break on a payload written before a section
+ * shipped, and a page must not break on one written after; every `?` below is
+ * one of those two windows.
+ */
+
+import { LAZY } from "../lib/payload.mjs";
+
+export type Tab = "league" | "teams" | "h2h";
+
+/* The names of the files that are fetched only once a tab asks for them, taken
+   from the module that defines the split rather than written out again here.
+   The builder and the page have to agree about which key is in which file, and
+   the consequence of them disagreeing is a section of the site that is
+   silently empty rather than an error anyone would see. */
+export type Lazy = keyof typeof LAZY;
+
+/* idle: nobody has opened the tab that needs it. failed: we asked and did not
+   get it, which is a different sentence from "nothing has happened yet" and
+   must not be shown as one. */
+export type Load = "idle" | "loading" | "ready" | "failed";
+
+export type Tier = "p4" | "g5";
+
+export type Spread = {
+  spread: number;
+  favorite: string | null;
+  formatted: string;
+  overUnder: number | null;
+  provider: string;
+};
+
+export type TeamRow = {
+  team: string; draft: string; conf: string; tier: Tier;
+  wins: number; losses: number; points: number; remaining: number; ceiling: number;
+};
+
+export type Row = {
+  manager: string; points: number; wins: number; losses: number;
+  remaining: number; ceiling: number; collisionLoss: number;
+  teams: Record<string, TeamRow>;
+};
+
+/* manager is null on the undrafted side of a game, where draft falls back to
+   the school name. */
+export type Side = { team: string; manager: string | null; tier: Tier | null; draft: string };
+
+export type ScoredSide = { team: string; manager: string | null };
+
+export type Game = {
+  date: string; away: Side; home: Side; neutral: boolean; sameManager: boolean;
+  stakes: number; h2h: boolean;
+  /* only present when the feed happened to be carrying a score for a game
+     that had started but was not yet final */
+  partial?: { home: number; away: number };
+  spread: Spread | null;
+};
+
+export type Unscored = {
+  key: string; week: number; seasonType: string; date: string;
+  away: ScoredSide; home: ScoredSide;
+  reason: "no result" | "no score" | "tied";
+};
+
+export type Result = {
+  key: string; week: number; seasonType: string; date: string;
+  score: string; points: number; h2h: boolean; sameManager: boolean;
+  upset: boolean; line: string | null;
+  winner: ScoredSide; loser: ScoredSide;
+};
+
+export type Data = {
+  generatedAt: string;
+  season: number;
+  postseasonScheduled: boolean;
+  standings: Row[];
+  byWeek: { key: string; label: string; seasonType: string; week: number; games: number;
+            /* total rostered games the week holds; absent in snapshots built
+               before it was added, so always read it through a fallback */
+            scheduled?: number;
+            delta: Record<string, number>;
+            cumulative: Record<string, { points: number; wins: number; losses: number }> }[];
+  linesFetchedAt: string | null;
+  projection: {
+    label: string; games: number; projected: number; unprojected: number;
+    managers: Record<string, { wins: number; losses: number; points: number;
+                               gained: number; rankDelta: number }>;
+  } | null;
+  gamesOfWeek: { label: string | null; games: Game[] };
+  byConference: Record<string, {
+    team: string; tier: Tier; wins: number; losses: number;
+    points: number; remaining: number; manager: string | null }[]>;
+  headToHead: { week: number; seasonType: string;
+                date: string; score: string; sameManager: boolean; upset: boolean;
+                spread: Spread | null;
+                winner: { team: string; manager: string }; loser: { team: string; manager: string } }[];
+  /* Absent from any payload the bot wrote before the timeline shipped, so the
+     page must render without it rather than assume the bot has caught up. */
+  results?: Result[];
+  /* Games that will never be scored: abandoned after kickoff, or completed with
+     no usable score. Optional for the same reason as results - a browser
+     holding cached JS must not break on a payload written before this shipped,
+     and this page must not break on one written after. */
+  unscored?: Unscored[];
+};
