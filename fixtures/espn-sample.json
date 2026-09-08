@@ -1,0 +1,455 @@
+{
+  "leagues": [
+    {
+      "id": "23",
+      "name": "NCAA - Football",
+      "abbreviation": "NCAAF"
+    }
+  ],
+  "season": {
+    "type": 2,
+    "year": 2026
+  },
+  "week": {
+    "number": 2
+  },
+  "events": [
+    {
+      "id": "401858213",
+      "date": "2026-09-11T00:00Z",
+      "name": "Florida A&M Rattlers at Miami Hurricanes",
+      "shortName": "FAMU @ MIA",
+      "competitions": [
+        {
+          "id": "401858213",
+          "date": "2026-09-11T00:00Z",
+          "neutralSite": false,
+          "competitors": [
+            {
+              "id": "2390",
+              "homeAway": "home",
+              "score": "0",
+              "team": {
+                "id": "2390",
+                "location": "Miami",
+                "name": "Hurricanes",
+                "abbreviation": "MIA",
+                "displayName": "Miami Hurricanes"
+              }
+            },
+            {
+              "id": "50",
+              "homeAway": "away",
+              "score": "0",
+              "team": {
+                "id": "50",
+                "location": "Florida A&M",
+                "name": "Rattlers",
+                "abbreviation": "FAMU",
+                "displayName": "Florida A&M Rattlers"
+              }
+            }
+          ],
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled"
+            }
+          },
+          "odds": [
+            {
+              "provider": {
+                "id": "100",
+                "name": "DraftKings",
+                "priority": 1,
+                "displayName": "DraftKings"
+              },
+              "details": "MIA -55.5",
+              "overUnder": 61.5,
+              "spread": -55.5,
+              "awayTeamOdds": {
+                "favorite": false,
+                "underdog": true,
+                "team": {
+                  "id": "50",
+                  "abbreviation": "FAMU",
+                  "name": "Rattlers",
+                  "displayName": "Florida A&M Rattlers"
+                }
+              },
+              "homeTeamOdds": {
+                "favorite": true,
+                "underdog": false,
+                "team": {
+                  "id": "2390",
+                  "abbreviation": "MIA",
+                  "name": "Hurricanes",
+                  "displayName": "Miami Hurricanes"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "401856679",
+      "date": "2026-09-12T16:00Z",
+      "name": "Oklahoma Sooners at Michigan Wolverines",
+      "shortName": "OU @ MICH",
+      "competitions": [
+        {
+          "id": "401856679",
+          "date": "2026-09-12T16:00Z",
+          "neutralSite": false,
+          "competitors": [
+            {
+              "id": "130",
+              "homeAway": "home",
+              "score": "0",
+              "team": {
+                "id": "130",
+                "location": "Michigan",
+                "name": "Wolverines",
+                "abbreviation": "MICH",
+                "displayName": "Michigan Wolverines"
+              }
+            },
+            {
+              "id": "201",
+              "homeAway": "away",
+              "score": "0",
+              "team": {
+                "id": "201",
+                "location": "Oklahoma",
+                "name": "Sooners",
+                "abbreviation": "OU",
+                "displayName": "Oklahoma Sooners"
+              }
+            }
+          ],
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled"
+            }
+          },
+          "odds": [
+            {
+              "provider": {
+                "id": "100",
+                "name": "DraftKings",
+                "priority": 1
+              },
+              "details": "OU -5.5",
+              "overUnder": 43.5,
+              "spread": 5.5,
+              "awayTeamOdds": {
+                "favorite": true,
+                "underdog": false,
+                "team": {
+                  "id": "201",
+                  "abbreviation": "OU",
+                  "name": "Sooners",
+                  "displayName": "Oklahoma Sooners"
+                }
+              },
+              "homeTeamOdds": {
+                "favorite": false,
+                "underdog": true,
+                "team": {
+                  "id": "130",
+                  "abbreviation": "MICH",
+                  "name": "Wolverines",
+                  "displayName": "Michigan Wolverines"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "401856782",
+      "date": "2026-09-12T16:00Z",
+      "name": "Oregon Ducks at Oklahoma State Cowboys",
+      "shortName": "ORE @ OKST",
+      "competitions": [
+        {
+          "id": "401856782",
+          "date": "2026-09-12T16:00Z",
+          "neutralSite": false,
+          "competitors": [
+            {
+              "id": "197",
+              "homeAway": "home",
+              "score": "0",
+              "team": {
+                "id": "197",
+                "location": "Oklahoma State",
+                "name": "Cowboys",
+                "abbreviation": "OKST",
+                "displayName": "Oklahoma State Cowboys"
+              }
+            },
+            {
+              "id": "2483",
+              "homeAway": "away",
+              "score": "0",
+              "team": {
+                "id": "2483",
+                "location": "Oregon",
+                "name": "Ducks",
+                "abbreviation": "ORE",
+                "displayName": "Oregon Ducks"
+              }
+            }
+          ],
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled"
+            }
+          },
+          "odds": [
+            {
+              "provider": {
+                "id": "100",
+                "name": "DraftKings",
+                "priority": 1
+              },
+              "details": "ORE -22.5",
+              "overUnder": 57.5,
+              "spread": 22.5,
+              "awayTeamOdds": {
+                "favorite": true,
+                "underdog": false,
+                "team": {
+                  "id": "2483",
+                  "abbreviation": "ORE",
+                  "name": "Ducks",
+                  "displayName": "Oregon Ducks"
+                }
+              },
+              "homeTeamOdds": {
+                "favorite": false,
+                "underdog": true,
+                "team": {
+                  "id": "197",
+                  "abbreviation": "OKST",
+                  "name": "Cowboys",
+                  "displayName": "Oklahoma State Cowboys"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "401858439",
+      "date": "2026-09-12T16:00Z",
+      "name": "Howard Bison at Indiana Hoosiers",
+      "shortName": "HOW @ IU",
+      "competitions": [
+        {
+          "id": "401858439",
+          "date": "2026-09-12T16:00Z",
+          "neutralSite": false,
+          "competitors": [
+            {
+              "id": "84",
+              "homeAway": "home",
+              "score": "0",
+              "team": {
+                "id": "84",
+                "location": "Indiana",
+                "name": "Hoosiers",
+                "abbreviation": "IU",
+                "displayName": "Indiana Hoosiers"
+              }
+            },
+            {
+              "id": "47",
+              "homeAway": "away",
+              "score": "0",
+              "team": {
+                "id": "47",
+                "location": "Howard",
+                "name": "Bison",
+                "abbreviation": "HOW",
+                "displayName": "Howard Bison"
+              }
+            }
+          ],
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "401856660",
+      "date": "2026-09-06T01:40Z",
+      "name": "Clemson Tigers at LSU Tigers",
+      "shortName": "CLEM @ LSU",
+      "competitions": [
+        {
+          "id": "401856660",
+          "date": "2026-09-06T01:40Z",
+          "neutralSite": false,
+          "competitors": [
+            {
+              "id": "99",
+              "homeAway": "home",
+              "winner": true,
+              "score": "51",
+              "team": {
+                "id": "99",
+                "location": "LSU",
+                "name": "Tigers",
+                "abbreviation": "LSU",
+                "displayName": "LSU Tigers"
+              }
+            },
+            {
+              "id": "228",
+              "homeAway": "away",
+              "winner": false,
+              "score": "10",
+              "team": {
+                "id": "228",
+                "location": "Clemson",
+                "name": "Tigers",
+                "abbreviation": "CLEM",
+                "displayName": "Clemson Tigers"
+              }
+            }
+          ],
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 4,
+            "type": {
+              "id": "3",
+              "name": "STATUS_FINAL",
+              "state": "post",
+              "completed": true,
+              "description": "Final"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "401899001",
+      "date": "2026-09-12T23:30Z",
+      "name": "Ohio State Buckeyes at Texas Longhorns",
+      "shortName": "OSU @ TEX",
+      "competitions": [
+        {
+          "id": "401899001",
+          "date": "2026-09-12T23:30Z",
+          "neutralSite": false,
+          "competitors": [
+            {
+              "id": "251",
+              "homeAway": "home",
+              "score": "0",
+              "team": {
+                "id": "251",
+                "location": "Texas",
+                "name": "Longhorns",
+                "abbreviation": "TEX",
+                "displayName": "Texas Longhorns"
+              }
+            },
+            {
+              "id": "194",
+              "homeAway": "away",
+              "score": "0",
+              "team": {
+                "id": "194",
+                "location": "Ohio State",
+                "name": "Buckeyes",
+                "abbreviation": "OSU",
+                "displayName": "Ohio State Buckeyes"
+              }
+            }
+          ],
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled"
+            }
+          },
+          "odds": [
+            {
+              "provider": {
+                "id": "100",
+                "name": "DraftKings",
+                "priority": 1
+              },
+              "details": "EVEN",
+              "overUnder": 51.5,
+              "spread": 0,
+              "awayTeamOdds": {
+                "favorite": false,
+                "underdog": false,
+                "team": {
+                  "id": "194",
+                  "abbreviation": "OSU",
+                  "name": "Buckeyes",
+                  "displayName": "Ohio State Buckeyes"
+                }
+              },
+              "homeTeamOdds": {
+                "favorite": false,
+                "underdog": false,
+                "team": {
+                  "id": "251",
+                  "abbreviation": "TEX",
+                  "name": "Longhorns",
+                  "displayName": "Texas Longhorns"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
