@@ -249,6 +249,8 @@ what step 7 above is for.
 | `npm run test:dom` | The component suites only, under jsdom. |
 | `npm run lines` | Fetches betting lines, writes `public/lines.json`. 1 API call. |
 | `npm run lines:dry` | Same, writes nothing. |
+| `npm run logos -- --espn` | Rebuilds `data/logos.json` from ESPN. No API call, no key. |
+| `npm run logos` | Same from CFBD. 1 API call, needs a key, **currently refuses to write** - see "Crests". |
 | `npm run dev` | Next.js dev server. |
 
 Both builders take `--out` to say where their files go, and
@@ -517,6 +519,14 @@ together on arrival.
   final with no score in the feed) or `"tied"`. None of them count toward
   points, `remaining` or `ceiling`, and none of them appear in `gamesOfWeek`,
   `results` or `headToHead`
+- `projection` - the next scheduled week if every betting favourite wins, plus
+  `expectedGained` and `expectedPoints` per manager, which is the same week
+  weighted by win probability instead. Both are kept: the naive one is what the
+  arrow in the table means and has been on screen since before this existed,
+  and a browser holding cached JS must not break on the new fields
+- `luck[]` - points banked against points expected, over settled rostered games
+  with a stored line. Carries `games` (how many counted) and `unpriced` (how
+  many were excluded for having no line). See "Win probability" below
 - `byConference` - every FBS team ranked by points within its conference, with drafter or null
 - `headToHead[]` - completed games where both teams are drafted. The league
   tiebreaker. Each entry carries `spread` (the closing line, or null if the
@@ -606,6 +616,9 @@ thing one person can change without touching another.
 | `app/components/Unscored.tsx` | "Never scored" |
 | `app/components/AllTeams.tsx` | the flat FBS table and its filters |
 | `app/components/Activity.tsx` | head to head, and the timeline |
+| `app/components/Trends.tsx` | the Trends tab, and its lazy fetch |
+| `app/components/TrendsChart.tsx` | the points race |
+| `app/components/TrendsMatrix.tsx` | the head-to-head grid |
 | `app/components/TeamName.tsx` | one school, wherever it appears |
 | `app/components/Dropdown.tsx` | the multi-select, used three times |
 | `app/components/Style.tsx` | composes the stylesheet, in cascade order |
@@ -615,11 +628,53 @@ apply to. `app/styles.ts` keeps only what has more than one caller: the tokens,
 the page frame, the table primitives and the `.gow` row shape. There is no CSS
 framework and there will not be one - runtime dependencies are zero.
 
-Two hooks. `useDismiss` closes a dropdown on an outside click or on Escape and
+Three hooks. `useLiveScores` is described under "Live scores" below.
+`useDismiss` closes a dropdown on an outside click or on Escape and
 puts focus back on the trigger. `useViewState` is `useState` that outlives its
 own component: sections unmount when you switch tab, and without it the week
 you had selected, the row you had expanded and the team you had typed would all
 reset on the way back.
+
+### Trends
+
+Two views, both from data the payload already carries. The **points race** is
+`byWeek[].cumulative`; the **head-to-head matrix** is `headToHead`, which
+matters because head to head is the league tiebreaker and until now existed
+only as a chronological list. Rows and columns mirror each other, and the
+diagonal is a manager's own two teams playing each other.
+
+`headToHead` lives in `results.json`, the lazy file, so opening Trends warms
+Activity and vice versa - both declare the same need and the fetch is shared.
+A 404 there renders the chart and an explanation rather than throwing, which is
+the whole cutover window and any GitHub outage.
+
+Hand-rolled inline SVG. There is no charting dependency and there will not be
+one, for the same reason there is no CSS framework.
+
+Three things that are less obvious than they look:
+
+- **Eight series cannot be told apart by hue.** Four tokens are used twice
+  over, and the two that share a colour differ in *both* stroke pattern and
+  marker shape - so no two series match on all three, and the four colours are
+  also four separated lightnesses, which survives greyscale and red-green
+  confusion. Names sit at the end of their own lines; there is no legend to
+  cross-reference.
+- **Colours are assigned in alphabetical manager order, not standings order.**
+  A colour that moves when somebody wins on a Saturday makes the chart
+  unreadable across two visits.
+- **`viewBox` alone is not responsive.** Type inside an SVG scales with the
+  box, so a 720-unit chart rendered 12px labels at 19px on desktop and 6px on a
+  phone. The chart is capped at 1:1 and the type is fixed at the sizes the rest
+  of the page uses.
+
+With one week scored there is nothing to draw a line through, so it collapses
+to a dot plot and becomes a race at the second Saturday. That is the live case
+today, not an edge case.
+
+The SVG is `aria-hidden`; a visually-hidden `<table>` carries the same numbers,
+and a test inverts the plotted coordinates back into points and compares them
+to it - the failure worth catching is the half nobody sighted can see drifting
+away from the half they can.
 
 ### Accessibility
 
@@ -659,6 +714,124 @@ So the dimming is a second token rather than an opacity. `--dim` is the old
 The test asserts both halves: that every token clears AA on both grounds, and
 that the hierarchy the dimming was for still exists. It also fails on any new
 `opacity` in a text rule, because that is the thing an eye lets past.
+
+## Live scores
+
+CFBD's `/games` carries no clock, period or status, so until this the page could
+only say a game had kicked off and was not yet final. Live detail proper is
+`/scoreboard`, a second metered endpoint that on the 10-minute cron would cost
+another ~666 calls a month against a 1,000 cap.
+
+ESPN's public scoreboard gives the same thing for nothing, and the page fetches
+it **directly from the browser** - no Action, no commit, no CFBD call:
+
+```
+https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=YYYYMMDD&groups=80
+```
+
+No auth, `access-control-allow-origin: *`, `cache-control: max-age=3`. Verified
+from a browser origin, not just from curl.
+
+**The join is the game id, and the id is a string on one side and a number on
+the other.** ESPN's event id and CFBD's game id are the same value -
+`401858212` is SMU/FSU in both feeds - which is why none of the name traps
+below apply to any of this. But `"401858212" === 401858212` is `false`, and a
+strict-equality join would have matched nothing, forever, with no error
+anywhere to say so. Both sides go through `String()`.
+
+`useLiveScores(games)` derives its dates from the kickoff times of the games it
+is handed rather than from a fixed window - usually one date - and polls every
+30s only while something is inside `LIVE_WINDOW_MS` **and** the tab is visible.
+
+Two things the payload shape forces:
+
+- **`status` appears in two places**, on the event and on `competitions[0]`.
+  Reading only one is a coin flip. `e.status ?? comp.status`.
+- **`type.detail` is needed and cannot always be shown.** At halftime the state
+  is still `"in"` and the clock is `"0:00"`, so score/period/clock alone can
+  only ever render "Q2 0:00". `detail` is what says Halftime, End of 3rd,
+  Delayed or Final/3OT. For a game that has not started it reads "Sat,
+  September 12th at 12:00 PM EDT", so it is suppressed in that state and the
+  row keeps its own kickoff in the reader's timezone.
+
+Degradation is asserted as **byte identity**, not hoped for: unreachable, 429,
+a 200 with an HTML body, a reshaped `{events:{items:[...]}}` and an empty
+`{events:[]}` all render exactly the block that shipped before this existed. A
+round where every date fails leaves the previous scores alone rather than
+blanking them - a score that stops updating beats a score that vanishes.
+
+This is the second external host the page talks to at runtime, and the first
+that is undocumented. It costs nothing against the CFBD budget and it is
+allowed to disappear.
+
+## Win probability, expected points and luck
+
+```
+P(favourite wins) = Phi(|spread| / sigma),  sigma = 16
+```
+
+**Sigma is a modelling assumption, not a fact**, and lives in one named
+constant saying so. 16 approximates the standard deviation of college football
+margins against the spread. Calibrated against this season so far: the model
+expected 55.8 favourite wins from 65 settled games and 59 happened, which is
+inside noise at that sample size.
+
+Three things are built on it. **Per-game win probability** beside the spread in
+Games of the week. **Expected points** - `wp(team) x tier value` summed per
+manager over the coming week, which is a better projection than "every
+favourite wins" because it does not throw away the size of the line. And
+**luck**: points banked minus points expected over settled games, so positive
+means running hot.
+
+Two rules, both enforced by tests rather than convention:
+
+- **A game with no line is in neither half of the calculation**, and the count
+  of excluded games is carried in the payload and shown in the caption. A luck
+  number that quietly ignores part of the season is worse than no luck number.
+- **Nothing reads the `closed` flag.** It is only ever set by a run that
+  fetches that game's date, so every game that finished before it shipped will
+  never carry it - 1 of 287 stored lines has it today. The spread survives
+  regardless, and the spread is what the maths needs.
+
+A pick-em is 50/50 both ways and can never be an upset. Note it is *invisible*
+to the naive projection, which skips any line with no favourite, and *visible*
+to the weighted one at half a win each side - the two loops are therefore not
+the same loop, which is easy to get wrong by combining them.
+
+One asymmetry worth stating because it reads wrong at first: a season in which
+every favourite won is **not** positive luck for everyone. It is positive for
+whoever owned the favourites and negative for whoever owned the beaten
+underdogs, because an underdog is expected to win sometimes and losing all of
+them is below expectation. Luck sums to roughly zero across the league.
+
+## Crests
+
+`data/logos.json` maps the exact CFBD school string to `{logo, color, altColor}`,
+committed by hand and rebuilt only when a school rebrands or joins FBS. It is
+bundled rather than fetched - 186 entries, 28KB raw and 3.8KB gzipped - so there
+is no request and no loading state.
+
+**Run `npm run logos -- --espn`, not `npm run logos`.** CFBD's `/teams` is
+authoritative for the *keys*, which is the join and the reason the CFBD path
+exists at all. Its *image URLs* are a different matter: run against the live API
+on 2026-09-08 it wrote 642 entries whose every logo 403s from
+`cdn.collegefootballdata.com`, the CDN its own response names, while reporting
+"80/80 rostered schools resolve" - because resolving meant the school string had
+an entry, and nothing had ever fetched the image. The script now fetches a
+sample before writing and refuses that outcome.
+
+**The host is load-bearing, not just the bytes.** `thumb()` in `TeamName.tsx`
+rewrites an `a.espncdn.com` path through ESPN's combiner down to 40px. The 500px
+originals are a median 36KB and 5.9MB for the 136-row All teams table; through
+the combiner that is 1.5KB and 270KB, a 22x cut. Every other host is returned
+untouched, so a map that merely *loads* can still be 22x heavier with nothing
+saying so. The guard warns about the host separately from the fetch.
+
+A school with no entry renders no `<img>` at all - not a broken-image glyph and
+not an empty `src` - but does render an empty box of the same size, because one
+row's name starting 23px left of every other is worse than the gap. The crest is
+decorative beside the name it labels, so `alt=""`: a screen reader says the
+school once.
 
 ## Correctness guards
 
