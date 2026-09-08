@@ -94,7 +94,24 @@ export type Data = {
   projection: {
     label: string; games: number; projected: number; unprojected: number;
     managers: Record<string, { wins: number; losses: number; points: number;
-                               gained: number; rankDelta: number }>;
+                               gained: number; rankDelta: number;
+                               /* The line-weighted projection, added alongside
+                                  the naive one rather than replacing it. Absent
+                                  from every snapshot written before it shipped,
+                                  which is a window a cached page still has to
+                                  render. */
+                               expectedGained?: number;
+                               expectedPoints?: number }>;
+  } | null;
+  /* Points banked against points the closing lines expected, over settled games
+     that had a line. `unpriced` is the count that had none and were left out of
+     both sides of that subtraction - it is on screen because a luck number over
+     a third of the season, presented as a season, would be worse than none.
+     Optional for the same reason as results and unscored. */
+  luck?: {
+    games: number; unpriced: number;
+    managers: Record<string, { games: number; actual: number;
+                               expected: number; delta: number }>;
   } | null;
   gamesOfWeek: { label: string | null; games: Game[] };
   byConference: Record<string, {
