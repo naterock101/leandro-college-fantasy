@@ -7,6 +7,7 @@ import { css as gamesOfWeek } from "./GamesOfWeek";
 import { css as unscored } from "./Unscored";
 import { css as allTeams } from "./AllTeams";
 import { css as activity } from "./Activity";
+import { css as trends } from "./Trends";
 
 /**
  * One `<style>` element, assembled from the tokens and each component's own
@@ -33,6 +34,7 @@ export const sheet = [
   unscored,
   allTeams,
   activity,
+  trends,
 ].join("");
 
 export function Style() {

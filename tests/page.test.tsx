@@ -19,14 +19,28 @@ import { fireEvent, screen } from "@testing-library/react";
 import { LIVE_WINDOW_MS } from "../lib/games.mjs";
 import { advance, FIXTURE_NOW, renderPage, setHidden, stubFetch } from "./helpers";
 
+/* The page makes two unrelated kinds of request now. These assertions are
+   about the payload fetch - the branch, the CDN, the ETag - and phase 5A added
+   a second kind, straight to ESPN's scoreboard from the live block, which
+   answers to none of it. Scoped rather than relaxed: written as a loop over
+   every call, the URL assertion below silently depended on whether the ESPN
+   request had been made yet when the assertion ran, which is a test that
+   passes or fails on a race. */
+const payloadOnly = (calls: { url: string; init: RequestInit | undefined }[]) =>
+  calls.filter((c) => /\/(standings|results|teams)\.json$/.test(c.url));
+
 describe("the fetch layer", () => {
   test("asks for a stable URL, so the CDN's ETag can match", async () => {
     const calls = stubFetch();
     await renderPage();
-    expect(calls.length).toBeGreaterThan(0);
+    const payload = payloadOnly(calls);
+    expect(payload.length).toBeGreaterThan(0);
+    /* This one does hold of everything the page asks for anywhere. */
     for (const c of calls) {
       expect(c.url, "a cache-busting query string is back in the fetch layer")
         .not.toMatch(/[?&]t=/);
+    }
+    for (const c of payload) {
       expect(c.url).toMatch(/\/standings\.json$|\/results\.json$|\/teams\.json$/);
     }
   });
@@ -40,7 +54,9 @@ describe("the fetch layer", () => {
        single time, but it goes conditionally. */
     const calls = stubFetch();
     await renderPage();
-    for (const c of calls) expect(c.init?.cache).toBe("no-cache");
+    const payload = payloadOnly(calls);
+    expect(payload.length).toBeGreaterThan(0);
+    for (const c of payload) expect(c.init?.cache).toBe("no-cache");
   });
 
   test("falls back to the copy bundled with the deploy", async () => {

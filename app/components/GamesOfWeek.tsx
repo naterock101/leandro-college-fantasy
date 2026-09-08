@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 
 import { cap, shortDate } from "../../lib/format.mjs";
+import { favouriteProbability, percent, SIGMA } from "../../lib/winprob.mjs";
 import { useViewState } from "../hooks/useViewState";
 import { Dropdown } from "./Dropdown";
 import { TeamName } from "./TeamName";
@@ -92,6 +93,20 @@ export function GamesOfWeek({ data }: { data: Data }) {
             {g.sameManager && <em className="self"> both his</em>}
           </span>
           {g.spread && <span className="mono line">{g.spread.formatted}</span>}
+          {g.spread && (
+            /* The same price said twice: once as the book writes it, once as
+               the chance it implies. The percentage is always the favourite's,
+               which is the team the spread already names, so the two readings
+               of the row never disagree about who is being talked about. */
+            <span
+              className="mono wp"
+              title={g.spread.favorite
+                ? `${g.spread.favorite} wins ${percent(favouriteProbability(g.spread.spread))} of the time at this price`
+                : "A pick-em: even money either way"}
+            >
+              {percent(favouriteProbability(g.spread.spread))}
+            </span>
+          )}
           <span className="mono stakes">{g.stakes}pt</span>
         </div>
       ))}
@@ -101,6 +116,9 @@ export function GamesOfWeek({ data }: { data: Data }) {
           Spreads from {books(games)}, refreshed{" "}
           {new Date(data.linesFetchedAt).toLocaleString(undefined,
             { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}.
+          {" "}The percentage is the favourite&rsquo;s chance of winning outright,
+          assuming results land about {SIGMA} points either side of the number.
+          That figure is an assumption, not a measurement.
         </p>
       )}
     </section>
@@ -111,4 +129,8 @@ export const css = `
     .line{color:var(--muted);font-size:11.5px;white-space:nowrap;flex-shrink:0}
     .fav{color:var(--teal)}
     .dog{color:var(--red)}
+    /* Narrower than the spread it sits beside and dimmer, because it is the
+       same information restated and must not read as a second, competing
+       number. Fixed width so a 50% and a 94% do not shuffle the column. */
+    .wp{color:var(--dim);font-size:11px;width:30px;text-align:right;flex-shrink:0}
 `;

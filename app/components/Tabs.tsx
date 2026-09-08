@@ -16,6 +16,7 @@ export const TABS: { id: Tab; label: string; needs: Lazy | null }[] = [
   { id: "league", label: "Leaderboard", needs: null },
   { id: "teams", label: "All teams", needs: "teams" },
   { id: "h2h", label: "Activity", needs: "results" },
+  { id: "trends", label: "Trends", needs: "results" },
 ];
 
 /* The two halves of the tab/panel relationship have to agree on these, and

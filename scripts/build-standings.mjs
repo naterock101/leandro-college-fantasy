@@ -42,6 +42,7 @@ import {
   startDate, seasonType, weekOf, isDone, isPost, sortKey, classify,
 } from "../lib/games.mjs";
 import { splitPayload } from "../lib/payload.mjs";
+import { winProbability, luckOf, round1 } from "../lib/winprob.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ROSTERS = resolve(ROOT, "data/rosters.json");
@@ -250,6 +251,17 @@ function build(doc, owners, games, lines) {
      the three options when the number they are quietly wrong about is a
      manager's ceiling. */
   const unscored = [];
+  /* One entry per settled team-game a manager owned, holding what it was worth,
+     what the closing line said their chance of winning it was, and whether they
+     did. Summed at the end into points banked against points expected.
+
+     A game the books never priced goes into neither this ledger nor the count
+     of games it covers; it is counted separately in `luckUnpriced` and named on
+     the page. Half this fixture and a sixth of the live season have no line,
+     and a luck number that silently ignored them would be the most confident
+     wrong number on the site. */
+  const luckLedger = Object.fromEntries(Object.keys(doc.managers).map((m) => [m, []]));
+  let luckPriced = 0, luckUnpriced = 0;
   const seenTeams = new Set();
   const collisionLoss = {};
 
@@ -351,6 +363,27 @@ function build(doc, owners, games, lines) {
     const upset = Boolean(line && line.favorite && line.favorite !== winner);
 
     if (oh || oa) {
+      /* Luck, one game at a time. The line is the stored closing price, and it
+         is the only thing needed: `closed` is never consulted, because it is
+         only ever set by a run that fetched that game's date, so every game
+         finished before the flag shipped will never carry it and CFBD cannot
+         set it at all. The spread survives regardless, and the spread is what
+         the model reads. An unpriced game is excluded from both sides of the
+         subtraction rather than treated as a coin flip. */
+      if (!line) {
+        luckUnpriced++;
+      } else {
+        luckPriced++;
+        for (const [team, o] of [[h, oh], [a, oa]]) {
+          if (!o) continue;
+          luckLedger[o.manager].push({
+            value: val(o.tier),
+            probability: winProbability(line, team),
+            won: team === winner,
+          });
+        }
+      }
+
       const ow = owners.get(winner);
       results.push({
         key: sortKey(g), week: weekOf(g), seasonType: seasonType(g), date: startDate(g),
@@ -434,6 +467,20 @@ function build(doc, owners, games, lines) {
     linesFetchedAt: lines.fetchedAt,
     standings: table,
     projection,
+    luck: {
+      /* Both counts, always, because the second is what makes the first
+         readable. `games` is the settled rostered games the ledger covers and
+         `unpriced` the settled rostered games it had to leave out, so the page
+         can say what share of the season the number is speaking for rather than
+         implying it is all of it. */
+      games: luckPriced,
+      unpriced: luckUnpriced,
+      /* In table order, like projection.managers, so the golden file reads down
+         the same list twice rather than down the standings once and the roster
+         file once. */
+      managers: Object.fromEntries(
+        table.map((r) => [r.manager, luckOf(luckLedger[r.manager])])),
+    },
     byWeek: buildByWeek(doc, owners, games, PTS),
     gamesOfWeek: {
       label: gow.length ? (gow[0].seasonType === "postseason" ? `Postseason ${gow[0].week}` : `Week ${gow[0].week}`) : null,
@@ -450,10 +497,20 @@ function build(doc, owners, games, lines) {
   };
 }
 
-/* Projects the next scheduled week by handing every game to the side the book
-   favours. Deliberately naive: a spread is a market probability, not a verdict,
-   so this is "if every favourite holds", not a forecast. Pick-ems and unpriced
-   games are counted as unprojected rather than guessed at. */
+/* Projects the next scheduled week two ways.
+
+   The first hands every game to the side the book favours. Deliberately naive:
+   a spread is a market probability, not a verdict, so this is "if every
+   favourite holds", not a forecast. Pick-ems and unpriced games are counted as
+   unprojected rather than guessed at.
+
+   The second weights each game by the chance the model gives it, which is
+   strictly more of the information in the line - a one-point favourite and a
+   four-touchdown favourite are the same certainty to the first and are not to
+   the second. It is published *alongside* the naive one rather than instead of
+   it: the existing fields keep their names and their meaning, because a
+   browser holding cached JS reads them and must not break on the new payload.
+   Same optional-field discipline as results, unscored and byWeek[].scheduled. */
 function project(table, upcoming, lines, val) {
   const keys = [...new Set(upcoming.map((u) => u.key))].sort();
   if (!keys.length) return null;
@@ -461,11 +518,27 @@ function project(table, upcoming, lines, val) {
   const week = upcoming.filter((u) => u.key === key);
 
   const delta = {};
-  for (const row of table) delta[row.manager] = { wins: 0, losses: 0, points: 0 };
+  const expected = {};
+  for (const row of table) {
+    delta[row.manager] = { wins: 0, losses: 0, points: 0 };
+    expected[row.manager] = 0;
+  }
 
   let projected = 0, unprojected = 0;
   for (const g of week) {
     const line = g.spread;
+
+    /* Expected points run over every priced game including the pick-ems the
+       naive projection skips: a pick-em tells the naive one nothing, because it
+       names no favourite to hand the game to, and tells this one that each side
+       is worth half its value. */
+    for (const sd of [g.home, g.away]) {
+      if (!sd.manager) continue;
+      const p = winProbability(line, sd.team);
+      if (p === null) continue;
+      expected[sd.manager] += p * val(sd.tier);
+    }
+
     if (!line || !line.favorite) { unprojected++; continue; }
     projected++;
     for (const sd of [g.home, g.away]) {
@@ -490,13 +563,25 @@ function project(table, upcoming, lines, val) {
   const rankNow = new Map(table.map((r, i) => [r.manager, i]));
   const rankProj = new Map(proj.map((r, i) => [r.manager, i]));
 
+  const pointsNow = new Map(table.map((r) => [r.manager, r.points]));
+
   const managers = {};
   for (const r of proj) {
+    const gain = round1(expected[r.manager]);
     managers[r.manager] = {
       wins: r.wins, losses: r.losses, points: r.points,
       gained: delta[r.manager].points,
       /* positive means climbing the table, i.e. a smaller index */
       rankDelta: rankNow.get(r.manager) - rankProj.get(r.manager),
+      /* The two new fields. Both are added rather than substituted, and both
+         are read through a fallback on the page, so the payload a browser is
+         still holding from before this shipped renders exactly as it did.
+
+         expectedPoints is derived from the *published* expectedGained rather
+         than the full-precision sum, so the two numbers on screen add up to
+         the digit they are printed to. */
+      expectedGained: gain,
+      expectedPoints: round1((pointsNow.get(r.manager) ?? 0) + gain),
     };
   }
 
@@ -582,6 +667,22 @@ if (out.projection) {
   const p = out.projection;
   console.log(`projection (${p.label}): ${p.projected}/${p.games} games priced` +
     (p.unprojected ? `, ${p.unprojected} unprojected` : ""));
+  const gains = out.standings.map((s) => `${s.manager} +${p.managers[s.manager].expectedGained}`);
+  console.log(`  expected points: ${gains.join(", ")}`);
+}
+/* Printed with its denominator every run. The number this whole feature is
+   worth is "luck over the games we have prices for", and the run log is where
+   a season that quietly stops being priced should first become obvious. */
+{
+  const l = out.luck;
+  console.log(`luck over ${l.games} priced game(s)` +
+    (l.unpriced ? `, ${l.unpriced} settled game(s) with no line excluded` : ""));
+  for (const s of out.standings) {
+    const m = l.managers[s.manager];
+    if (!m.games) continue;
+    console.log(`  ${s.manager.padEnd(10)} ${String(m.actual).padStart(3)} banked, ` +
+      `${String(m.expected).padStart(5)} expected  ${m.delta >= 0 ? "+" : ""}${m.delta}`);
+  }
 }
 /* Printed even when it is zero: this is the count that used to be silent, and
    a run that starts dropping games from every ceiling should say so in its own

@@ -16,7 +16,7 @@
 
 import { LAZY } from "../lib/payload.mjs";
 
-export type Tab = "league" | "teams" | "h2h";
+export type Tab = "league" | "teams" | "h2h" | "trends";
 
 /* The names of the files that are fetched only once a tab asks for them, taken
    from the module that defines the split rather than written out again here.
@@ -58,6 +58,12 @@ export type Side = { team: string; manager: string | null; tier: Tier | null; dr
 export type ScoredSide = { team: string; manager: string | null };
 
 export type Game = {
+  /* The CFBD game id, which the builder has always written and nothing has
+     read until now. It is also, exactly, ESPN's event id, which is what makes
+     the live overlay a join on a number rather than on a school string.
+     Optional because a payload written before the builder emitted it must not
+     break this page - the overlay simply finds nothing for that row. */
+  id?: number | string;
   date: string; away: Side; home: Side; neutral: boolean; sameManager: boolean;
   stakes: number; h2h: boolean;
   /* only present when the feed happened to be carrying a score for a game
@@ -94,7 +100,24 @@ export type Data = {
   projection: {
     label: string; games: number; projected: number; unprojected: number;
     managers: Record<string, { wins: number; losses: number; points: number;
-                               gained: number; rankDelta: number }>;
+                               gained: number; rankDelta: number;
+                               /* The line-weighted projection, added alongside
+                                  the naive one rather than replacing it. Absent
+                                  from every snapshot written before it shipped,
+                                  which is a window a cached page still has to
+                                  render. */
+                               expectedGained?: number;
+                               expectedPoints?: number }>;
+  } | null;
+  /* Points banked against points the closing lines expected, over settled games
+     that had a line. `unpriced` is the count that had none and were left out of
+     both sides of that subtraction - it is on screen because a luck number over
+     a third of the season, presented as a season, would be worse than none.
+     Optional for the same reason as results and unscored. */
+  luck?: {
+    games: number; unpriced: number;
+    managers: Record<string, { games: number; actual: number;
+                               expected: number; delta: number }>;
   } | null;
   gamesOfWeek: { label: string | null; games: Game[] };
   byConference: Record<string, {

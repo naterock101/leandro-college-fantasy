@@ -1,8 +1,10 @@
 import { useMemo } from "react";
 
 import { cap, tally } from "../../lib/format.mjs";
+import { SIGMA } from "../../lib/winprob.mjs";
 import { useViewState } from "../hooks/useViewState";
 import type { Data } from "../types";
+import { TeamName } from "./TeamName";
 
 /**
  * The table, the week strip above it and the small print under it.
@@ -41,6 +43,20 @@ export function Leaderboard({ data }: { data: Data }) {
     ? data.byWeek.reduce((n, w) => n + (w.scheduled ?? 0), 0)
     : undefined;
 
+  /* Luck is a season-to-date number over settled games, so it belongs to the
+     live board and to no single week's snapshot. It is also hidden outright
+     when the books priced nothing we have settled, because a column of zeroes
+     reads as eight managers running exactly to expectation rather than as a
+     column with nothing to say. */
+  const luck = data.luck && data.luck.games > 0 ? data.luck : null;
+  const showLuck = live && luck !== null;
+  const showProj = live && Boolean(data.projection);
+  /* One count, so the header row and every detail row cannot disagree about
+     how wide the table is. Two optional columns is where that starts going
+     wrong quietly, with a detail cell one short and the layout only slightly
+     off. */
+  const cols = 6 + (showProj ? 1 : 0) + (showLuck ? 1 : 0);
+
   return (
     <>
       <div className="weeks">
@@ -64,8 +80,9 @@ export function Leaderboard({ data }: { data: Data }) {
           <tr>
             <th className="r">#</th><th>Manager</th>
             <th className="r">W-L</th>
-            {live && data.projection && <th className="r">Proj</th>}
+            {showProj && <th className="r">Proj</th>}
             <th className="r">Pts</th>
+            {showLuck && <th className="r">Luck</th>}
             <th className="r">{live ? "Left" : "+/-"}</th><th className="r">Ceil</th>
           </tr>
         </thead>
@@ -99,40 +116,80 @@ export function Leaderboard({ data }: { data: Data }) {
                   </button>
                 </td>
                 <td className="r mono">{r.wins}-{r.losses}</td>
-                {live && data.projection && (() => {
+                {showProj && (() => {
                   const pr = data.projection!.managers[r.manager];
                   if (!pr) return <td className="r mono muted">-</td>;
                   const dir = pr.rankDelta > 0 ? "up" : pr.rankDelta < 0 ? "down" : "flat";
+                  const move = dir === "flat"
+                    ? "Projected to hold this position"
+                    : `Projected to move ${Math.abs(pr.rankDelta)} ${dir}`;
                   return (
-                    <td className="r mono proj">
+                    <td
+                      className="r mono proj"
+                      /* The expectation rides in the tooltip rather than taking
+                         a column of its own. It is the same week the Proj
+                         column is about, so it belongs on that cell, and the
+                         table is already as wide as a phone will take. */
+                      title={typeof pr.expectedGained === "number"
+                        ? `${move}. Weighted by the lines rather than handing every game to the favourite: ${pr.expectedGained} points, for ${pr.expectedPoints} in all.`
+                        : move}
+                    >
                       {pr.wins}-{pr.losses}
-                      <span
-                        className={`arrow ${dir}`}
-                        title={dir === "flat"
-                          ? "Projected to hold this position"
-                          : `Projected to move ${Math.abs(pr.rankDelta)} ${dir}`}
-                      >
+                      <span className={`arrow ${dir}`} title={move}>
                         {dir === "up" ? "▲" : dir === "down" ? "▼" : "–"}
                       </span>
                     </td>
                   );
                 })()}
                 <td className="r pts">{r.points}</td>
+                {showLuck && (() => {
+                  const lk = luck!.managers[r.manager];
+                  /* Nothing settled and priced for this manager is a dash, not
+                     a nought: "we cannot say" and "dead on expectation" are
+                     different sentences and must not print the same. */
+                  if (!lk || !lk.games) {
+                    return <td className="r mono dim" title="No settled game of theirs was priced">-</td>;
+                  }
+                  return (
+                    <td
+                      className={`r mono luck ${lk.delta > 0 ? "hot" : lk.delta < 0 ? "cold" : ""}`}
+                      title={`${lk.actual} points banked from ${lk.games} priced games, against ${lk.expected} expected`}
+                    >
+                      {lk.delta > 0 ? `+${lk.delta}` : lk.delta}
+                    </td>
+                  );
+                })()}
                 <td className="r mono muted">{live ? r.remaining : r.delta > 0 ? `+${r.delta}` : "0"}</td>
                 <td className="r mono ceil">{r.ceiling}</td>
               </tr>,
               isOpen && (
                 <tr key={r.manager + "-d"} className="detail">
-                  <td colSpan={live && data.projection ? 7 : 6} id={detail}>
+                  <td colSpan={cols} id={detail}>
                     {teams.map((t) => (
                       <div className="team" key={t.team}>
                         <span className={`tier ${t.tier}`}>{t.tier === "p4" ? 3 : 2}</span>
-                        <span className="tn">{t.draft}</span>
+                        <TeamName team={t.team} label={t.draft} className="tn" />
                         <span className="mono muted cf">{t.conf}</span>
                         <span className="mono wl">{t.wins}-{t.losses}</span>
                         <span className="mono tp">{t.points}</span>
                       </div>
                     ))}
+                    {/* Zero is not "expected nothing", it is "has no priced game
+                        this week", and a line reading "+0 points, for 10 in all"
+                        says the second thing in the words of the first. */}
+                    {showProj && (data.projection!.managers[r.manager]?.expectedGained ?? 0) > 0 && (
+                      /* Expected points, spelled out where there is room for a
+                         sentence. The naive projection above hands every game
+                         to the favourite; this weights each by the chance the
+                         line gives it, which is most of what the line actually
+                         says. */
+                      <div className="note">
+                        {data.projection!.label} expectation:{" "}
+                        <b>+{data.projection!.managers[r.manager].expectedGained}</b>{" "}
+                        points from the current lines, for{" "}
+                        {data.projection!.managers[r.manager].expectedPoints} in all.
+                      </div>
+                    )}
                     {r.collisionLoss > 0 && (
                       <div className="note">
                         Ceiling docked {r.collisionLoss} for upcoming games between two of your own teams.
@@ -147,12 +204,26 @@ export function Leaderboard({ data }: { data: Data }) {
       </table>
 
       <p className="caption">
-        {live && data.projection && (
+        {showProj && (
           <>
-            Proj is W-L after {data.projection.label.toLowerCase()} if every betting
+            Proj is W-L after {data.projection!.label.toLowerCase()} if every betting
             favourite wins, and the arrow is where that would move you in the table.
-            {data.projection.unprojected > 0 &&
-              ` ${data.projection.unprojected} of ${data.projection.games} games have no line and are left out.`}{" "}
+            {data.projection!.unprojected > 0 &&
+              ` ${data.projection!.unprojected} of ${data.projection!.games} games have no line and are left out.`}{" "}
+          </>
+        )}
+        {showLuck && (
+          <>
+            Luck is points banked less points the closing lines expected, over the{" "}
+            {luck!.games} settled {luck!.games === 1 ? "game" : "games"} that had one;
+            positive means running hot.
+            {/* Not a footnote. A luck number that quietly left out half the
+                season would be the most confident wrong figure on the page,
+                so the denominator is in the same sentence as the number. */}
+            {luck!.unpriced > 0 &&
+              ` ${luck!.unpriced} settled ${luck!.unpriced === 1 ? "game" : "games"} were never priced and count toward neither side of it.`}{" "}
+            It assumes results land about {SIGMA} points either side of the
+            spread, which is an assumption and not a measurement.{" "}
           </>
         )}
         Ceiling is current points plus every remaining scheduled game, less any games
@@ -183,8 +254,8 @@ export const css = `
     .team .tp{color:var(--amber);font-weight:700;width:22px;text-align:right;flex-shrink:0}
     .note{margin-top:8px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--rule);padding-top:7px}
     .proj{color:var(--muted);white-space:nowrap}
-    /* the projected column makes the leaderboard 7 wide, which overruns a
-       375px phone at the default padding. th is shared with the All teams
+    /* the projected and luck columns make the leaderboard 8 wide, which
+       overruns a 375px phone at the default padding. th is shared with the All teams
        table, which is why the rule reads wider than the block it is written
        for; that table's own td padding is class-scoped and wins on
        specificity, so only its header follows this. */
@@ -195,6 +266,12 @@ export const css = `
       td.mono,.proj{font-size:12px}
       .arrow{margin-left:2px}
     }
+    /* Teal for hot and red for cold is the same pairing the spreads use for
+       favourite and underdog, and colour is never the only carrier: the sign
+       is on the number. */
+    .luck{white-space:nowrap}
+    .luck.hot{color:var(--teal)} .luck.cold{color:var(--red)}
+    .dim{color:var(--dim)}
     .arrow{margin-left:4px;font-size:9px;vertical-align:1px}
     .arrow.up{color:var(--teal)} .arrow.down{color:var(--red)} .arrow.flat{color:var(--dim)}
     /* The manager cell is a real button now, so it has to be talked back out
