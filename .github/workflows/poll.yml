@@ -7,6 +7,10 @@ name: Update standings
 # minutes. The original baseline fired only at :00: its 08:00 slot did not run
 # until 13:22, 5h22m late, on an 8 hour cycle. Same frequencies and same call
 # budget as before, just off the crowded minutes.
+#
+# 153 runs a week, ~665 CFBD calls a month. Nothing below is read by any
+# script: the lines step used to match the baseline cron string and no longer
+# does, so these can be re-timed on their own.
 on:
   schedule:
     - cron: "3-53/10 16-23 * * 6"  # Sat 12pm-8pm ET, 6x/hr
@@ -32,18 +36,30 @@ jobs:
         with:
           node-version: "20"
 
-      # Second endpoint, so a second API call. Restricted to the 8-hourly
-      # baseline (~93 calls/month) to stay under the 1,000/month free tier:
-      # on every run it would cost ~666 more and blow the cap. Spreads do not
-      # move meaningfully between polls and stop mattering at kickoff.
+      # Runs on every run now, not just the baseline. Its primary source is
+      # ESPN's public scoreboard, which needs no key and spends no CFBD budget,
+      # so spreads go from 8-hour to 10-minute freshness for free.
+      #
+      # This step used to carry an `if:` matching the baseline cron string
+      # literally, and a README warning that the two had to be changed
+      # together or lines would silently stop refreshing. That coupling is
+      # gone: build-lines.mjs throttles its own CFBD call against the
+      # cfbdFetchedAt it writes into public/lines.json, so the crons above can
+      # be re-timed freely without changing the bill. See the script header.
+      #
+      # It exits 0 on every feed failure - the lines are optional and a stale
+      # spread must never redden a run whose job is standings. The one
+      # non-zero exit is an unparseable public/lines.json, which is a human
+      # problem and must not be papered over: the file is merge-only and holds
+      # every closing line of the season.
       - name: Refresh betting lines
-        if: github.event.schedule == '17 */8 * * *' || github.event_name == 'workflow_dispatch'
         env:
           CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
         run: node scripts/build-lines.mjs
 
-      # Reads public/lines.json if it is there, so runs that skipped the step
-      # above still carry the spreads the last baseline run wrote.
+      # Reads public/lines.json if it is there. Kept as a separate file so a
+      # run whose lines step degraded still re-attaches the spreads already on
+      # disk rather than blanking them.
       - name: Build standings
         env:
           CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
