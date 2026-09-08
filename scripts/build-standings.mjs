@@ -8,10 +8,12 @@
  * on season type, we just count completed games.
  *
  * Env: CFBD_API_KEY
- * Usage: node scripts/build-standings.mjs [--dry] [--fixture path.json] [--out path.json]
+ * Usage: node scripts/build-standings.mjs [--dry] [--fixture path.json]
+ *                                         [--out path.json] [--now iso]
  *
- * --fixture also swaps public/lines.json for fixtures/sample-lines.json, so a
- * fixture build reads nothing that moves and its output is reproducible.
+ * --fixture also swaps public/lines.json for fixtures/sample-lines.json and
+ * pins the clock, so a fixture build reads nothing that moves and its output is
+ * reproducible.
  *
  * --out redirects the write away from public/standings.json. Regenerating the
  * sample fixture must use it: writing the fixture build to the live file, even
@@ -25,7 +27,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   pick, home, away, homePts, awayPts, homeConf, awayConf,
-  startDate, seasonType, weekOf, isDone, isPost, sortKey,
+  startDate, seasonType, weekOf, isDone, isPost, sortKey, classify,
 } from "../lib/games.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -50,6 +52,32 @@ const flagValue = (name) => {
 
 const FIXTURE = flagValue("--fixture");
 const OUT = resolve(ROOT, flagValue("--out") ?? "public/standings.json");
+
+/* The instant the whole build is judged against: which games have kicked off,
+   which have been abandoned, and the generatedAt the page prints. One value
+   rather than a Date.now() at each site, because a run that straddles a
+   boundary would otherwise classify the same game two ways within one file.
+
+   A fixture build pins it. The fixture's dates are fixed and the wall clock is
+   not, so without this the golden file would call week 3 scheduled today, live
+   on 12 September and stalled on the 13th, and stop being diffable in CI on a
+   date nobody chose. This instant puts the fixture halfway through its week 3:
+   one game in flight, one just kicked off, one still to come, and the two
+   abandoned games of weeks 1 and 2 long past the live window - every branch of
+   classify exercised by the golden rather than only the easy ones. */
+const FIXTURE_NOW = "2026-09-12T20:30:00.000Z";
+const NOW = (() => {
+  const flag = flagValue("--now");
+  if (flag) {
+    /* Overriding the clock on a live run would write a false generatedAt into
+       the file the site reads, so it is a fixture-only affordance. */
+    if (!FIXTURE) { console.error("--now is only meaningful with --fixture."); process.exit(1); }
+    const t = Date.parse(flag);
+    if (!Number.isFinite(t)) { console.error(`--now: ${flag} is not a date.`); process.exit(1); }
+    return t;
+  }
+  return FIXTURE ? Date.parse(FIXTURE_NOW) : Date.now();
+})();
 
 /* ------------------------------------------------------------------ */
 
@@ -169,8 +197,20 @@ function build(doc, owners, games, lines) {
   const results = [];
   /* Every upcoming game involving a drafted team, each flagged h2h when both
      sides are drafted. The UI shows only the h2h ones until you filter to a
-     manager, at which point it needs that manager's whole slate. */
+     manager, at which point it needs that manager's whole slate.
+
+     "Upcoming" means scheduled or live and nothing else. A game that kicked off
+     and was never completed used to sit here for the rest of the season, and
+     because the next week is the lowest sort key in this list, one abandoned
+     game in week 1 pinned games of the week, the projection, remaining and
+     every ceiling to a week that was already over. */
   const upcoming = [];
+  /* The games that will never produce a result: abandoned before a final score,
+     or completed with none. Both were invisible before - one showed as upcoming
+     forever, the other was skipped in silence - and invisible is the worst of
+     the three options when the number they are quietly wrong about is a
+     manager's ceiling. */
+  const unscored = [];
   const seenTeams = new Set();
   const collisionLoss = {};
 
@@ -181,7 +221,8 @@ function build(doc, owners, games, lines) {
     if (oh) seenTeams.add(h);
     if (oa) seenTeams.add(a);
 
-    if (!isDone(g)) {
+    const state = classify(g, NOW);
+    if (state === "scheduled" || state === "live") {
       for (const [team, o, rec] of [[h, oh, rh], [a, oa, ra]]) {
         if (rec) rec.remaining++;
         if (!o) continue;
@@ -222,7 +263,30 @@ function build(doc, owners, games, lines) {
     }
 
     const hp = homePts(g), ap = awayPts(g);
-    if (typeof hp !== "number" || typeof ap !== "number" || hp === ap) continue;
+
+    if (state !== "final") {
+      /* Same test as results: a game between two teams nobody drafted moves
+         nothing and belongs in no list this league reads. */
+      if (oh || oa) {
+        unscored.push({
+          key: sortKey(g), week: weekOf(g), seasonType: seasonType(g), date: startDate(g),
+          away: scoredSide(a, oa),
+          home: scoredSide(h, oh),
+          /* Names the state, never a cause. The feed cannot tell weather from a
+             forfeit from its own outage, and a page that guessed would be
+             confidently wrong in front of eight people who watched the game. */
+          /* By the time a game is unusable, two numeric scores can only be
+             equal ones, so the tie is read off the scores being there at all.
+             Comparing hp === ap directly would call a game the feed never
+             scored a tie, since null === null. */
+          reason: state === "stalled" ? "no result"
+            : typeof hp === "number" && typeof ap === "number" ? "tied"
+              : "no score",
+        });
+      }
+      continue;
+    }
+
     const winner = hp > ap ? h : a;
     const loser = hp > ap ? a : h;
 
@@ -323,7 +387,7 @@ function build(doc, owners, games, lines) {
                     String(x.date).localeCompare(String(y.date)));
 
   return {
-    generatedAt: new Date().toISOString(),
+    generatedAt: new Date(NOW).toISOString(),
     season: doc.season,
     scoring: PTS,
     postseasonScheduled: games.some((g) => isPost(g)),
@@ -335,6 +399,10 @@ function build(doc, owners, games, lines) {
       label: gow.length ? (gow[0].seasonType === "postseason" ? `Postseason ${gow[0].week}` : `Week ${gow[0].week}`) : null,
       games: gow,
     },
+    /* Ordered like the timeline rather than by reason, because it is read as
+       "what happened to week 2" and not as a list of feed defects. */
+    unscored: unscored.sort((x, y) => x.key.localeCompare(y.key) ||
+                                      String(x.date).localeCompare(String(y.date))),
     byConference,
     headToHead: headToHead.sort((a, b) => String(a.date).localeCompare(String(b.date))),
     results: results.sort((a, b) => a.key.localeCompare(b.key) ||
@@ -474,6 +542,14 @@ if (out.projection) {
   const p = out.projection;
   console.log(`projection (${p.label}): ${p.projected}/${p.games} games priced` +
     (p.unprojected ? `, ${p.unprojected} unprojected` : ""));
+}
+/* Printed even when it is zero: this is the count that used to be silent, and
+   a run that starts dropping games from every ceiling should say so in its own
+   log rather than only in the payload. */
+console.log(`unscored (never resolved, excluded from points and ceiling): ${out.unscored.length}`);
+for (const u of out.unscored) {
+  console.log(`  ${u.seasonType === "postseason" ? "P" : "wk"}${u.week} ` +
+    `${u.away.team} at ${u.home.team} - ${u.reason}`);
 }
 const upsets = out.headToHead.filter((h) => h.upset).length;
 console.log(`head to head played: ${out.headToHead.length}` + (upsets ? `, ${upsets} upset(s)` : ""));

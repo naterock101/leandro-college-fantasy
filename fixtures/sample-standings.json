@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-08T19:20:25.828Z",
+  "generatedAt": "2026-09-12T20:30:00.000Z",
   "season": 2026,
   "scoring": {
     "p4": 3,
@@ -134,8 +134,8 @@
       "points": 7,
       "wins": 3,
       "losses": 2,
-      "remaining": 3,
-      "ceiling": 13,
+      "remaining": 2,
+      "ceiling": 10,
       "collisionLoss": 3,
       "teams": {
         "Miami": {
@@ -179,8 +179,8 @@
           "wins": 1,
           "losses": 0,
           "points": 3,
-          "remaining": 2,
-          "ceiling": 9
+          "remaining": 1,
+          "ceiling": 6
         },
         "East Carolina": {
           "team": "East Carolina",
@@ -739,8 +739,8 @@
       "points": 0,
       "wins": 0,
       "losses": 1,
-      "remaining": 1,
-      "ceiling": 2,
+      "remaining": 0,
+      "ceiling": 0,
       "collisionLoss": 0,
       "teams": {
         "Louisville": {
@@ -828,8 +828,8 @@
           "wins": 0,
           "losses": 0,
           "points": 0,
-          "remaining": 1,
-          "ceiling": 2
+          "remaining": 0,
+          "ceiling": 0
         },
         "Washington State": {
           "team": "Washington State",
@@ -860,8 +860,8 @@
       "points": 0,
       "wins": 0,
       "losses": 0,
-      "remaining": 1,
-      "ceiling": 2,
+      "remaining": 0,
+      "ceiling": 0,
       "collisionLoss": 0,
       "teams": {
         "SMU": {
@@ -949,8 +949,8 @@
           "wins": 0,
           "losses": 0,
           "points": 0,
-          "remaining": 1,
-          "ceiling": 2
+          "remaining": 0,
+          "ceiling": 0
         },
         "Utah State": {
           "team": "Utah State",
@@ -978,10 +978,10 @@
     }
   ],
   "projection": {
-    "key": "0|01",
-    "label": "Week 1",
-    "games": 1,
-    "projected": 1,
+    "key": "0|03",
+    "label": "Week 3",
+    "games": 3,
+    "projected": 3,
     "unprojected": 0,
     "managers": {
       "devish": {
@@ -993,7 +993,7 @@
       },
       "nathan": {
         "wins": 4,
-        "losses": 2,
+        "losses": 3,
         "points": 10,
         "gained": 3,
         "rankDelta": 0
@@ -1006,22 +1006,22 @@
         "rankDelta": 0
       },
       "adam": {
-        "wins": 1,
+        "wins": 2,
         "losses": 2,
-        "points": 2,
-        "gained": 0,
+        "points": 4,
+        "gained": 2,
         "rankDelta": 0
       },
       "charlie": {
-        "wins": 0,
-        "losses": 1,
-        "points": 0,
-        "gained": 0,
+        "wins": 1,
+        "losses": 2,
+        "points": 3,
+        "gained": 3,
         "rankDelta": 0
       },
       "clint": {
         "wins": 0,
-        "losses": 3,
+        "losses": 4,
         "points": 0,
         "gained": 0,
         "rankDelta": 0
@@ -1285,20 +1285,20 @@
     }
   ],
   "gamesOfWeek": {
-    "label": "Week 1",
+    "label": "Week 3",
     "games": [
       {
-        "key": "0|01",
-        "id": 9,
-        "week": 1,
+        "key": "0|03",
+        "id": 23,
+        "week": 3,
         "seasonType": "regular",
-        "date": "2026-09-05T16:00:00.000Z",
+        "date": "2026-09-12T16:00:00.000Z",
         "away": {
-          "team": "Missouri State",
-          "manager": null,
-          "tier": null,
-          "conf": null,
-          "draft": "Missouri State"
+          "team": "Arizona State",
+          "manager": "nathan",
+          "tier": "p4",
+          "conf": "Big 12",
+          "draft": "Arizona State Sun Devils"
         },
         "home": {
           "team": "Texas A&M",
@@ -1308,19 +1308,145 @@
           "draft": "Texas A&M Aggies"
         },
         "neutral": false,
-        "h2h": false,
-        "sameManager": false,
+        "h2h": true,
+        "sameManager": true,
         "stakes": 3,
         "spread": {
-          "spread": -21.5,
+          "spread": -6.5,
           "favorite": "Texas A&M",
-          "formatted": "Texas A&M -21.5",
-          "overUnder": 48.5,
+          "formatted": "Texas A&M -6.5",
+          "overUnder": 55.5,
+          "provider": "DraftKings"
+        }
+      },
+      {
+        "key": "0|03",
+        "id": 33,
+        "week": 3,
+        "seasonType": "regular",
+        "date": "2026-09-12T20:00:00.000Z",
+        "away": {
+          "team": "Air Force",
+          "manager": "charlie",
+          "tier": "g5",
+          "conf": "Mountain West",
+          "draft": "Air Force Falcons"
+        },
+        "home": {
+          "team": "Michigan",
+          "manager": "charlie",
+          "tier": "p4",
+          "conf": "Big Ten",
+          "draft": "Michigan Wolverines"
+        },
+        "neutral": false,
+        "h2h": true,
+        "sameManager": true,
+        "stakes": 3,
+        "spread": {
+          "spread": -24.5,
+          "favorite": "Michigan",
+          "formatted": "Michigan -24.5",
+          "overUnder": 46.5,
+          "provider": "DraftKings"
+        }
+      },
+      {
+        "key": "0|03",
+        "id": 34,
+        "week": 3,
+        "seasonType": "regular",
+        "date": "2026-09-12T23:30:00.000Z",
+        "away": {
+          "team": "Fresno State",
+          "manager": "adam",
+          "tier": "g5",
+          "conf": "Pac-12",
+          "draft": "Fresno State Bulldogs"
+        },
+        "home": {
+          "team": "Boise State",
+          "manager": "clint",
+          "tier": "g5",
+          "conf": "Pac-12",
+          "draft": "Boise State Broncos"
+        },
+        "neutral": true,
+        "h2h": true,
+        "sameManager": false,
+        "stakes": 2,
+        "spread": {
+          "spread": 2.5,
+          "favorite": "Fresno State",
+          "formatted": "Fresno State -2.5",
+          "overUnder": 53.5,
           "provider": "DraftKings"
         }
       }
     ]
   },
+  "unscored": [
+    {
+      "key": "0|01",
+      "week": 1,
+      "seasonType": "regular",
+      "date": "2026-09-05T16:00:00.000Z",
+      "away": {
+        "team": "Missouri State",
+        "manager": null
+      },
+      "home": {
+        "team": "Texas A&M",
+        "manager": "nathan"
+      },
+      "reason": "no result"
+    },
+    {
+      "key": "0|02",
+      "week": 2,
+      "seasonType": "regular",
+      "date": "2026-09-05T18:00:00.000Z",
+      "away": {
+        "team": "New Mexico",
+        "manager": "leandro"
+      },
+      "home": {
+        "team": "Wyoming",
+        "manager": "steve"
+      },
+      "reason": "no result"
+    },
+    {
+      "key": "0|02",
+      "week": 2,
+      "seasonType": "regular",
+      "date": "2026-09-05T19:00:00.000Z",
+      "away": {
+        "team": "Buffalo",
+        "manager": "adam"
+      },
+      "home": {
+        "team": "Toledo",
+        "manager": "tconn"
+      },
+      "reason": "no score"
+    },
+    {
+      "key": "0|02",
+      "week": 2,
+      "seasonType": "regular",
+      "date": "2026-09-05T21:00:00.000Z",
+      "away": {
+        "team": "Tulane",
+        "manager": "tconn"
+      },
+      "home": {
+        "team": "Navy",
+        "manager": "clint"
+      },
+      "reason": "tied"
+    }
+  ],
   "byConference": {
     "ACC": [
       {
@@ -1443,7 +1569,7 @@
         "wins": 1,
         "losses": 0,
         "points": 3,
-        "remaining": 2,
+        "remaining": 1,
         "manager": "nathan"
       },
       {
@@ -1510,7 +1636,7 @@
         "wins": 0,
         "losses": 1,
         "points": 0,
-        "remaining": 1,
+        "remaining": 0,
         "manager": null
       },
       {
@@ -1604,7 +1730,7 @@
         "wins": 0,
         "losses": 0,
         "points": 0,
-        "remaining": 1,
+        "remaining": 0,
         "manager": "leandro"
       },
       {
@@ -1622,7 +1748,7 @@
         "wins": 0,
         "losses": 0,
         "points": 0,
-        "remaining": 1,
+        "remaining": 0,
         "manager": "steve"
       }
     ],

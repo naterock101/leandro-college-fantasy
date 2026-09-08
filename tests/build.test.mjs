@@ -327,16 +327,19 @@ test("unscored is sorted the way the timeline is, and reaches no other list", ()
     a.key.localeCompare(b.key) || String(a.date).localeCompare(String(b.date)));
   assert.deepEqual(built.unscored, order);
 
-  /* Kickoff time and the pair of schools, because no entry carries the game id
-     and the fixture deliberately holds two games between the same two teams. */
-  const id = (date, a, b) => `${date}|${[a, b].sort().join(" v ")}`;
+  /* Week, kickoff and the pair of schools. No entry carries the game id, and
+     the fixture's orphan is a duplicate of a game between the same two teams at
+     the same time in a different week, so the week is what tells them apart -
+     drop it and the orphan looks like the played game and this test passes for
+     the wrong reason. */
+  const id = (g, a, b) => `${g.seasonType}|${g.week}|${g.date}|${[a, b].sort().join(" v ")}`;
   const elsewhere = new Map([
-    ...built.results.map((r) => [id(r.date, r.winner.team, r.loser.team), "results"]),
-    ...built.headToHead.map((h) => [id(h.date, h.winner.team, h.loser.team), "headToHead"]),
-    ...built.gamesOfWeek.games.map((g) => [id(g.date, g.away.team, g.home.team), "gamesOfWeek"]),
+    ...built.results.map((r) => [id(r, r.winner.team, r.loser.team), "results"]),
+    ...built.headToHead.map((h) => [id(h, h.winner.team, h.loser.team), "headToHead"]),
+    ...built.gamesOfWeek.games.map((g) => [id(g, g.away.team, g.home.team), "gamesOfWeek"]),
   ]);
   for (const u of built.unscored) {
-    const where = elsewhere.get(id(u.date, u.away.team, u.home.team));
+    const where = elsewhere.get(id(u, u.away.team, u.home.team));
     assert.equal(where, undefined, `${u.away.team} at ${u.home.team} is also in ${where}`);
   }
 });
