@@ -17,27 +17,155 @@ draftable. Tiebreaker is head to head games. $50 buy-in, pays 250/100/50.
 ## Architecture
 
 ```
-GitHub Actions cron  ->  scripts/build-standings.mjs  ->  public/standings.json  (committed)
-                                    |                              |
-                              CFBD /games                    raw.githubusercontent
-                             (1 call per run)                        |
-                                                          app/page.tsx (static, Vercel)
+                      +--------------------- main ----------------------+
+GitHub Actions cron --| scripts/build-lines.mjs      ESPN, free          |
+                      | scripts/build-standings.mjs  CFBD /games, 1/run  |
+                      +-------------------------+-----------------------+
+                                                |  writes into a worktree of
+                                                v
+                      +--------------------- data ----------------------+
+                      | standings.json results.json teams.json          |
+                      | lines.json                                      |
+                      +-------------------------+-----------------------+
+                                                |  raw.githubusercontent
+                                                v
+                        app/page.tsx, deployed from main by Vercel
 ```
 
-The bot's data commits must not trigger a Vercel build. `[skip ci]` in the
-commit message is **not** sufficient - it was observed deploying anyway - so
-`vercel.json` carries an `ignoreCommand` that skips the build whenever a commit
-touched nothing outside `public/standings.json` and `public/lines.json`. It
-exits 0 (skip) only on a data-only commit; any code change, or any git error
-such as a shallow clone with no `HEAD^`, exits non-zero and the build proceeds.
+### Two branches
 
-This matters at scale: during the Saturday window the bot commits every 10
-minutes, ~144/day, which would exhaust the Hobby plan's daily deployment limit
-within hours and freeze the site.
+`main` is code. `data` is an **orphan branch** carrying the payload and nothing
+else - no shared commit with `main`, no code history on it at all.
 
-Because the site therefore does not rebuild on data changes, the page reads the
-live JSON from raw.githubusercontent rather than its own bundled copy. These two
-decisions are coupled - change one and you must change the other.
+That split is the whole architecture. Before it, 34 of the repo's first 49
+commits were the bot's, one week into the season, on course for roughly 5,000
+by December and burying every real change in the log. Both branches got worse
+together when betting lines started refreshing on every run, taking a quiet
+weekday from about zero commits to three.
+
+Two things fall out of it, and both used to need work:
+
+- **Vercel builds from `main`, and `main` no longer receives data commits**, so
+  there is nothing to suppress. `vercel.json` used to carry an `ignoreCommand`
+  that inspected each commit's diff and exited 0 on a data-only one, because
+  `[skip ci]` alone had been observed deploying anyway. That whole workaround is
+  gone, along with the coupling it created between the page's data source and
+  the deploy configuration.
+- **`main`'s log is readable.** `git log` shows the changes somebody made.
+
+What replaces the workaround is a setting rather than a trick. Vercel would
+otherwise build a *preview* deployment for every push to `data` - up to 144 on
+a Saturday, which is the same daily-limit problem in a different branch - so
+`git.deploymentEnabled` names the branch as one that does not deploy. It is set
+in two places on purpose: in `main`'s `vercel.json`, and again in a two-line
+`vercel.json` on `data` itself, because Vercel reads that configuration from
+the branch being pushed and the second one is the copy it will actually find.
+
+`[skip ci]` stays in the bot's commit message and is still doing work, for a
+different reason than before. It says nothing to Vercel now. It is there for
+**GitHub Actions**, which honours it, and which would otherwise run the whole
+`test.yml` suite - `npm ci`, tests, a Next build - on every one of those
+pushes. `test.yml` also excludes the branch outright; the message is the lock
+that keeps holding if someone re-adds `push:` without a filter.
+
+### How the Action writes to a branch it is not checked out on
+
+`poll.yml` checks out `main` as usual, then adds a `git worktree` of `data`
+at `.data`, and passes both scripts an explicit `--out` (and `--lines`) into
+it. Nothing is copied between the two trees: the scripts read and write the
+data files in place, so there is no copy step to forget, and forgetting one
+would have been quiet and expensive - a run that read a lines file that was not
+there would publish a season with no spreads on it and exit 0.
+
+The worktree is a working tree of the same repository, so it inherits the
+credentials `actions/checkout` configured and needs no token of its own. It is
+created with `rm -rf .data && git worktree prune` in front and
+`git worktree remove --force` behind under `if: always()`. On a GitHub runner
+none of that can matter - the machine is destroyed after the job - but running
+these steps by hand on a real checkout is exactly where a worktree left
+registered after a failure makes the *next* attempt fail on something unrelated
+to whatever broke.
+
+If `data` does not exist on the remote, the run stops on its first step with a
+message pointing at the bootstrap below, rather than half-succeeding.
+
+### Four files, not one
+
+The payload used to be a single 91KB file (10.4KB gzipped) that every open tab
+refetched every two minutes, and `results` is the term that grows - about 64
+entries a week, so roughly 1,000 and 275KB raw by the time the playoff is over.
+
+| File | Holds | Fetched |
+|---|---|---|
+| `standings.json` | standings, projection, byWeek, gamesOfWeek, unscored, and the meta fields | always |
+| `results.json` | results, headToHead | first time the Activity tab is opened |
+| `teams.json` | byConference | first time the All teams tab is opened |
+| `lines.json` | every spread the books have shown | never by the page; `build-standings.mjs` reads it |
+
+On the live season that takes the always-fetched file from 92.7KB raw / 7.1KB
+gzipped to **27.4KB / 3.1KB**, and takes the growing term off the polling path
+entirely.
+
+`lib/payload.mjs` owns the split in both directions, because the builder and
+the page have to agree about which key is in which file and the cost of them
+disagreeing is a section of the site that is silently empty rather than an
+error anyone would see. It is keyed by what is *lazy*, so a key a later phase
+adds falls into the always-fetched core by default: a few wasted bytes on every
+poll is a much better failure than a section that belongs to no file at all.
+
+A lazy file that is missing, still in flight, or 404ing gives its tab an empty
+collection and a sentence saying so - never `undefined`, which is what throws a
+render. That matters most during the cutover window described below, when every
+lazy fetch fails by design.
+
+### Polling
+
+- **No cache-busting query string, and `cache: "no-cache"`.** Both of the old
+  settings defeated revalidation, and the second is the subtle one: `no-store`
+  reads as the stronger choice and is the wrong one, because it tells the
+  browser not to keep a copy it could later revalidate against, so every poll
+  transferred the whole body. `no-cache` still goes to the network every single
+  time - it is not weaker - but it goes conditionally, and raw.githubusercontent
+  sends a weak ETag and answers a matching `If-None-Match` with a 304 and no
+  body. Verified against the live host, not assumed.
+- **60 seconds while a tracked game is live, five minutes otherwise.** The old
+  flat 120s ran against a bot that writes every 10 minutes at its fastest,
+  behind a 300s CDN cache, so most polls could not return anything new. Whether
+  anything is live comes from the shared `classify()` in `lib/games.mjs` rather
+  than a second copy of the live-window arithmetic - that drift is what caused
+  the dead-week bug.
+- **Nothing polls while the tab is hidden.** A phone left open through a twelve
+  hour Saturday used to poll about 360 times in a pocket. Coming back fetches
+  immediately rather than waiting out an interval that was never running.
+
+Two traps found in the browser rather than in the code. Cancelling in-flight
+requests from the effect cleanup meant a page that resolved `document.hidden` a
+tick after mount threw away its own first response and sat on "Loading" - so
+the guard is mounted-or-not, not per-effect-run. And gating *every* fetch on
+visibility swallowed the one fetch a newly opened tab needs, because a document
+can report hidden while it is being clicked; intent and the timer are separate
+effects for that reason.
+
+### The copy bundled with the deploy
+
+`main` still holds `public/standings.json`, `public/results.json` and
+`public/teams.json`. The page falls back to them, per file, when the
+raw.githubusercontent fetch fails: local development, an offline visitor, a
+GitHub outage, and the cutover window.
+
+**They are frozen deliberately and the bot never touches them.** Keeping them
+current is precisely what would put data commits back on `main`, which is the
+thing this whole section is about. They are refreshed only by hand, and only
+when someone is deploying for another reason anyway and their staleness has
+started to look silly - a fallback dated some weeks ago is honestly old, which
+is a much better failure than one that is subtly wrong.
+
+`public/lines.json` was **deleted** rather than frozen with them. Nothing on
+the page reads it, and a stale duplicate of a merge-only file that holds every
+closing line of the season is the kind of thing somebody eventually copies back
+over the live one. `data` is now the only copy: never force-push that branch,
+and never rebase it. `.gitignore` covers `public/lines.json` so a local
+`npm run lines` cannot recreate the duplicate by accident.
 
 ## Setup
 
@@ -45,15 +173,74 @@ decisions are coupled - change one and you must change the other.
 2. Get a free CFBD key at <https://collegefootballdata.com/key>
 3. Add it as repo secret `CFBD_API_KEY` (Settings > Secrets and variables > Actions)
 4. `npm run verify` locally to confirm all 80 school names resolve
-5. Edit `SOURCE` at the top of `app/page.tsx` to point at your repo
-6. Deploy to Vercel. Run the workflow once manually to seed `public/standings.json`
+5. Edit `SOURCE` at the top of `app/page.tsx` to point at your repo, on the
+   `data` branch
+6. Create and push the `data` branch, below. **Nothing works until it exists.**
+7. Deploy to Vercel from `main`, then run the workflow once manually
+
+## Bootstrapping the `data` branch
+
+One-time, by hand, and the site is not fully working until it is done. The
+branch exists locally already; this publishes it.
+
+```sh
+# 1. Confirm it is genuinely an orphan: this prints one sha and no parent.
+git rev-list --parents -1 refs/heads/data
+
+# 2. Publish it.
+git push -u origin data
+
+# 3. Publish the code that reads it.
+git push origin main
+```
+
+Then, in the two web UIs:
+
+- **Vercel** → the project → Settings → Git. Confirm `main` is the production
+  branch. Push something to `data` (or wait for the first bot run) and confirm
+  no deployment appears for it. `vercel.json` on the `data` branch should
+  already prevent one; if a preview deployment shows up anyway, turn branch
+  deployments off there rather than reaching for another commit-message trick.
+- **GitHub** → Actions. Run **Update standings** manually once, and read the
+  log rather than trusting the green tick: it should check out `data`, write
+  four files into `.data`, and commit and push there. Then confirm no new
+  commit landed on `main`, and that the **Tests** workflow did not run for the
+  bot's push.
+
+To recreate the branch from scratch - if it is ever lost, and with the caveat
+that its `lines.json` history is not recoverable this way:
+
+```sh
+git checkout --orphan data
+git rm -r --cached .
+# copy standings.json, results.json, teams.json, lines.json and a vercel.json
+# saying {"git":{"deploymentEnabled":false}} into the working tree, then
+git add standings.json results.json teams.json lines.json vercel.json
+git commit -m "Seed the data branch"
+git checkout -f main
+```
+
+### What breaks during the cutover
+
+Between pushing `main` and the first bot run landing on `data`, every fetch of
+`https://raw.githubusercontent.com/.../data/*.json` returns 404 and the page
+falls back per file to the copies bundled with the deploy. A visitor sees a
+complete, working site showing the standings as of whenever `public/*.json` was
+last committed, with the "Updated" line honestly saying so. Nothing is blank and
+nothing throws.
+
+A tab left open across the deploy keeps rendering the payload it already has
+until it next polls, and then picks up the fallback or the live file, whichever
+answers. The window closes at the first bot run - within eight hours on the
+baseline cron, or immediately if the workflow is dispatched by hand, which is
+what step 7 above is for.
 
 ## Commands
 
 | Command | What it does |
 |---|---|
 | `npm run verify` | Diffs `data/rosters.json` against CFBD `/teams`. 1 API call. |
-| `npm run standings` | Fetches the season, writes `public/standings.json`. 1 API call. |
+| `npm run standings` | Fetches the season, writes `standings.json`, `results.json` and `teams.json`. 1 API call. |
 | `npm run standings:dry` | Same, prints the table, writes nothing. |
 | `npm run standings:fixture` | Runs against `fixtures/sample-games.json`. No API call, no key needed. |
 | `npm run fixture:regen` | Rebuilds `fixtures/sample-standings.json` from the sample games. No API call. |
@@ -62,6 +249,20 @@ decisions are coupled - change one and you must change the other.
 | `npm run lines:dry` | Same, writes nothing. |
 | `npm run dev` | Next.js dev server. |
 
+Both builders take `--out` to say where their files go, and
+`build-standings.mjs` also takes `--lines` to say where to read the spreads
+from. That is how `poll.yml` points them at the `data` worktree, and it is how
+to run either one locally without touching `public/`. Run `npm run standings`
+with no flags and it overwrites the frozen fallback copies in `public/`; that
+is harmless but it is a change to `main`, so read the diff before committing it.
+
+`npm run fixture:regen` passes `--union`, which writes the whole payload to one
+file instead of three. The golden fixture stays a single file on purpose: three
+goldens would be three diffs to read, and could not state the invariant that
+actually matters, which is that the split loses nothing. That invariant is
+`tests/payload.test.mjs`, which builds the split into a temporary directory and
+compares its union against the golden.
+
 ## Tests
 
 `npm test` runs Node's own test runner. There is no test framework in
@@ -69,18 +270,32 @@ decisions are coupled - change one and you must change the other.
 
 - `tests/lib.test.mjs` - the pure functions in `lib/`: the field pickers across
   both CFBD conventions, sort keys, game classification, formatting
+- `tests/lines.test.mjs` - merge-only retention, both sign conventions, both
+  provider spellings, and every way ESPN can fail
 - `tests/build.test.mjs` - the builder end to end against the fixtures, as a
   golden file plus invariants that hold for any input at all
+- `tests/payload.test.mjs` - the four-file split: that its union is exactly the
+  payload, that no key is in two files or in none, and that a lazy file which
+  never arrives leaves every tab an empty collection rather than `undefined`
+- `tests/page.test.mjs` - two assertions about the fetch layer's source text.
+  Not how anyone would choose to test a component, and it says so: there is no
+  DOM runner in the repo yet, and both cases are ones where the wrong code
+  looks more correct than the right code, which is when a regression arrives as
+  a tidy-up nobody questions. It goes away when the component split lands one.
 
 Every run is hermetic. `--fixture` reads `fixtures/sample-games.json` and
 `fixtures/sample-lines.json` and nothing else, so the suite makes no network
 call, needs no `CFBD_API_KEY`, and cannot flake on CFBD being slow. That is also
-why `.github/workflows/test.yml` costs nothing to run on every push.
+why `.github/workflows/test.yml` costs nothing to run on every push - to every
+branch except `data`, which is payload rather than code and has no
+`package.json` on it at all.
 
 Two things had to be pinned to make a golden file diffable:
 
-1. **Lines.** A fixture build never reads `public/lines.json`, which carries a
-   wall-clock `fetchedAt` that moves every eight hours.
+1. **Lines.** A fixture build never reads the live lines file, which carries a
+   wall-clock `fetchedAt` that moves every eight hours. `--lines` overrides
+   that, because naming a file outright is an instruction rather than a
+   default; leaving it off is what the golden depends on.
 2. **The clock.** Whether a game is live or stalled is a function of *now*, so a
    fixture build pins one instant (`FIXTURE_NOW` in `scripts/build-standings.mjs`)
    rather than inheriting the wall clock. Without it the sample would classify
@@ -118,7 +333,7 @@ The crons are no longer coupled to anything. The lines step used to be gated on
 an `if:` matching the baseline cron string character for character, so re-timing
 the baseline would have silently stopped betting lines from refreshing.
 `build-lines.mjs` now throttles its own CFBD call against the `cfbdFetchedAt` it
-writes into `public/lines.json`, so the schedule and the budget are enforced in
+writes into the lines file, so the schedule and the budget are enforced in
 one place instead of two files agreeing about a string.
 
 | Window | Frequency | Calls/week |
@@ -236,7 +451,7 @@ overUnder, provider}` - so nothing downstream knows ESPN exists.
 ESPN is undocumented, so every way it can fail - unreachable, rate limited,
 non-JSON, reshaped, empty for a date - leaves the stored file untouched and
 exits 0, and each of those is asserted. The only non-zero exit is an
-unparseable `public/lines.json`, which is refused rather than rebuilt: that file
+unparseable lines file, which is refused rather than rebuilt: that file
 is the season's only copy of every closing line.
 
 It writes its own file rather than folding into `standings.json`, so a run whose
@@ -251,7 +466,10 @@ hermetic, and how to reproduce a run that produced a surprising file.
 
 ## Data model
 
-`public/standings.json`:
+One payload across three files - see "Four files, not one" above for which key
+lands where. Listed together here because it is one object as far as the page
+is concerned: `lib/payload.mjs` cuts it up for the wire and puts it back
+together on arrival.
 
 - `standings[]` - per manager: points, wins, losses, remaining, ceiling, collisionLoss, and a `teams` map
 - `byWeek[]` - cumulative standings snapshot after each week, regular then postseason
@@ -269,7 +487,7 @@ hermetic, and how to reproduce a run that produced a surprising file.
   tiebreaker. Each entry carries `spread` (the closing line, or null if the
   books never priced it) and `upset`, true when the winner was not the
   favourite. A pick-em has no favourite and is never an upset.
-- `linesFetchedAt` - when `public/lines.json` was last refreshed, or null
+- `linesFetchedAt` - when the lines file was last refreshed, or null
 - each `gamesOfWeek.games[]` entry carries a `spread` object (or null): `spread`
   (negative means the home team is favoured, CFBD's convention), `favorite`,
   `formatted`, `overUnder`, `provider`
@@ -311,10 +529,13 @@ three options when the number they are quietly wrong about is a ceiling.
 college football runs longer, so a game that kicked off further back than that
 has finished whatever the payload still says.
 
-`--out` exists so a fixture build never lands in `public/standings.json`. The
-page polls every two minutes, so even a few seconds of synthetic standings in
-the live file is visible to anyone with the page open. The script refuses to
-write a `--fixture` build to the live path.
+`--out` exists so a fixture build never lands in the file the site reads. Even
+a few seconds of synthetic standings there is visible to anyone with the page
+open, so the script refuses to write a `--fixture` build to `public/standings.json`.
+It also refuses an `--out` whose name does not end in `standings.json`, because
+the sibling files are named from that prefix and guessing at a name instead
+would put the payload somewhere nobody looks - which reads as a missing section
+on the site and as a successful run in the log.
 
 ### Ceiling
 
