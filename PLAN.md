@@ -32,7 +32,7 @@ Verified against the live season on 2026-09-08:
 | `cache-control` | `max-age=3` | genuinely live |
 | Event `id` | `401858212` | **identical to the CFBD game id** |
 | `status` | `{clock, displayClock, period, type.state}` | quarter and game clock |
-| `competitions[].odds` | DraftKings spread + O/U, explicit `favorite` flag | free spreads |
+| `competitions[].odds` | spread + O/U, explicit `favorite` flag | free spreads |
 | `competitors[].team` | `logo`, `color`, `alternateColor` | free logos |
 
 The id equality is the important part: we join on it, so none of the
@@ -152,10 +152,28 @@ The two sources disagree on convention and must be normalised in `lib/lines.mjs`
 
 | | CFBD | ESPN |
 |---|---|---|
-| Sign | negative = home favoured | magnitude only |
+| Sign | negative = home favoured | **the same convention** |
 | Favourite | inferred from sign | explicit `awayTeamOdds.favorite` |
-| Provider | `DraftKings` **and** `Draft Kings` | `provider.displayName` |
+| Provider | `DraftKings` **and** `Draft Kings` | `provider.name` |
 | Team names | school strings | ids, plus abbreviations in `details` |
+
+Two corrections to my own first reading of the ESPN payload, both checked
+against every priced game on a full Saturday rather than the single sample I
+originally generalised from:
+
+- ESPN's `spread` is **signed exactly like CFBD's**, not a magnitude. 47 of 47
+  priced games agree with the home-favourite flag. The favourite is still
+  driven off the explicit flags, because a flag that disagreed would fail
+  loudly where an inverted sign would fail silently.
+- `provider.displayName` is present on **1 of 47**; `provider.name` on all 47.
+  Read `name`, fall back to `displayName`.
+
+A third trap the plan missed entirely: ESPN's `dates` parameter is an
+**Eastern calendar day**, not UTC. `dates=20260905` returns 16:00Z Sep 5 through
+02:30Z Sep 6, so a UTC window drops every Saturday-night game from the day it
+belongs to. Stepping that window by 24h of milliseconds then returns the same
+day twice across the 25-hour November Sunday; it has to resolve the Eastern day
+and step in UTC days.
 
 Normalised shape is the current one plus the two new fields, so the page's
 existing spread rendering keeps working unchanged.
@@ -190,6 +208,12 @@ golden comparison explicitly rather than by accident.
     completed rostered game, `results` only those with two different numeric
     scores, so a tie or a scoreless game opens a gap. Phase 1 tightens this to
     `results.length + unscored.length` once `unscored[]` exists.)
+
+    Phase 1 correction: that tightened form is **also** wrong. `unscored`
+    includes stalled games, which were never completed and so appear in no
+    week's total. The identity true for any input is
+    `results.length + unscored.length === rostered games whose state is
+    neither scheduled nor live`.
   - every `headToHead` entry has two managers; every `results` entry has one
   - no `unscored` game appears in `gamesOfWeek`, `results` or `headToHead`
 
@@ -432,7 +456,15 @@ run with `public/lines.json` deleted.
 - `unscored[]` emitted
 - README budget wording
 
-**Owns:** `scripts/build-standings.mjs`, `README.md`
+**Owns:** `scripts/build-standings.mjs`, `app/page.tsx`, `fixtures/**`, and
+every section of `README.md` **except** "API budget" and "Betting lines".
+
+Correcting a contradiction in an earlier draft of this plan: Phase 1 was given
+`README.md` outright while Phase 2 was told to restate the budget. The
+labelling fix and the new arithmetic are the same edit, so both belong to
+Phase 2. Phase 1 also takes the `unscored` rendering, which an earlier draft
+deferred to Phase 4 - it is the feature that was actually asked for, and
+shipping the array without the UI would be half the job.
 **Tests first:** a stalled game does not pin `gamesOfWeek`; does not appear in
 `results`; does appear in `unscored`; does not count toward `remaining`;
 ceiling drops accordingly. A tie and a scoreless completed game land in
@@ -446,7 +478,8 @@ ceiling drops accordingly. A tie and a scoreless completed game land in
 - Workflow: lines step runs every run
 - Budget restated
 
-**Owns:** `scripts/build-lines.mjs`, `lib/lines.mjs`, `poll.yml`
+**Owns:** `scripts/build-lines.mjs`, `lib/lines.mjs`, `poll.yml`, README's
+"API budget" and "Betting lines" sections
 **Shared:** the `loadLines()` call site in `build-standings.mjs` belongs to
 this phase, not phase 1.
 **Tests first:** *the erasure test is written before any ESPN code* - given a
