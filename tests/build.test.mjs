@@ -20,7 +20,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { classify, home, away, isDone } from "../lib/games.mjs";
+import { classify, home, away, isDone, sortKey } from "../lib/games.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const GAMES = join(ROOT, "fixtures/sample-games.json");
@@ -32,16 +32,33 @@ const fixtureGames = JSON.parse(readFileSync(GAMES, "utf8"));
 const fixtureLines = JSON.parse(readFileSync(LINES, "utf8"));
 const ALL_CONFS = [...rosters.conferences.power, ...rosters.conferences.other];
 
-function runBuilder() {
+const OWNED = new Set(Object.values(rosters.managers).flat().map((t) => t.cfbd));
+/* The builder writes a game into results or unscored only when someone drafted
+   a side of it, so every count below has to be taken over the same subset. */
+const rostered = (games) => games.filter((g) => OWNED.has(home(g)) || OWNED.has(away(g)));
+
+/** @param {string} [now] ISO instant to build against, or the fixture's own pin */
+function runBuilder(now) {
   const out = join(mkdtempSync(join(tmpdir(), "standings-")), "out.json");
   const r = spawnSync(process.execPath,
-    [join(ROOT, "scripts/build-standings.mjs"), "--fixture", GAMES, "--out", out],
+    [join(ROOT, "scripts/build-standings.mjs"), "--fixture", GAMES, "--out", out,
+      ...(now ? ["--now", now] : [])],
     { encoding: "utf8" });
   assert.equal(r.status, 0, `builder exited ${r.status}\n${r.stderr}`);
   return JSON.parse(readFileSync(out, "utf8"));
 }
 
 const built = runBuilder();
+
+/* The instant the builder judged this build against, read back out of its own
+   output. Whether a game is live or stalled is a function of the clock, so the
+   fixture pins one rather than inheriting the wall clock - otherwise the golden
+   file would classify week 3 differently before and after 12 September and
+   could not be diffed. Taking it from generatedAt rather than repeating the
+   literal is deliberate twice over: nothing here can drift from the builder's
+   idea of now, and the fact that the two agree is itself the proof that one
+   clock was threaded through rather than Date.now() called in several places. */
+const NOW = Date.parse(built.generatedAt);
 
 /* ------------------------------------------------------------------ */
 /* hermeticity                                                         */
@@ -61,6 +78,16 @@ test("two builds of the same fixture differ only in generatedAt", () => {
   const first = { ...built };
   delete first.generatedAt;
   assert.deepEqual(again, first);
+});
+
+test("a fixture build's clock is pinned, so no state in it can turn overnight", () => {
+  assert.ok(Number.isFinite(NOW), `generatedAt ${built.generatedAt} is not an instant`);
+  /* The live file wants the wall clock; the fixture wants a fixed one. Two runs
+     minutes apart producing the same instant is what says the fixture path took
+     the pin. Without it a stalled game would go on being stalled but a
+     scheduled one would quietly become live and then stalled as the real date
+     passed the fixture's, and the golden would rot on a calendar. */
+  assert.equal(runBuilder().generatedAt, built.generatedAt);
 });
 
 /* ------------------------------------------------------------------ */
@@ -128,18 +155,32 @@ test("the last cumulative snapshot in byWeek is the standings table", () => {
 });
 
 test("byWeek counts every completed rostered game, results only the scored ones", () => {
-  const owned = new Set(Object.values(rosters.managers).flat().map((t) => t.cfbd));
-  const rostered = fixtureGames.filter((g) => owned.has(home(g)) || owned.has(away(g)));
-  const completed = rostered.filter(isDone);
-  const unusable = completed.filter((g) => classify(g, Date.now()) === "unusable");
+  const completed = rostered(fixtureGames).filter(isDone);
+  const unusable = completed.filter((g) => classify(g, NOW) === "unusable");
 
   const counted = built.byWeek.reduce((s, w) => s + w.games, 0);
   assert.equal(counted, completed.length, "byWeek games");
-  /* The gap is the whole point of item 1: a tie and a completed game with no
-     score are counted as played weeks but produce no result, and today they
-     are visible nowhere else. Phase 1 surfaces them as `unscored`. */
   assert.equal(built.results.length, counted - unusable.length, "results length");
   for (const w of built.byWeek) assert.ok(w.scheduled >= w.games, `${w.label} scheduled vs played`);
+});
+
+test("a rostered game is in results or unscored exactly when it can no longer be played", () => {
+  /* The exact form the phase 0 note left open. `scheduled` and `live` are the
+     two states a game can still leave, so they are the two that appear in
+     neither array; every other rostered game contributes exactly one entry to
+     exactly one of them. The naive sum(byWeek[].games) == results.length is
+     false because a completed game with no usable score is counted as played
+     and produces no result - that gap is now named rather than tolerated. */
+  const settled = rostered(fixtureGames)
+    .filter((g) => !["scheduled", "live"].includes(classify(g, NOW)));
+  assert.equal(built.results.length + built.unscored.length, settled.length);
+
+  /* And the same identity from byWeek's side: it counts completed games, which
+     is results plus the completed half of unscored. A stalled game was never
+     completed, so it is in unscored and in no week's total. */
+  const counted = built.byWeek.reduce((s, w) => s + w.games, 0);
+  const abandoned = built.unscored.filter((u) => u.reason === "no result").length;
+  assert.equal(counted, built.results.length + built.unscored.length - abandoned);
 });
 
 test("headToHead is drafted on both sides, results on at least one", () => {
@@ -174,6 +215,130 @@ test("games of the week all share one week, and the label names it", () => {
   const [first] = games;
   assert.equal(built.gamesOfWeek.label,
     first.seasonType === "postseason" ? `Postseason ${first.week}` : `Week ${first.week}`);
+});
+
+/* ------------------------------------------------------------------ */
+/* the dead-week pin                                                   */
+/* ------------------------------------------------------------------ */
+
+test("a game nobody ever scored cannot hold games of the week open", () => {
+  /* Game 9 in the fixture kicked off on 5 September and was never completed:
+     the duplicate of game 20 that a feed correction left behind. It was the
+     lowest sort key among incomplete games, so it pinned games of the week to
+     week 1 and would have done so until December. */
+  assert.equal(built.gamesOfWeek.label, "Week 3");
+  assert.equal(built.gamesOfWeek.games.length, 3);
+  assert.equal(built.projection.key, "0|03", "the projection is pinned to the dead week");
+  assert.equal(built.projection.games, 3);
+});
+
+test("every game of the week is one that can still be played", () => {
+  const byKey = new Map(fixtureGames.map((g) => [g.id, g]));
+  for (const g of built.gamesOfWeek.games) {
+    const state = classify(byKey.get(g.id), NOW);
+    assert.ok(state === "scheduled" || state === "live",
+      `${g.away.team} at ${g.home.team} is ${state} and should not be listed as upcoming`);
+  }
+});
+
+test("a game in flight is still a game of the week, and stalls out of it later", () => {
+  /* The three week 3 games kick at 16:00, 20:00 and 23:30 UTC on 12 September.
+     Halfway through the first one all three are still to be won. */
+  const during = runBuilder("2026-09-12T18:00:00.000Z");
+  assert.equal(during.gamesOfWeek.games.length, 3);
+  assert.deepEqual(during.unscored, built.unscored);
+
+  /* A day later none of them ever reported, which is the shape of the original
+     bug taken to its end: nothing left to play, so nothing left to win. */
+  const after = runBuilder("2026-09-13T12:00:00.000Z");
+  assert.equal(after.gamesOfWeek.games.length, 0);
+  assert.equal(after.gamesOfWeek.label, null);
+  assert.equal(after.projection, null);
+  assert.equal(after.unscored.length, built.unscored.length + 3);
+  for (const row of after.standings) {
+    assert.equal(row.remaining, 0, `${row.manager} has games left in a season with none`);
+    assert.equal(row.ceiling, row.points, `${row.manager}'s ceiling outruns their points`);
+  }
+});
+
+/* ------------------------------------------------------------------ */
+/* remaining and ceiling                                               */
+/* ------------------------------------------------------------------ */
+
+test("a stalled game counts toward nobody's remaining, and nobody's ceiling", () => {
+  const row = (m) => built.standings.find((r) => r.manager === m);
+
+  /* Nathan's Texas A&M is on both sides of this: the abandoned game 9, and
+     game 23 in week 3 which he can still win. Only the second is worth 3. */
+  assert.equal(row("nathan").teams["Texas A&M"].remaining, 1);
+  assert.equal(row("nathan").remaining, 2);
+  assert.equal(row("nathan").ceiling, 10);
+
+  /* New Mexico at Wyoming kicked off on 5 September and never reported, so the
+     only game either manager had left is gone and their ceilings are what they
+     have already banked. */
+  for (const m of ["leandro", "steve"]) {
+    assert.equal(row(m).remaining, 0, `${m}'s remaining`);
+    assert.equal(row(m).ceiling, row(m).points, `${m}'s ceiling`);
+  }
+
+  /* The all-teams table is built from the same walk and must not disagree. */
+  const mw = built.byConference["Mountain West"];
+  assert.equal(mw.find((t) => t.team === "New Mexico").remaining, 0);
+  assert.equal(mw.find((t) => t.team === "Wyoming").remaining, 0);
+});
+
+/* ------------------------------------------------------------------ */
+/* unscored                                                            */
+/* ------------------------------------------------------------------ */
+
+test("unscored holds every rostered game that stalled or came back unusable", () => {
+  const expected = rostered(fixtureGames)
+    .filter((g) => ["stalled", "unusable"].includes(classify(g, NOW)));
+  assert.ok(expected.length, "the fixture no longer holds an unscored game");
+  assert.equal(built.unscored.length, expected.length);
+  assert.deepEqual(
+    built.unscored.map((u) => u.key).sort(),
+    expected.map(sortKey).sort()
+  );
+  /* Same lean pair as results, not the tier-and-draft-name shape the upcoming
+     list carries: this is a list of games that did not happen, and a payload
+     the bot rewrites every ten minutes pays for every field in it. */
+  for (const u of built.unscored) {
+    assert.deepEqual(Object.keys(u.away).sort(), ["manager", "team"]);
+    assert.deepEqual(Object.keys(u.home).sort(), ["manager", "team"]);
+    assert.ok(u.away.manager || u.home.manager, `${u.away.team} at ${u.home.team} has no manager`);
+  }
+});
+
+test("the three ways a game goes unscored each name themselves", () => {
+  const find = (a, h) => built.unscored.find((u) => u.away.team === a && u.home.team === h);
+  /* kicked off, never completed */
+  assert.equal(find("Missouri State", "Texas A&M").reason, "no result");
+  assert.equal(find("New Mexico", "Wyoming").reason, "no result");
+  /* completed with the score fields empty */
+  assert.equal(find("Buffalo", "Toledo").reason, "no score");
+  /* completed level, and this league has no half wins */
+  assert.equal(find("Tulane", "Navy").reason, "tied");
+});
+
+test("unscored is sorted the way the timeline is, and reaches no other list", () => {
+  const order = [...built.unscored].sort((a, b) =>
+    a.key.localeCompare(b.key) || String(a.date).localeCompare(String(b.date)));
+  assert.deepEqual(built.unscored, order);
+
+  /* Kickoff time and the pair of schools, because no entry carries the game id
+     and the fixture deliberately holds two games between the same two teams. */
+  const id = (date, a, b) => `${date}|${[a, b].sort().join(" v ")}`;
+  const elsewhere = new Map([
+    ...built.results.map((r) => [id(r.date, r.winner.team, r.loser.team), "results"]),
+    ...built.headToHead.map((h) => [id(h.date, h.winner.team, h.loser.team), "headToHead"]),
+    ...built.gamesOfWeek.games.map((g) => [id(g.date, g.away.team, g.home.team), "gamesOfWeek"]),
+  ]);
+  for (const u of built.unscored) {
+    const where = elsewhere.get(id(u.date, u.away.team, u.home.team));
+    assert.equal(where, undefined, `${u.away.team} at ${u.home.team} is also in ${where}`);
+  }
 });
 
 test("byConference holds every conference and no team from outside one", () => {
