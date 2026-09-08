@@ -115,7 +115,11 @@ jobs:
       # `push:` without a filter.
       - name: Commit if changed
         run: |
-          if git -C .data diff --quiet; then
+          # status rather than `diff --quiet`: a payload file that is new
+          # rather than changed - the next split, a first run on a fresh
+          # branch - is untracked, and a diff cannot see it. That would be a
+          # run that quietly committed nothing and reported success.
+          if [ -z "$(git -C .data status --porcelain)" ]; then
             echo "no change, skipping commit"
             exit 0
           fi
