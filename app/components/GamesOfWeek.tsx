@@ -49,7 +49,7 @@ export function GamesOfWeek({ data }: { data: Data }) {
   if (!data.gamesOfWeek.games.length) return null;
 
   return (
-    <section>
+    <section className="gowk">
       <h2>Games of the week</h2>
       <p className="muted sm">
         {data.gamesOfWeek.label} ·{" "}
@@ -133,4 +133,21 @@ export const css = `
        same information restated and must not read as a second, competing
        number. Fixed width so a 50% and a 94% do not shuffle the column. */
     .wp{color:var(--dim);font-size:11px;width:30px;text-align:right;flex-shrink:0}
+    /* A spread is the one column here with no width worth setting - "Florida
+       International -10.5" is 187px and "TCU -3.5" is 50 - and on a phone the
+       long ones left the matchup 59px to sit in. It could not: .mu is a flex
+       item at its default min-width of auto, so it stops at its longest word
+       and pushes the row out from the inside. Flexbox will not resolve that
+       by shrinking anything else, because as far as it is concerned the line
+       was never over budget in the first place.
+       So the spread stops competing for the line rather than being squeezed
+       on it. The order property puts it after the points badge, which keeps
+       the badge where it sits in the live block and the timeline; the reading
+       order in the markup is unchanged and still says the spread first.
+       Scoped to this section because .gow is four sections' row, and none
+       of the other three has anything to move down here. */
+    @media (max-width:430px){
+      .gowk .gow{flex-wrap:wrap}
+      .gowk .line{order:1;flex-basis:100%;text-align:right}
+    }
 `;

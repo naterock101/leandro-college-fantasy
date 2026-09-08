@@ -199,4 +199,13 @@ export const css = `
     /* a points badge that belongs to a manager the filter is not about */
     .stakes.them{color:var(--dim);font-weight:400}
     .wk{font-size:11px;width:34px;text-align:right;flex-shrink:0;color:var(--dim)}
+    /* The matchup is the only part of the row that can give ground, and this
+       marker was stopping it: "upset · Western Kentucky -1.5" held on one
+       line is 216px, which became the floor of a column with 198px to spend,
+       and both the head-to-head list and the timeline scrolled sideways for
+       it. Keeping the spread off two lines is worth a rule on a desktop and
+       is not worth the page on a phone. */
+    @media (max-width:430px){
+      .upset{white-space:normal}
+    }
 `;

@@ -181,5 +181,16 @@ export const css = `
     .clear:hover{color:var(--chalk)}
     @media (max-width:430px){
       .sw{max-width:none}
+      /* The leaderboard's narrow-screen block tightens td for the whole
+         page, and this table never got it: the .tt td rule above is one class
+         more specific, so it won wherever the two met and source order was
+         never asked. The rule it beat was about padding; this one is about
+         a font size and restated the padding on its way past. */
+      .tt td{padding-left:2px;padding-right:2px}
+      /* Even tightened, the table still wanted 372px of a phone's 347. The
+         conference column is what was taking it - "American Athletic" held on
+         one line is 143px, more than a third of the table, for the column
+         that can most afford to run to two. Wrapped, it is 101px. */
+      .tconf{white-space:normal}
     }
 `;
