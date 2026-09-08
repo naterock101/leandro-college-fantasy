@@ -590,6 +590,15 @@ on the site and as a successful run in the log.
 game is not remaining: it cannot be won, so counting it overstated the ceiling
 by 2 or 3 points for the rest of the season.
 
+**`byWeek[].scheduled` deliberately still counts a stalled game.** So a week
+that holds one reads "8/9 scored" for the rest of the season, and the ninth
+game never arrives. That is a decision, not an oversight, and it was taken
+knowing how it looks: the ninth game is named in "Never scored" directly below,
+so the fraction is the honest count of what that week held rather than a total
+quietly revised down to match what happened. Do not "fix" it to 8/8 without
+deciding the same question again - the alternative is defensible, it just is
+not what was chosen.
+
 `collisionLoss` handles the case where two of one manager's own teams play each
 other. Only one of them can win, so the lesser of the two point values is
 subtracted. Nathan has Texas A&M vs Arizona State on Sep 12, both worth 3, so
