@@ -66,7 +66,7 @@ describe("the two records", () => {
   test("sit in the order the league reads them, with points first", () => {
     const { container } = board(data);
     expect(headers(container as unknown as HTMLElement)).toEqual([
-      "#", "Manager", "Pts", "Act W-L", "Exp W-L*", "Proj", "Left", "Ceil",
+      "#", "Manager", "Pts", "Act W-L", "Exp W-L*", "EoW Proj", "Games left", "Ceil",
     ]);
   });
 

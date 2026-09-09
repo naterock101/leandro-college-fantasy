@@ -133,10 +133,10 @@ export function Leaderboard({ data }: { data: Data }) {
                 a reader who sees only "W-L" next to "Exp W-L" will take the
                 first for the season and the second for the same games, which
                 is the one thing about this pair that is not true. */}
-            <th className="r">Act W-L</th>
-            {showExp && <th className="r">Exp W-L*</th>}
-            {showProj && <th className="r">Proj</th>}
-            <th className="r">{live ? "Left" : "+/-"}</th><th className="r">Ceil</th>
+            <th className="r">Act <span className="nb">W-L</span></th>
+            {showExp && <th className="r">Exp <span className="nb">W-L*</span></th>}
+            {showProj && <th className="r">EoW Proj</th>}
+            <th className="r">{live ? "Games left" : "+/-"}</th><th className="r">Ceil</th>
           </tr>
         </thead>
         <tbody>
@@ -305,8 +305,9 @@ export function Leaderboard({ data }: { data: Data }) {
       <p className="caption">
         {showProj && (
           <>
-            Proj is W-L after {data.projection!.label.toLowerCase()} if every betting
-            favourite wins, and the arrow is where that would move you in the table.
+            EoW Proj is W-L at the end of {data.projection!.label.toLowerCase()} if
+            every betting favourite wins, and the arrow is where that would move
+            you in the table.
             {data.projection!.unprojected > 0 &&
               ` ${data.projection!.unprojected} of ${data.projection!.games} games have no line and are left out.`}{" "}
           </>
@@ -437,6 +438,10 @@ export const css = `
     .howexp summary:hover::after{text-decoration:underline}
     .howexp summary:focus-visible{outline:2px solid var(--amber);outline-offset:2px;border-radius:3px}
     .howexp p{margin:8px 0 0;max-width:62ch}
+    /* A phone has room for these headers only across two lines, and the line
+       they are allowed to break on is the space - "ACT W-" above an orphaned
+       "L" is what a hyphen invites and is worse than either label. */
+    th .nb{white-space:nowrap}
     .exp{white-space:nowrap}
     /* Generated from EXP_STEPS so the sheet and the class the cell picks
        cannot drift apart, and so the audit has one table to read. An unshaded
