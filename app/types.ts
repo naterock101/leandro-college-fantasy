@@ -110,14 +110,25 @@ export type Data = {
                                expectedPoints?: number }>;
   } | null;
   /* Points banked against points the closing lines expected, over settled games
-     that had a line. `unpriced` is the count that had none and were left out of
-     both sides of that subtraction - it is on screen because a luck number over
-     a third of the season, presented as a season, would be worse than none.
-     Optional for the same reason as results and unscored. */
+     that had a line, and the same comparison as a record. `unpriced` is the
+     count that had none and were left out of both sides of that subtraction -
+     it is on screen because a number over a third of the season, presented as a
+     season, would be worse than none. Optional for the same reason as results
+     and unscored.
+
+     The four record fields carry the same `?` as `expectedGained` above and for
+     the same reason: they postdate the luck block, so a cached page has to
+     render a payload written before they existed. The Expected column checks
+     for them rather than assuming the block implies them. */
   luck?: {
     games: number; unpriced: number;
     managers: Record<string, { games: number; actual: number;
-                               expected: number; delta: number }>;
+                               expected: number; delta: number;
+                               /* the record over the ledger's games only, which
+                                  is not the standings record - that one counts
+                                  the unpriced games too */
+                               wins?: number; losses?: number;
+                               expectedWins?: number; expectedLosses?: number }>;
   } | null;
   gamesOfWeek: { label: string | null; games: Game[] };
   byConference: Record<string, {

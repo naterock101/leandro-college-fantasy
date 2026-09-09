@@ -475,6 +475,10 @@ function build(doc, owners, games, lines) {
          implying it is all of it. */
       games: luckPriced,
       unpriced: luckUnpriced,
+      /* Per manager this block carries two comparisons off one ledger: points
+         banked against points expected, and the record against the expected
+         record. They share a denominator by construction, which is the point -
+         see luckOf. */
       /* In table order, like projection.managers, so the golden file reads down
          the same list twice rather than down the standings once and the roster
          file once. */
@@ -681,7 +685,11 @@ if (out.projection) {
     const m = l.managers[s.manager];
     if (!m.games) continue;
     console.log(`  ${s.manager.padEnd(10)} ${String(m.actual).padStart(3)} banked, ` +
-      `${String(m.expected).padStart(5)} expected  ${m.delta >= 0 ? "+" : ""}${m.delta}`);
+      `${String(m.expected).padStart(5)} expected  ${m.delta >= 0 ? "+" : ""}${m.delta}` +
+      /* The record over the same ledger, which is the half the leaderboard
+         now shows. Logged beside the points so a run where the two disagree
+         about how many games they cover is visible on one line. */
+      `   ${m.wins}-${m.losses} against ${m.expectedWins}-${m.expectedLosses}`);
   }
 }
 /* Printed even when it is zero: this is the count that used to be silent, and

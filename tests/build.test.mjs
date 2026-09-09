@@ -21,7 +21,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { classify, home, away, isDone, sortKey } from "../lib/games.mjs";
-import { round1 } from "../lib/winprob.mjs";
+import { round1, winProbability } from "../lib/winprob.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const GAMES = join(ROOT, "fixtures/sample-games.json");
@@ -446,13 +446,51 @@ test("every manager's luck is their banked points less their expected ones", () 
   }
 });
 
+test("the expected record counts exactly the games the points ledger counts", () => {
+  /* The two halves are published side by side and a reader subtracts them, so
+     the one thing that must not drift is their denominator. Wins and losses
+     add back to `games`, and `games` is already checked above against an
+     independent count from the roster and the lines file. */
+  for (const [manager, l] of Object.entries(built.luck.managers)) {
+    assert.equal(l.wins + l.losses, l.games, `${manager}'s actual record`);
+    assert.equal(round1(l.expectedWins + l.expectedLosses), l.games,
+      `${manager}'s expected record`);
+    /* Nobody is ever expected to lose a game they could not have lost, and
+       nobody is expected to win one they were not in. */
+    assert.ok(l.expectedWins >= 0 && l.expectedWins <= l.games,
+      `${manager} expected ${l.expectedWins} wins from ${l.games} games`);
+  }
+});
+
+test("the expected record is the sum of the win probabilities, not the points", () => {
+  /* Recomputed from the roster and the lines file rather than from the
+     payload, so this checks the builder against its inputs. The tier value is
+     deliberately absent: a win is a win here, which is the whole difference
+     between this column and the points beside it. */
+  const expected = Object.fromEntries(Object.keys(rosters.managers).map((m) => [m, 0]));
+  for (const { game, line } of settled()) {
+    if (!line) continue;
+    for (const team of [home(game), away(game)]) {
+      const o = OWNER.get(team);
+      if (o) expected[o.manager] += winProbability(line, team);
+    }
+  }
+  for (const [manager, wins] of Object.entries(expected)) {
+    assert.equal(built.luck.managers[manager].expectedWins, round1(wins),
+      `${manager}'s expected wins`);
+  }
+});
+
 test("a manager whose only games went unpriced has no luck either way", () => {
   /* Leandro's New Mexico and Steve's Wyoming were in one game between them and
      it never reported, so neither has a settled game at all. Zero here means
      "nothing to say", which is why the count of excluded games has to be on
      screen next to it. */
   for (const m of ["leandro", "steve"]) {
-    assert.deepEqual(built.luck.managers[m], { games: 0, actual: 0, expected: 0, delta: 0 });
+    assert.deepEqual(built.luck.managers[m], {
+      games: 0, actual: 0, expected: 0, delta: 0,
+      wins: 0, losses: 0, expectedWins: 0, expectedLosses: 0,
+    });
   }
 });
 

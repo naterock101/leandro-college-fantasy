@@ -1066,49 +1066,81 @@
         "games": 3,
         "actual": 5,
         "expected": 3.9,
-        "delta": 1.1
+        "delta": 1.1,
+        "wins": 2,
+        "losses": 1,
+        "expectedWins": 1.5,
+        "expectedLosses": 1.5
       },
       "nathan": {
         "games": 2,
         "actual": 2,
         "expected": 2.1,
-        "delta": -0.1
+        "delta": -0.1,
+        "wins": 1,
+        "losses": 1,
+        "expectedWins": 1.1,
+        "expectedLosses": 0.9
       },
       "tconn": {
         "games": 2,
         "actual": 3,
         "expected": 3.2,
-        "delta": -0.2
+        "delta": -0.2,
+        "wins": 1,
+        "losses": 1,
+        "expectedWins": 1.2,
+        "expectedLosses": 0.8
       },
       "adam": {
         "games": 1,
         "actual": 0,
         "expected": 1.7,
-        "delta": -1.7
+        "delta": -1.7,
+        "wins": 0,
+        "losses": 1,
+        "expectedWins": 0.6,
+        "expectedLosses": 0.4
       },
       "charlie": {
         "games": 1,
         "actual": 0,
         "expected": 1.8,
-        "delta": -1.8
+        "delta": -1.8,
+        "wins": 0,
+        "losses": 1,
+        "expectedWins": 0.6,
+        "expectedLosses": 0.4
       },
       "clint": {
         "games": 1,
         "actual": 0,
         "expected": 0.8,
-        "delta": -0.8
+        "delta": -0.8,
+        "wins": 0,
+        "losses": 1,
+        "expectedWins": 0.3,
+        "expectedLosses": 0.7
       },
       "leandro": {
         "games": 0,
         "actual": 0,
         "expected": 0,
-        "delta": 0
+        "delta": 0,
+        "wins": 0,
+        "losses": 0,
+        "expectedWins": 0,
+        "expectedLosses": 0
       },
       "steve": {
         "games": 0,
         "actual": 0,
         "expected": 0,
-        "delta": 0
+        "delta": 0,
+        "wins": 0,
+        "losses": 0,
+        "expectedWins": 0,
+        "expectedLosses": 0
       }
     }
   },
