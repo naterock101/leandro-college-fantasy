@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 
-import { SIGMA } from "../../lib/winprob.mjs";
+import { favouriteProbability, SIGMA } from "../../lib/winprob.mjs";
 
 import { cap, tally } from "../../lib/format.mjs";
 import { useViewState } from "../hooks/useViewState";
@@ -382,8 +382,15 @@ export function Leaderboard({ data }: { data: Data }) {
             team favoured by that much wins. Add those up over a manager&rsquo;s
             settled games and you get the wins the market expected them to have
             by now; the rest of the games are the expected losses. A team
-            favoured by 7 is worth about 0.67 of a win, which is why the numbers
-            come out in tenths and why nobody is ever expected to be 3-0.
+            favoured by 7 is worth about{" "}
+            {/* Derived, not restated. This read "about 0.67 of a win" until
+                sigma was refitted from 16 to 14.4 and quietly made it wrong by
+                two points, while Games of the week went on printing 69% for
+                the same line. A worked example of the model has to come out of
+                the model. */}
+            {favouriteProbability(7).toFixed(2)} of a win, which is why the
+            numbers come out in tenths and why nobody is ever expected to be
+            3-0.
           </p>
           <p>
             The comparison is not a measure of how good your teams are: a

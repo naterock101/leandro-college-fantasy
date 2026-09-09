@@ -27,6 +27,7 @@
 import { describe, expect, test } from "vitest";
 import { fireEvent, screen, within } from "@testing-library/react";
 
+import { favouriteProbability } from "../lib/winprob.mjs";
 import { expStep, Leaderboard } from "../app/components/Leaderboard";
 import { ViewState } from "../app/hooks/useViewState";
 import type { Data } from "../app/types";
@@ -68,6 +69,20 @@ describe("the two records", () => {
     expect(headers(container as unknown as HTMLElement)).toEqual([
       "#", "Manager", "Pts", "Act W-L", "Exp W-L*", "EoW Proj", "Games left", "Ceil",
     ]);
+  });
+
+  test("the worked example in the footnote comes out of the model", () => {
+    /* It read "about 0.67 of a win" for a 7-point favourite - true at the old
+       sigma of 16, and quietly two points wrong after the refit to 14.4, while
+       Games of the week went on printing 69% for the same line. A worked
+       example of the model that is typed rather than derived goes stale on the
+       next change to the model, silently, in the one paragraph whose whole job
+       is explaining the number beside it. */
+    board(data);
+    const p = favouriteProbability(7);
+    const shown = screen.getByText(/is worth about/i).textContent!;
+    expect(shown).toContain(p.toFixed(2));
+    expect(shown, "the pre-refit figure is back").not.toMatch(/\b0\.67\b/);
   });
 
   test("the stacked headings are still one heading each", () => {

@@ -177,8 +177,9 @@ test("a second sample, counted from the underdog's side, agrees", () => {
     }, 0);
     if (L > best.L) best = { sigma, L };
   }
+  const games = STEELE.reduce((n, b) => n + b.n, 0);
   assert.ok(Math.abs(best.sigma - SIGMA) < 0.4,
-    `Steele's ${best.n ?? 20505} games fit sigma ${best.sigma.toFixed(2)}, the constant says ${SIGMA}`);
+    `Steele's ${games} games fit sigma ${best.sigma.toFixed(2)}, the constant says ${SIGMA}`);
 });
 
 test("the model is knowingly wrong about short favourites, in a known direction", () => {
