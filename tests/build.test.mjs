@@ -468,6 +468,13 @@ test("every week's expected record adds back to its own denominator", () => {
       /* And it can only ever cover games that were actually played. */
       assert.ok(c.priced <= c.wins + c.losses,
         `${manager} priced ${c.priced} of ${c.wins + c.losses} played`);
+      /* The wins inside that subset. Bounded by the subset at one end and by
+         the season's wins at the other - a win over a priced game is still a
+         win in Act W-L, so it can never exceed the total. */
+      assert.ok(c.pricedWins >= 0 && c.pricedWins <= c.priced,
+        `${manager} won ${c.pricedWins} of ${c.priced} priced`);
+      assert.ok(c.pricedWins <= c.wins,
+        `${manager} won ${c.pricedWins} priced of ${c.wins} in all`);
     }
   }
 });
@@ -511,6 +518,20 @@ test("the expected record is the sum of the win probabilities, not the points", 
     assert.equal(last[manager].expectedWins, round1(wins), `${manager}'s expected wins`);
     assert.equal(last[manager].priced, priced[manager], `${manager}'s priced games`);
   }
+});
+
+test("the wins over the priced games cannot be recovered from the season record", () => {
+  /* Why `pricedWins` is published at all. The page used to work it out as
+     `wins - (played - priced)`, which assumes every unpriced game was a win.
+     Clint sits at 0-3 with one priced game: that arithmetic gives him minus
+     two wins and paints him two whole wins colder than he is. */
+  const clint = built.byWeek[built.byWeek.length - 1].cumulative.clint;
+  const played = clint.wins + clint.losses;
+  assert.equal(clint.priced, 1, "the fixture stopped exercising this");
+  assert.equal(clint.wins, 0);
+  assert.equal(clint.pricedWins, 0, "clint won none of his priced games");
+  assert.equal(clint.wins - (played - clint.priced), -2,
+    "the old arithmetic no longer produces the wrong answer this exists to avoid");
 });
 
 test("a game with no line moves neither half of the expected record", () => {

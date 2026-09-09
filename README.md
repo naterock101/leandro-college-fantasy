@@ -541,9 +541,10 @@ together on arrival.
   `byWeek`, where it accumulates. It stays in the payload because it is the
   season's only record of the points comparison. See "Win probability" below
 - `byWeek[].cumulative` - the running totals at the end of each week. Alongside
-  `points`, `wins` and `losses` it carries `expectedWins`, `expectedLosses` and
-  `priced`: the record the closing lines expected by then, and how many of the
-  games behind it had a line. This is what the leaderboard's **Exp W-L** reads
+  `points`, `wins` and `losses` it carries `expectedWins`, `expectedLosses`,
+  `priced` and `pricedWins`: the record the closing lines expected by then, how
+  many of the games behind it had a line, and how many of *those* were won.
+  This is what the leaderboard's **Exp W-L** reads
 - `byConference` - every FBS team ranked by points within its conference, with drafter or null
 - `headToHead[]` - completed games where both teams are drafted. The league
   tiebreaker. Each entry carries `spread` (the closing line, or null if the
@@ -831,14 +832,48 @@ allowed to disappear.
 ## Win probability, expected points and luck
 
 ```
-P(favourite wins) = Phi(|spread| / sigma),  sigma = 16
+P(favourite wins) = Phi(|spread| / sigma),  sigma = 14.4
 ```
 
-**Sigma is a modelling assumption, not a fact**, and lives in one named
-constant saying so. 16 approximates the standard deviation of college football
-margins against the spread. Calibrated against this season so far: the model
-expected 55.8 favourite wins from 65 settled games and 59 happened, which is
-inside noise at that sample size.
+**Sigma is fitted, not assumed.** It was 16 - a round number off the middle of
+a range of published estimates - until it was fitted to [Stassen's
+tabulation](https://stassen.com/football/pointspread/) of 9,626 BCS-era games
+(1999-2010), which records bucket by bucket how often a favourite laying each
+price actually won. Maximum likelihood over the 8,516 with a real price gives
+**14.43**, and the answer barely moves under any cut of the data:
+
+| data | sigma |
+|---|---|
+| every priced bucket, 8,516 games | 14.43 |
+| spreads 1 to 21 | 14.38 |
+| buckets of 150 games or more | 14.74 |
+| spreads 4 and up | 14.31 |
+
+14.4 beats 16 on that data by every measure - weighted RMS error against the
+observed win rates falls from 4.61% to 4.30%, and a 7-point favourite comes out
+at 68.6% against the 69.05% observed, where 16 said 66.9% - and it beats it on
+this season too: 56.7 expected favourite wins from 65 settled games against 59
+actual, where 16 expected 55.8.
+
+**The shape holds, which is the part worth checking.** A sigma can be fitted to
+any monotone curve and still describe the wrong distribution. Grouped into
+bands of spread, five of six sit within 0.6 points of the model, well inside
+one standard error. Only the smallest band, 0.5 to 3.5, is off, at 2.8 low -
+and that is where the source's own buckets alternate implausibly (1.5-point
+favourites at 45.0%, 2-point at 64.1%, 2.5-point at 45.2%, three adjacent
+buckets that cannot all be right). A favourite under even money at n=396 is a
+bookkeeping fault, so the model is not bent to reproduce it; the exclusion is
+stated in `tests/winprob.test.mjs` rather than hidden. Separately, Boyd's Bets
+finds essentially no correlation between the size of the spread and the size of
+the scatter in college football, 0.09, which is the assumption a single sigma
+makes.
+
+**It is still one named constant** so it can be argued with in one place, and
+the argument is now a test: `tests/winprob.test.mjs` carries the Stassen table,
+re-fits sigma by maximum likelihood, and fails if the constant has drifted more
+than a quarter point from the data or if 16 would explain the observed rates
+better. The sample is a decade old and sigma moves with the seasons sampled, so
+nothing here should be read as more precise than a whole percentage point.
 
 Four things are built on it. **Per-game win probability** beside the spread in
 Games of the week. **Expected points** - `wp(team) x tier value` summed per
@@ -886,6 +921,16 @@ A manager with no priced game reads as a dash rather than 0-0: "we cannot say"
 and "expected to have played nothing" must not print the same. A payload
 written before the expectation existed drops the column rather than printing
 `undefined` down it.
+
+**The colour compares like with like, which is why `pricedWins` is published.**
+Teal is above the market and red is below, and the comparison has to be the
+wins over the priced games against the expectation over those same games. That
+number cannot be worked out on the page: deriving it as `wins - (played -
+priced)` assumes every unpriced game was a win, and for a manager on 0-3 with
+one priced game it produces *minus two*, which paints them two whole wins colder
+than they are. On a payload that predates the count the cell is left uncoloured
+rather than guessed, unless every settled game was priced - in which case Act
+W-L is already the right comparison.
 
 Two rules, both enforced by tests rather than convention:
 

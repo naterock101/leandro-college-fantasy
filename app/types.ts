@@ -107,7 +107,12 @@ export type Data = {
                cover the same games. */
             cumulative: Record<string, { points: number; wins: number; losses: number;
                                          expectedWins?: number; expectedLosses?: number;
-                                         priced?: number }> }[];
+                                         priced?: number;
+                                         /* wins over the priced games alone, which is
+                                            the only thing the expectation can honestly
+                                            be compared against and cannot be derived
+                                            from `wins` and `priced` on the page */
+                                         pricedWins?: number }> }[];
   linesFetchedAt: string | null;
   projection: {
     label: string; games: number; projected: number; unprojected: number;

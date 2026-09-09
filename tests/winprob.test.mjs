@@ -65,11 +65,78 @@ test("phi is symmetric and never leaves [0,1]", () => {
 /* the model                                                           */
 /* ------------------------------------------------------------------ */
 
-test("sigma is one named constant, and it is 16", () => {
+test("sigma is one named constant, and it is 14.4", () => {
   /* Named rather than inlined because it is an assumption about college
      football and not a fact about probability. This test exists so that
-     changing it is a deliberate act with a red test attached. */
-  assert.equal(SIGMA, 16);
+     changing it is a deliberate act with a red test attached - it was 16 until
+     it was fitted to the data in the calibration test below. */
+  assert.equal(SIGMA, 14.4);
+});
+
+/* Stassen.com's tabulation of BCS-era college football, 1999-2010: for each
+   price, how many games the favourite won out of how many it laid. 9,626 games
+   in all. This is the evidence sigma was fitted to, and keeping it here is what
+   turns "14.4" from a number somebody once typed into a claim that can be
+   rechecked - including by whoever wants to argue it should be something else.
+
+   Buckets under 100 games are left out: at n=47 the sampling noise is wider
+   than the thing being measured. */
+const STASSEN = [
+  [1, 125, 243], [1.5, 95, 211], [2, 132, 206], [2.5, 179, 396], [3, 328, 587],
+  [3.5, 293, 483], [4, 156, 241], [4.5, 145, 241], [5, 115, 173], [5.5, 124, 206],
+  [6, 178, 276], [6.5, 266, 372], [7, 299, 433], [7.5, 243, 328], [8, 126, 186],
+  [8.5, 129, 179], [9, 104, 142], [9.5, 115, 162], [10, 190, 248], [10.5, 116, 155],
+  [11, 102, 141], [11.5, 98, 124], [12, 105, 124], [12.5, 105, 123], [13, 111, 147],
+  [13.5, 206, 253], [14, 182, 220], [14.5, 126, 148], [15, 95, 106], [16.5, 109, 129],
+  [17, 118, 130], [17.5, 111, 125], [20, 100, 106], [21, 139, 141],
+];
+
+test("sigma is the best fit to the observed win rates, not a round number", () => {
+  /* Maximum likelihood over the table above. If someone changes SIGMA, this
+     says whether they moved it toward the data or away from it. */
+  const logLik = (sigma) => STASSEN.reduce((L, [spread, won, n]) => {
+    const p = phi(spread / sigma);
+    return L + won * Math.log(p) + (n - won) * Math.log(1 - p);
+  }, 0);
+
+  let best = { sigma: 0, L: -Infinity };
+  for (let sigma = 10; sigma <= 24; sigma += 0.01) {
+    const L = logLik(sigma);
+    if (L > best.L) best = { sigma, L };
+  }
+  /* Within a quarter point of the fit. Tighter than that would be asserting
+     the third decimal of a number whose sample is a decade old. */
+  assert.ok(Math.abs(best.sigma - SIGMA) < 0.25,
+    `the data fits sigma ${best.sigma.toFixed(2)}, the constant says ${SIGMA}`);
+  assert.ok(logLik(SIGMA) > logLik(16),
+    "16 now explains the observed win rates better than the constant does");
+});
+
+test("the normal is the right shape, not just the right width", () => {
+  /* A sigma can be fitted to any monotone curve and still be describing the
+     wrong distribution. Grouped into bands, the model has to land on the
+     observed rate to within noise at every price, not only on average.
+
+     The 0.5-3.5 band is excluded and this is the one place that is admitted
+     rather than hidden: the source has 1.5-point favourites at 45.0%, 2-point
+     at 64.1% and 2.5-point at 45.2%, three adjacent buckets that cannot all be
+     right. A favourite under even money at n=396 is a bookkeeping fault, and
+     the model is not going to be bent to reproduce one. */
+  const bands = [[4, 7], [7.5, 10.5], [11, 14.5], [15, 21]];
+  for (const [lo, hi] of bands) {
+    let won = 0, n = 0, expected = 0;
+    for (const [spread, w, g] of STASSEN) {
+      if (spread < lo || spread > hi) continue;
+      won += w; n += g; expected += g * phi(spread / SIGMA);
+    }
+    const actual = won / n;
+    const model = expected / n;
+    /* Two standard errors of the observed rate. */
+    const se = Math.sqrt((model * (1 - model)) / n);
+    assert.ok(Math.abs(actual - model) < 2 * se,
+      `spreads ${lo}-${hi}: observed ${(actual * 100).toFixed(1)}%, ` +
+      `model ${(model * 100).toFixed(1)}%, over ${n} games`);
+  }
 });
 
 test("a pick-em is exactly 50%, from either side", () => {
@@ -98,10 +165,10 @@ test("the favourite's chance rises with the price and never reaches certainty", 
     prev = p;
   }
 
-  /* One point of the spread against sigma, spelled out: a 16-point favourite is
-     a one-sigma favourite, which is phi(1). If sigma ever moves, this is the
-     assertion that says what moved. */
-  close(favouriteProbability(16), 0.8413447461, "a 16-point favourite");
+  /* One point of the spread against sigma, spelled out: a favourite laying
+     exactly sigma is a one-sigma favourite, which is phi(1). If sigma ever
+     moves, this is the assertion that says what moved. */
+  close(favouriteProbability(SIGMA), 0.8413447461, "a one-sigma favourite");
   close(favouriteProbability(3.5), phi(3.5 / SIGMA), "a 3.5-point favourite");
 });
 

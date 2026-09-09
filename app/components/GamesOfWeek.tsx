@@ -117,8 +117,9 @@ export function GamesOfWeek({ data }: { data: Data }) {
           {new Date(data.linesFetchedAt).toLocaleString(undefined,
             { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}.
           {" "}The percentage is the favourite&rsquo;s chance of winning outright,
-          assuming results land about {SIGMA} points either side of the number.
-          That figure is an assumption, not a measurement.
+          assuming results land about {SIGMA} points either side of the number -
+          which is fitted to about 9,600 games rather than guessed, but is still
+          a model and not a measurement of this game.
         </p>
       )}
     </section>

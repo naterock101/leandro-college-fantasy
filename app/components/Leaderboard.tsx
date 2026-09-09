@@ -163,18 +163,32 @@ export function Leaderboard({ data }: { data: Data }) {
                   }
                   /* Above or below the expectation gets a colour, and the
                      colour is never the only carrier - the two records are
-                     side by side and a reader can subtract them. Compared
-                     against the wins over the priced games rather than against
-                     Act W-L, which may count games this column cannot. */
+                     side by side and a reader can subtract them.
+
+                     Compared against the wins over the *priced* games, which is
+                     the only honest comparison and is why the builder publishes
+                     that count. It cannot be worked out here: subtracting the
+                     unpriced games from Act W-L assumes every one of them was a
+                     win, which for a manager on 0-3 with one priced game gives
+                     minus two, and paints them the wrong colour by a mile. When
+                     a payload predates the count, the comparison is only made
+                     where the two records cover the same games - and otherwise
+                     left uncoloured rather than guessed. */
                   const played = r.wins + r.losses;
-                  const over = r.wins - (played - rec.priced) - rec.wins;
                   const missing = played - rec.priced;
+                  const won = typeof c.pricedWins === "number"
+                    ? c.pricedWins
+                    : missing === 0 ? r.wins : null;
+                  const over = won === null ? 0 : won - rec.wins;
                   return (
                     <td
                       className={`r mono exp ${over > 0.05 ? "hot" : over < -0.05 ? "cold" : ""}`}
                       title={
                         `The closing lines expected ${rec.wins}-${rec.losses} from the ` +
                         `${rec.priced} settled ${rec.priced === 1 ? "game" : "games"} of theirs that carried one` +
+                        (won === null
+                          ? ""
+                          : `, and they went ${won}-${rec.priced - won} in those`) +
                         (missing > 0
                           ? `. ${missing} more ${missing === 1 ? "was" : "were"} never priced and are in neither column.`
                           : `, which is every game behind their ${r.wins}-${r.losses}.`)
@@ -325,10 +339,11 @@ export function Leaderboard({ data }: { data: Data }) {
           </p>
           <p>
             The model assumes results scatter about {SIGMA} points either side
-            of the spread, which is an assumption rather than a measurement.
-            Each week is priced off the lines as they closed, so this is what
-            was expected of that week at the time and not a number rewritten
-            with hindsight.
+            of the spread. That figure is fitted to some 9,600 games rather than
+            guessed at, but it is still a model: it says what a favourite laying
+            that price does on average, never what yours will do. Each week is
+            priced off the lines as they closed, so this is what was expected of
+            that week at the time and not a number rewritten with hindsight.
           </p>
         </details>
       )}

@@ -624,7 +624,7 @@ function buildByWeek(doc, owners, games, PTS, lines) {
      they cover different games. A settled game the books never priced is in
      neither: an unpriced game is not a coin flip we happen to know nothing
      about, it is a game this model has nothing to say about. */
-  const expected = Object.fromEntries(names.map((n) => [n, { wins: 0, priced: 0 }]));
+  const expected = Object.fromEntries(names.map((n) => [n, { wins: 0, priced: 0, won: 0 }]));
   const out = [];
 
   for (const k of [...buckets.keys()].sort()) {
@@ -657,6 +657,12 @@ function buildByWeek(doc, owners, games, PTS, lines) {
         if (typeof p !== "number") continue;
         expected[o.manager].wins += p;
         expected[o.manager].priced += 1;
+        /* The wins over *these* games, which is the only thing the expectation
+           can honestly be compared against. It cannot be recovered on the page
+           from the season record and a count: subtracting the unpriced games
+           from a manager's wins assumes every one of them was a win, which for
+           a manager sitting at 0-3 with one priced game produces minus two. */
+        if (team === winner) expected[o.manager].won += 1;
       }
     }
     out.push({
@@ -677,6 +683,7 @@ function buildByWeek(doc, owners, games, PTS, lines) {
           expectedWins: w,
           expectedLosses: round1(expected[n].priced - w),
           priced: expected[n].priced,
+          pricedWins: expected[n].won,
         }];
       })),
     });

@@ -74,7 +74,7 @@ describe("the two records", () => {
   const weekly = (i: number, manager: string) =>
     data.byWeek[i].cumulative[manager] as {
       points: number; wins: number; losses: number;
-      expectedWins: number; expectedLosses: number; priced: number;
+      expectedWins: number; expectedLosses: number; priced: number; pricedWins: number;
     };
 
   const lastWeek = data.byWeek.length - 1;
@@ -138,6 +138,22 @@ describe("the two records", () => {
           `${m} at ${w.label}`).toBe(rec.priced);
       }
     }
+  });
+
+  test("the colour compares like with like when games went unpriced", () => {
+    /* Clint is 0-3 over the season and 0-1 over the games that carried a line,
+       against 0.3 expected: a shade cold. The version that derived his priced
+       wins from the season record made that -2.3 and painted him the coldest
+       row on the board. */
+    const root = board(data).container as unknown as HTMLElement;
+    const c = weekly(lastWeek, "clint");
+    expect(c.priced, "the fixture stopped exercising this").toBe(1);
+    expect(c.pricedWins).toBe(0);
+
+    const table = within(root).getAllByRole("table")[0];
+    const cell = within(table).getByText(`${c.expectedWins}-${c.expectedLosses}`);
+    expect(cell.className, "clint should be a shade cold, not blazing").toMatch(/\bcold\b/);
+    expect(cell.getAttribute("title")).toMatch(/went 0-1 in those/);
   });
 
   test("a manager with no priced game reads as a dash, not as 0-0", () => {
