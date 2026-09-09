@@ -59,11 +59,18 @@ export const base = `
     table{width:100%;border-collapse:collapse}
     /* Left, because a th defaults to centre and a td does not, so every
        header without .r sat centred over a column of left-aligned names -
-       far enough off to read as a mistake at the widths these tables use.
-       .r still right-aligns the numeric columns over their numeric cells. */
+       far enough off to read as a mistake at the widths these tables use. */
     th{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);
       font-family:ui-monospace,Menlo,monospace;font-weight:600;padding:0 5px 7px;
       text-align:left;border-bottom:1px solid var(--rule)}
+    /* The numeric headers are the exception, and they are centred rather than
+       matching their cells. A label is a name for a whole column, not another
+       value in it: right-aligned, a two-line heading hangs off the right edge
+       and the eye reads it as the top of the number stack rather than as the
+       thing naming it. Centred, it sits over the column. The cells themselves
+       stay right-aligned, which is where alignment does real work - digits
+       have to line up and words do not. */
+    th.r{text-align:center}
     td{padding:11px 5px;border-bottom:1px solid rgba(42,61,83,.55)}
     .rank{font-family:ui-monospace,Menlo,monospace;color:var(--muted);width:22px;font-size:12px}
     .pts{font-family:ui-monospace,Menlo,monospace;font-size:18px;font-weight:700;color:var(--amber)}
