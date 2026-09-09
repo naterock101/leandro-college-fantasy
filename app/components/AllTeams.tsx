@@ -122,25 +122,32 @@ export function AllTeams({ data, note }: { data: Data; note: string | null }) {
       <table className="tt">
         <thead>
           <tr>
-            <th className="r">#</th>
+            {/* Right, not centred: this rank runs to 136, so a centred
+                column staggers one- against three-digit numbers all the way
+                down. The leaderboard's own rank stops at 8 and stays centred
+                with the rest of its table. Either way the heading wears the
+                column's class. */}
+            <th className="rt">#</th>
             <th>Team</th>
             <th>Conf</th>
-            <th className="r">W-L</th>
-            <th className="r">Drafter</th>
-            <th className="r">Pts</th>
+            <th className="num">W-L</th>
+            {/* Right, like its cells - names, not numbers, sitting against
+                the points column. The heading wears the column's class. */}
+            <th className="rt">Drafter</th>
+            <th className="num">Pts</th>
           </tr>
         </thead>
         <tbody>
           {teamRows.map((t, i) => (
             <tr key={t.team}>
-              <td className="r rank">{i + 1}</td>
+              <td className="rt rank">{i + 1}</td>
               <td className="tname"><TeamName team={t.team} /></td>
               <td className="tconf mono muted">{t.conf}</td>
-              <td className="mono muted wl r">{t.wins}-{t.losses}</td>
-              <td className={`owner ${t.manager ? "" : "un"}`}>
+              <td className="mono muted wl num">{t.wins}-{t.losses}</td>
+              <td className={`owner rt ${t.manager ? "" : "un"}`}>
                 {t.manager ? cap(t.manager) : "undrafted"}
               </td>
-              <td className="r pts sm2">{t.points}</td>
+              <td className="num pts sm2">{t.points}</td>
             </tr>
           ))}
         </tbody>
@@ -161,7 +168,9 @@ export const css = `
     .tt td{padding:8px 5px;font-size:13px}
     .tconf{font-size:10.5px;white-space:nowrap}
     .tname{font-size:13.5px}
-    .owner{font-size:11.5px;color:var(--teal);text-align:right;white-space:nowrap}
+    /* No text-align here: this column's alignment is the rt class, worn by
+       the heading and the cells alike, so there is one place it is written. */
+    .owner{font-size:11.5px;color:var(--teal);white-space:nowrap}
     .owner.un{color:var(--dim)}
     .sm2{font-size:14px}
     .wl{font-size:11.5px}

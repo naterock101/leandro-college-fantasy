@@ -256,7 +256,7 @@ export function Leaderboard({ data }: { data: Data }) {
       <table>
         <thead>
           <tr>
-            <th className="r">#</th><th>Manager</th>
+            <th className="num">#</th><th>Manager</th>
             {/* Points, then what was expected of them and what they project
                 to - and the three records those belong to are one tap away in
                 the manager's own row.
@@ -268,13 +268,13 @@ export function Leaderboard({ data }: { data: Data }) {
                 two that were never side by side. The records are not gone;
                 they are together in the dropdown, where the phone this is read
                 on has a whole line to give them rather than four characters. */}
-            <th className="r">Pts</th>
-            {showExpPts && <th className="r"><Stack over="Exp" under="Pts*" /></th>}
-            {showProj && <th className="r"><Stack over="EoW" under="Proj" /></th>}
-            <th className="r">
+            <th className="num">Pts</th>
+            {showExpPts && <th className="num"><Stack over="Exp" under="Pts*" /></th>}
+            {showProj && <th className="num"><Stack over="EoW" under="Proj" /></th>}
+            <th className="num">
               {live ? <Stack over="Games" under="left" /> : "+/-"}
             </th>
-            <th className="r">Ceil</th>
+            <th className="num">Ceil</th>
           </tr>
         </thead>
         <tbody>
@@ -293,7 +293,7 @@ export function Leaderboard({ data }: { data: Data }) {
                 if ((e.target as HTMLElement).closest("button")) return;
                 toggle();
               }}>
-                <td className="r rank">{i + 1}</td>
+                <td className="num rank">{i + 1}</td>
                 <td className="name">
                   <button
                     type="button"
@@ -306,7 +306,7 @@ export function Leaderboard({ data }: { data: Data }) {
                     <span className={`caret ${isOpen ? "up" : ""}`} aria-hidden="true">›</span>
                   </button>
                 </td>
-                <td className="r pts">{r.points}</td>
+                <td className="num pts">{r.points}</td>
                 {showExpPts && (() => {
                   const c = expected[r.manager];
                   /* Nothing settled and priced for this manager is a dash, not
@@ -317,7 +317,7 @@ export function Leaderboard({ data }: { data: Data }) {
                      and not yet the expected points. */
                   if (!c || (c.priced ?? 0) === 0 || typeof c.expectedPoints !== "number") {
                     return (
-                      <td className="r mono dim" title="No settled game of theirs carried a line">-</td>
+                      <td className="num mono dim" title="No settled game of theirs carried a line">-</td>
                     );
                   }
                   const exp = c.expectedPoints;
@@ -330,7 +330,7 @@ export function Leaderboard({ data }: { data: Data }) {
                   const over = points === null ? null : points - exp;
                   return (
                     <td
-                      className={`r mono exp ${shadeOf(over, PER_WIN)}`}
+                      className={`num mono exp ${shadeOf(over, PER_WIN)}`}
                       title={
                         `The closing lines expected ${exp} points from the ` +
                         `${c.priced} settled ${c.priced === 1 ? "game" : "games"} of theirs that carried one` +
@@ -344,14 +344,14 @@ export function Leaderboard({ data }: { data: Data }) {
                 })()}
                 {showProj && (() => {
                   const pr = data.projection!.managers[r.manager];
-                  if (!pr) return <td className="r mono muted">-</td>;
+                  if (!pr) return <td className="num mono muted">-</td>;
                   const dir = pr.rankDelta > 0 ? "up" : pr.rankDelta < 0 ? "down" : "flat";
                   const move = dir === "flat"
                     ? "Projected to hold this position"
                     : `Projected to move ${Math.abs(pr.rankDelta)} ${dir}`;
                   return (
                     <td
-                      className="r mono proj"
+                      className="num mono proj"
                       /* Points rather than the W-L it used to show, because
                          points are what the arrow beside it is computed from:
                          the projected table is sorted on this number, so the
@@ -375,8 +375,8 @@ export function Leaderboard({ data }: { data: Data }) {
                     </td>
                   );
                 })()}
-                <td className="r mono muted">{live ? r.remaining : r.delta > 0 ? `+${r.delta}` : "0"}</td>
-                <td className="r mono ceil">{r.ceiling}</td>
+                <td className="num mono muted">{live ? r.remaining : r.delta > 0 ? `+${r.delta}` : "0"}</td>
+                <td className="num mono ceil">{r.ceiling}</td>
               </tr>,
               isOpen && (
                 <tr key={r.manager + "-d"} className="detail">

@@ -41,7 +41,23 @@ export const base = `
       font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
     .wrap{max-width:760px;margin:0 auto;padding:20px 14px 70px}
     .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
-    .muted{color:var(--muted)} .sm{font-size:12px} .r{text-align:right}
+    .muted{color:var(--muted)} .sm{font-size:12px}
+    /* Column alignment, and the rule is that a heading wears the same class as
+       its own cells. It used to be two rules - one right-aligning the cells,
+       one centring the headings - and a heading centred over a column of
+       right-aligned numbers does not sit over them at all: it sits over the
+       *column*, which is as wide as whichever of the two is wider, so the
+       label floated left of its own numbers wherever the heading was the wider
+       one. One class on both ends means they cannot drift, whatever the
+       alignment turns out to be, and tests/align.test.tsx holds every table to
+       it.
+       num is centred rather than right because these columns are two to four
+       characters of the same shape all the way down: centring loses no digit
+       alignment worth having and puts the label over the numbers rather than
+       over the whitespace beside them. It is not called r any more because it
+       no longer means right, and a class whose name contradicts what it does
+       is how the two rules came to disagree in the first place. */
+    .num{text-align:center} .rt{text-align:right}
     /* #C4566B was 4.27:1 on --ink, under AA at body size, and this is the
        one sentence on the page that has to be read when nothing else works. */
     .err{color:var(--red)}
@@ -63,14 +79,9 @@ export const base = `
     th{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);
       font-family:ui-monospace,Menlo,monospace;font-weight:600;padding:0 5px 7px;
       text-align:left;border-bottom:1px solid var(--rule)}
-    /* The numeric headers are the exception, and they are centred rather than
-       matching their cells. A label is a name for a whole column, not another
-       value in it: right-aligned, a two-line heading hangs off the right edge
-       and the eye reads it as the top of the number stack rather than as the
-       thing naming it. Centred, it sits over the column. The cells themselves
-       stay right-aligned, which is where alignment does real work - digits
-       have to line up and words do not. */
-    th.r{text-align:center}
+    /* No th-only alignment rule. There was one, and it is what the comment
+       above is about: a heading that aligns by a different rule from its own
+       cells is a heading that lines up with them only by coincidence. */
     td{padding:11px 5px;border-bottom:1px solid rgba(42,61,83,.55)}
     .rank{font-family:ui-monospace,Menlo,monospace;color:var(--muted);width:22px;font-size:12px}
     .pts{font-family:ui-monospace,Menlo,monospace;font-size:18px;font-weight:700;color:var(--amber)}

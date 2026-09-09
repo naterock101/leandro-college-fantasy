@@ -754,6 +754,19 @@ apply to. `app/styles.ts` keeps only what has more than one caller: the tokens,
 the page frame, the table primitives and the `.gow` row shape. There is no CSS
 framework and there will not be one - runtime dependencies are zero.
 
+**A heading wears the same class as its own cells.** Column alignment is one
+class per column - `.num` centred, `.rt` right - put on the `th` and on the
+`td`s alike, and there is deliberately no `th`-only alignment rule. There was
+one, and it is why this is written down: the cells were right-aligned and the
+headings centred, and a heading centred over a column of right-aligned numbers
+does not sit over them at all. It sits over the *column*, which is as wide as
+whichever of the two is wider - so wherever the heading was wider ("PTS" over
+"24", "CEIL" over "282") the label floated left of its own numbers, and where
+the numbers were wider it drifted the other way. Neither rule was wrong on its
+own, which is exactly why `tests/align.test.tsx` resolves the sheet against the
+real DOM and asserts the invariant rather than any particular alignment: a
+heading and its column must *agree*, whatever they agree on.
+
 Three hooks. `useLiveScores` is described under "Live scores" below.
 `useDismiss` closes a dropdown on an outside click or on Escape and
 puts focus back on the trigger. `useViewState` is `useState` that outlives its
