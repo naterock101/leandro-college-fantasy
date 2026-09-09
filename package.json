@@ -13,6 +13,7 @@
     "lines": "node --env-file-if-exists=.env scripts/build-lines.mjs",
     "lines:dry": "node --env-file-if-exists=.env scripts/build-lines.mjs --dry",
     "logos": "node --env-file-if-exists=.env scripts/build-logos.mjs",
+    "karts": "node scripts/build-karts.mjs",
     "fixture:regen": "node scripts/build-standings.mjs --fixture fixtures/sample-games.json --out fixtures/sample-standings.json --union",
     "verify": "node --env-file-if-exists=.env scripts/verify-teams.mjs",
     "test": "npm run test:node && npm run test:dom",

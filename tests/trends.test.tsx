@@ -24,10 +24,14 @@
  * exists, and go on rendering if it never does.
  */
 
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, expect, test } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 
 import { cap } from "../lib/format.mjs";
+import { KARTS } from "../app/components/Karts";
 import { GEOM } from "../app/components/TrendsChart";
 import { TrendsChart } from "../app/components/TrendsChart";
 import { TrendsMatrix } from "../app/components/TrendsMatrix";
@@ -142,6 +146,160 @@ describe("the race chart", () => {
     expect(container.querySelectorAll("[data-marker]").length).toBe(managers.length);
   });
 
+  /** Where a manager's driver is drawn, from the `<image>` box. */
+  const driverAt = (root: HTMLElement, manager: string) => {
+    const g = root.querySelector(`[data-kart="${manager}"]`);
+    if (!g) throw new Error(`no driver for ${manager}`);
+    const img = g.querySelector("image")!;
+    const n = (a: string) => Number(img.getAttribute(a));
+    return {
+      x: n("x") + n("width") / 2,
+      y: n("y") + n("height") / 2,
+      size: n("width"),
+      href: img.getAttribute("href")!,
+    };
+  };
+
+  test("every manager's line ends in their own driver", async () => {
+    /* What makes it a race rather than a chart. The face is on the end of the
+       line horizontally - it moves along with the season rather than sitting
+       pinned in the gutter, which would be a legend with a picture in it. */
+    stubFetch();
+    const { container } = await openTrends();
+    const root = container as unknown as HTMLElement;
+
+    for (const m of managers) {
+      const [x] = seriesOf(root, m).slice(-1)[0];
+      const d = driverAt(root, m);
+      expect(d.x, `${m}'s driver is not at the end of their line`).toBeCloseTo(x, 3);
+      expect(d.href, `${m} is drawn as somebody else`).toBe(`/karts/${KARTS[m].file}.png`);
+    }
+  });
+
+  test("a driver nudged off its own line is tied back to it", async () => {
+    /* Faces are 26 units across and this league opened with all eight managers
+       inside twelve points of each other, so they have to be pushed apart or
+       they are one pile. A face that has moved is then making a claim about a
+       total it is not standing next to, and the leader is what stops that
+       being silent. */
+    stubFetch();
+    const { container } = await openTrends();
+    const root = container as unknown as HTMLElement;
+    const leaders = [...root.querySelectorAll("line.lead")];
+
+    let nudged = 0;
+    for (const m of managers) {
+      const [x, y] = seriesOf(root, m).slice(-1)[0];
+      const d = driverAt(root, m);
+      if (Math.abs(d.y - y) <= 1) continue;
+      nudged++;
+      const tie = leaders.find(
+        (l) =>
+          Math.abs(Number(l.getAttribute("x1")) - x) < 0.01 &&
+          Math.abs(Number(l.getAttribute("y1")) - y) < 0.01 &&
+          Math.abs(Number(l.getAttribute("y2")) - d.y) < 0.01
+      );
+      expect(tie, `${m}'s driver moved ${(d.y - y).toFixed(1)} units with no leader`).toBeTruthy();
+    }
+    expect(nudged, "nothing was nudged, so this test measured nothing")
+      .toBeGreaterThan(0);
+  });
+
+  test("no two drivers overlap", async () => {
+    /* The reason the gap is the height of a face rather than the height of a
+       name. Two names a few units apart are two names; two faces a few units
+       apart are a pile with one face in it. */
+    stubFetch();
+    const { container } = await openTrends();
+    const root = container as unknown as HTMLElement;
+    const placed = managers
+      .map((m) => ({ m, ...driverAt(root, m) }))
+      .sort((a, b) => a.y - b.y);
+    for (let i = 1; i < placed.length; i++) {
+      const gap = placed[i].y - placed[i - 1].y;
+      expect(gap, `${placed[i - 1].m} and ${placed[i].m} are ${gap} apart`)
+        .toBeGreaterThanOrEqual(placed[i].size);
+    }
+  });
+
+  test("every plotted point still has a marker, driver or not", async () => {
+    /* The driver replaces the last marker rather than sitting on top of one,
+       so the count is the thing to hold: one per point, however it is drawn.
+       A one-week season is entirely made of last points. */
+    stubFetch();
+    const { container } = await openTrends();
+    const root = container as unknown as HTMLElement;
+    const points = managers.reduce((n, m) => n + seriesOf(root, m).length, 0);
+    expect(root.querySelectorAll("[data-marker]").length).toBe(points);
+  });
+
+  test("a crowded chart keeps every name apart and inside the plot", () => {
+    /* The gap used to be a fixed 28 units - the height of a face - which fits
+       eight managers and not twelve. Past that the declutter clamped the
+       surplus onto the top of the plot and drew three names on one coordinate.
+       Sixteen managers all level on points is the worst case there is. */
+    const many = Array.from({ length: 16 }, (_, i) => `m${String(i).padStart(2, "0")}`);
+    const weeks = byWeek.map((w) => ({
+      ...w,
+      cumulative: Object.fromEntries(many.map((m) => [m, { points: 5, wins: 1, losses: 0 }])),
+    }));
+    const { container } = render(<TrendsChart byWeek={weeks} managers={many} />);
+    const root = container as unknown as HTMLElement;
+
+    const ys = [...root.querySelectorAll("text.nm")]
+      .map((t) => Number(t.getAttribute("y")))
+      .sort((a, b) => a - b);
+    expect(ys.length).toBe(many.length);
+    for (let i = 1; i < ys.length; i++) {
+      expect(ys[i] - ys[i - 1], `two names ${ys[i] - ys[i - 1]} units apart`)
+        .toBeGreaterThan(0);
+    }
+    /* And still on the chart. The svg is overflow:visible, so a name pushed
+       past either end is not clipped - it is painted over the prose. */
+    expect(ys[0]).toBeGreaterThanOrEqual(GEOM.padT);
+    expect(ys[ys.length - 1]).toBeLessThanOrEqual(GEOM.H - GEOM.padB + 4);
+  });
+
+  test("a manager named after an Object.prototype key does not take the tab down", () => {
+    /* `KARTS[manager]` on a plain object returns Object.prototype.constructor
+       for a manager called "constructor" - truthy, not a Kart - which skipped
+       the fallback, left the marker undefined and threw out of the render.
+       The names come off a payload fetched over the network. */
+    const odd = ["constructor", "toString", "valueOf"];
+    const weeks = byWeek.map((w) => ({
+      ...w,
+      cumulative: { ...w.cumulative, ...Object.fromEntries(odd.map((m) => [m, { points: 3, wins: 1, losses: 1 }])) },
+    }));
+    const { container } = render(
+      <TrendsChart byWeek={weeks} managers={[...managers, ...odd]} />
+    );
+    const root = container as unknown as HTMLElement;
+    for (const m of odd) {
+      expect(seriesOf(root, m).length, `${m} was dropped`).toBe(byWeek.length);
+      expect(root.querySelector(`[data-kart="${m}"]`), `${m} was given a driver`).toBeNull();
+    }
+  });
+
+  test("a manager with no driver still gets a line", () => {
+    /* The draft changes and this file does not. An unknown name should cost a
+       plain line off the old token palette, not a crash and not a gap. */
+    const late = "newcomer";
+    expect(KARTS[late]).toBeUndefined();
+    const weeks = byWeek.map((w) => ({
+      ...w,
+      cumulative: { ...w.cumulative, [late]: { points: 4, wins: 2, losses: 0 } },
+    }));
+    const { container } = render(
+      <TrendsChart byWeek={weeks} managers={[...managers, late]} />
+    );
+    const root = container as unknown as HTMLElement;
+    expect(seriesOf(root, late).length).toBe(byWeek.length);
+    expect(root.querySelector(`[data-kart="${late}"]`), "invented a driver").toBeNull();
+    /* Twice over: once in the gutter and once in the hidden table, which is
+       the pair every other name on this chart appears as. */
+    expect(within(root).getAllByText(cap(late)).length).toBe(2);
+  });
+
   test("zero weeks says so rather than dividing by nothing", () => {
     const { container } = render(<TrendsChart byWeek={[]} managers={managers} />);
     expect(container.querySelector("svg"), "nothing to draw").toBeNull();
@@ -163,6 +321,34 @@ describe("the race chart", () => {
     const root = container as unknown as HTMLElement;
     expect(seriesOf(root, late).length).toBe(byWeek.length - 1);
     expect(hiddenTable(root)[cap(late)][0], "the week before they existed is a gap").toBeNull();
+  });
+});
+
+describe("the drivers' art", () => {
+  test("every driver names a file that is actually there", () => {
+    /* A missing PNG is not a crash and not a warning: it is an empty square at
+       the head of somebody's line, on a tab nobody opens every visit. The file
+       names are also the one thing `scripts/build-karts.mjs` and this component
+       have to agree about, and they are agreed by hand. */
+    for (const [manager, kart] of Object.entries(KARTS)) {
+      const file = join(process.cwd(), "public/karts", `${kart.file}.png`);
+      expect(existsSync(file), `${manager} is ${kart.driver}, and ${file} is missing`)
+        .toBe(true);
+    }
+  });
+
+  test("every manager in the roster has a driver", () => {
+    /* The fallback keeps an unknown name on the chart, but silently: a manager
+       who joins and never gets a face would go unnoticed until somebody asked
+       why their line was grey. */
+    for (const m of managers) {
+      expect(KARTS[m], `${m} has no driver`).toBeTruthy();
+    }
+  });
+
+  test("no two managers drive the same character", () => {
+    const files = Object.values(KARTS).map((k) => k.file);
+    expect(new Set(files).size).toBe(files.length);
   });
 });
 

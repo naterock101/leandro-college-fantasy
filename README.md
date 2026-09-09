@@ -251,6 +251,7 @@ what step 7 above is for.
 | `npm run lines:dry` | Same, writes nothing. |
 | `npm run logos -- --espn` | Rebuilds `data/logos.json` from ESPN. No API call, no key. |
 | `npm run logos` | Same from CFBD. 1 API call, needs a key, **currently refuses to write** - see "Crests". |
+| `npm run karts` | Re-crops the driver icons into `public/karts/`. macOS only, no API call, needs the gitignored sources. |
 | `npm run dev` | Next.js dev server. |
 
 Both builders take `--out` to say where their files go, and
@@ -295,7 +296,15 @@ keeping exactly as it is.
 - `tests/a11y.test.tsx` - the keyboard, which is the part nobody exercises by
   accident: the row toggle, Escape and focus return on the dropdowns, arrow
   keys along the tab strip
-- `tests/contrast.test.tsx` - the token pairs, computed rather than eyeballed
+- `tests/contrast.test.tsx` - the token pairs, computed rather than eyeballed,
+  plus the drivers' colours put through a dichromacy simulation
+- `tests/leaderboard.test.tsx` - the two records and the window between them: a
+  payload that predates the expected record drops the column rather than
+  printing `undefined` down it
+- `tests/trends.test.tsx` - the race chart against its own hidden table; that
+  every line ends in its manager's driver, that a driver pushed off its line is
+  tied back to it, that no two faces overlap, and that every driver names a PNG
+  that is actually on disk
 
 The split between them is by extension - `tests/*.test.mjs` against
 `tests/**/*.test.tsx` - so neither runner can pick up the other's files and
@@ -524,9 +533,12 @@ together on arrival.
   weighted by win probability instead. Both are kept: the naive one is what the
   arrow in the table means and has been on screen since before this existed,
   and a browser holding cached JS must not break on the new fields
-- `luck[]` - points banked against points expected, over settled rostered games
-  with a stored line. Carries `games` (how many counted) and `unpriced` (how
-  many were excluded for having no line). See "Win probability" below
+- `luck[]` - one ledger of settled rostered games with a stored line, read out
+  two ways: points banked against points expected (`actual`, `expected`,
+  `delta`) and the record against the expected record (`wins`, `losses`,
+  `expectedWins`, `expectedLosses`). Carries `games` (how many counted) and
+  `unpriced` (how many were excluded for having no line). The record is the
+  half that is on the leaderboard, as **Exp W-L**. See "Win probability" below
 - `byConference` - every FBS team ranked by points within its conference, with drafter or null
 - `headToHead[]` - completed games where both teams are drafted. The league
   tiebreaker. Each entry carries `spread` (the closing line, or null if the
@@ -627,6 +639,7 @@ thing one person can change without touching another.
 | `app/components/Activity.tsx` | head to head, and the timeline |
 | `app/components/Trends.tsx` | the Trends tab, and its lazy fetch |
 | `app/components/TrendsChart.tsx` | the points race |
+| `app/components/Karts.tsx` | one driver per manager, and their colours |
 | `app/components/TrendsMatrix.tsx` | the head-to-head grid |
 | `app/components/TeamName.tsx` | one school, wherever it appears |
 | `app/components/Dropdown.tsx` | the multi-select, used three times |
@@ -662,15 +675,52 @@ one, for the same reason there is no CSS framework.
 
 Three things that are less obvious than they look:
 
-- **Eight series cannot be told apart by hue.** Four tokens are used twice
-  over, and the two that share a colour differ in *both* stroke pattern and
-  marker shape - so no two series match on all three, and the four colours are
-  also four separated lightnesses, which survives greyscale and red-green
-  confusion. Names sit at the end of their own lines; there is no legend to
-  cross-reference.
-- **Colours are assigned in alphabetical manager order, not standings order.**
-  A colour that moves when somebody wins on a Saturday makes the chart
-  unreadable across two visits.
+- **Every manager is a Mario Kart driver.** `Karts.tsx` maps each manager id to
+  a character, a colour sampled out of that character's own art, a stroke
+  pattern and a marker shape. The face rides the head of their line, so it
+  moves along as the season does, which is what makes this read as a race
+  rather than as eight polylines. A manager with no entry falls back to the old
+  four-token treatment, because the draft changes and an unknown name should
+  cost a plain line rather than a crash.
+- **The faces are cropped to heads, and the crops are code.** A whole Kart
+  render at 26px is a smudge. `scripts/build-karts.mjs` (`npm run karts`, macOS
+  only - it shells out to `sips` rather than take an image dependency) holds a
+  table of square crop boxes and writes `public/karts/`, which is committed:
+  eight PNGs at 72px, 92KB in total, fetched only when the Trends tab is
+  opened. The full-size sources live in `assets/karts/` and are **gitignored** -
+  12MB of input for 92KB of output, and anything under `public/` is deployed.
+  Nothing breaks without them; only re-cropping does.
+- **The colours are sampled, not remembered.** Each is a colour that occurs in
+  its own icon, taken off a histogram of the file, then pushed to whatever
+  lightness clears 4.5:1 on both grounds - the manager's name is painted in it
+  and a name is text. Yoshi is his highlight green rather than his body green,
+  which reads 3.77:1 and fails; Peach is the dress rather than the hair,
+  because the hair is Wario's yellow to within a few points.
+- **Eight series cannot be told apart by hue, and characters do not change
+  that.** Simulate protanopia over the eight character colours and eleven of
+  the twenty-eight pairs come back under 1.3:1 with each other; the best
+  possible pairing of eight faithful colours still leaves one at 1.42:1. So the
+  two colour-free channels stay: two stroke patterns times four marker shapes
+  is exactly eight combinations for exactly eight managers, so **no two series
+  are ever separated by colour alone**. `tests/contrast.test.tsx` runs the
+  Viénot simulation over the palette and fails on any collapsed pair that
+  shares both. Names sit at the end of their own lines; there is no legend.
+- **Drivers are assigned by manager id, and colours never move.** A colour that
+  changes when somebody wins on a Saturday makes the chart unreadable across
+  two visits, and a colour attached to a character cannot drift to a rank.
+- **Faces and names are decluttered together, in two passes.** The gap is the
+  height of a face rather than the height of a name: two names a few units
+  apart are two names, and two faces a few units apart are a pile. This season
+  opened with all eight managers inside twelve points of each other, which is
+  120 units of chart for 208 units of face. Where a face has been pushed off
+  its own line a thin leader runs back to the point, so the chart never claims
+  a total it is not standing next to - and the total is printed beside the name
+  regardless.
+- **And the second pass is what makes it two passes.** Pushing names apart
+  downward and then sliding the whole column up off the bottom just moves the
+  overflow to the top, where - the svg being `overflow:visible` - the leader's
+  name paints over the paragraph above the chart. The second pass pushes back
+  up from the bottom and clamps at the top instead.
 - **`viewBox` alone is not responsive.** Type inside an SVG scales with the
   box, so a 720-unit chart rendered 12px labels at 19px on desktop and 6px on a
   phone. The chart is capped at 1:1 and the type is fixed at the sizes the rest
@@ -785,18 +835,41 @@ margins against the spread. Calibrated against this season so far: the model
 expected 55.8 favourite wins from 65 settled games and 59 happened, which is
 inside noise at that sample size.
 
-Three things are built on it. **Per-game win probability** beside the spread in
+Four things are built on it. **Per-game win probability** beside the spread in
 Games of the week. **Expected points** - `wp(team) x tier value` summed per
 manager over the coming week, which is a better projection than "every
-favourite wins" because it does not throw away the size of the line. And
-**luck**: points banked minus points expected over settled games, so positive
-means running hot.
+favourite wins" because it does not throw away the size of the line. **Luck**:
+points banked minus points expected over settled games, so positive means
+running hot. And the **expected record** - the same probabilities summed
+without the tier weighting, which is the leaderboard's Exp W-L column.
+
+Luck and the expected record come out of one pass over one ledger, in
+`luckOf`, precisely so they can never come to cover different games. They do
+not always point the same way, and that is the useful part: win the cheap games
+and lose the dear one and you are above the market on the record and below it
+on the board.
+
+**Exp W-L may not be over the same games as Act W-L**, and which of those is
+true today is in the line under the table rather than behind the disclosure.
+Act W-L is every settled game; Exp W-L is only the settled games the books
+priced, because an unpriced game is one this model has nothing to say about. A
+reader comparing 11-3 against 9.8-4.2 has to know whether the second counts
+fewer games, or the subtraction they do in their head is wrong.
+
+The footnote follows `unpriced` rather than asserting the awkward case
+unconditionally, because **both directions are wrong sentences**. Hiding a real
+mismatch is the obvious one. Announcing a mismatch that does not exist is the
+other, and it is the live case: this season is 65 settled games with a line and
+none without, so the two columns currently cover exactly the same games.
 
 Two rules, both enforced by tests rather than convention:
 
 - **A game with no line is in neither half of the calculation**, and the count
   of excluded games is carried in the payload and shown in the caption. A luck
-  number that quietly ignores part of the season is worse than no luck number.
+  number that quietly ignores part of the season is worse than no luck number,
+  and so is an expected record. A manager with no priced game at all reads as a
+  dash rather than as 0-0: "nothing to say" and "expected to have played
+  nothing" are different sentences.
 - **Nothing reads the `closed` flag.** It is only ever set by a run that
   fetches that game's date, so every game that finished before it shipped will
   never carry it - 1 of 287 stored lines has it today. The spread survives
@@ -812,6 +885,14 @@ every favourite won is **not** positive luck for everyone. It is positive for
 whoever owned the favourites and negative for whoever owned the beaten
 underdogs, because an underdog is expected to win sometimes and losing all of
 them is below expectation. Luck sums to roughly zero across the league.
+
+### Licence
+
+The eight character images are Nintendo's. They are here because this is a
+private page for an eight-person league: not sold, not advertised against, not
+indexed, and not offered to anyone outside it. If that ever stops being true,
+they come out - `Karts.tsx` already falls back to plain token-coloured lines
+for a manager with no driver, so removing the table is the whole change.
 
 ## Crests
 

@@ -2,6 +2,7 @@ import { useMemo } from "react";
 
 import { cap } from "../../lib/format.mjs";
 import type { Data } from "../types";
+import { KartIcon, KARTS, type Marker } from "./Karts";
 
 /**
  * The race: every manager's running points total, week by week.
@@ -29,7 +30,7 @@ import type { Data } from "../types";
    the tests, which invert a plotted y back into points to check it against the
    hidden table - hard-coding those in the test would mean a change here
    silently stops the test measuring anything. */
-export const GEOM = { W: 460, H: 280, padL: 30, padR: 124, padT: 14, padB: 26 };
+export const GEOM = { W: 460, H: 280, padL: 30, padR: 132, padT: 14, padB: 26 };
 
 const plotW = GEOM.W - GEOM.padL - GEOM.padR;
 const plotH = GEOM.H - GEOM.padT - GEOM.padB;
@@ -48,31 +49,70 @@ const spanOf = (n: number) => (n <= 1 ? 30 : plotW);
 const r = (n: number) => Math.round(n * 1000) / 1000;
 
 /**
- * Eight series that stay apart without hue doing the work.
+ * Series that stay apart without hue doing the work.
  *
- * Four colours, each used twice, and the two that share a colour differ in
- * both stroke pattern and marker shape - so no two series match on all three
- * of colour, dash and marker. The four colours are also four distinct
- * lightnesses (0.85, 0.47, 0.37, 0.26 relative luminance), which is what
- * keeps them apart in greyscale and under the red-green confusions; the
- * end-of-line label is what makes the question moot for a reader who cannot
- * separate two of them at all.
+ * Each manager in the league has a driver in `Karts.tsx`: a face at the head
+ * of their line and a colour taken from it. That is what a reader matches on,
+ * and it is a stronger key than any of the three this used to rely on,
+ * because it is a picture of a specific thing rather than one value along an
+ * axis. The dash pattern comes from the same table and is still doing work -
+ * eight distinguishable hues do not exist on a dark ground for a deuteranope,
+ * so the pairs that hue does not separate are given different strokes. See
+ * the grid in Karts.tsx for which pairs and why.
  *
- * Rejected: eight hues. Eight distinguishable hues do not exist on a dark
- * ground for a deuteranope, and generating them from a colour wheel would
- * also abandon the tokens, so half of them would fail the contrast audit the
- * labels have to pass.
+ * A manager with no driver - a mid-season addition, or a payload written by a
+ * bot that knows a name this build does not - falls back to what the chart did
+ * before: four tokens used twice over, the pair that shares a colour told
+ * apart by stroke pattern and marker shape. It is the same fallback the rest
+ * of this file uses for a manager who is in one list and not the other, and
+ * for the same reason: a name nobody has drawn yet should cost a plain line
+ * and nothing else.
  */
 const IN = ["var(--amber)", "var(--teal)", "var(--chalk)", "var(--red)"];
 const DASH = ["none", "6 4"];
 
-const styleFor = (i: number) => ({
-  stroke: IN[i % IN.length],
-  dash: DASH[Math.floor(i / IN.length) % DASH.length],
-  /* filled circle against hollow square: different silhouette and different
-     weight, so the pair reads apart at four pixels across */
-  square: Math.floor(i / IN.length) % DASH.length === 1,
-});
+const styleFor = (manager: string, i: number) => {
+  /* `Object.hasOwn`, not `KARTS[manager]`. A manager keyed "constructor" or
+     "toString" indexes Object.prototype instead, which is truthy and is not a
+     Kart - so the fallback below is skipped, `marker` comes back undefined and
+     the markers loop calls `MARKER[undefined]`, which throws and takes the
+     whole tab down. The names come off a payload fetched over the network;
+     the fallback exists for names this file does not know, and these are
+     names it does not know. */
+  const kart = Object.hasOwn(KARTS, manager) ? KARTS[manager] : undefined;
+  if (kart) {
+    return { stroke: kart.color, dash: kart.dash, marker: kart.marker, kart };
+  }
+  return {
+    stroke: IN[i % IN.length],
+    dash: DASH[Math.floor(i / IN.length) % DASH.length],
+    /* filled circle against filled square: different silhouette and different
+       weight, so the pair reads apart at four pixels across */
+    marker: (Math.floor(i / IN.length) % DASH.length === 1
+      ? "square"
+      : "circle") as Marker,
+    kart: null,
+  };
+};
+
+/* One marker, centred, about six units across whatever the shape. Four
+   silhouettes rather than two, because the drivers took the colour channel
+   away from the accessibility argument and this is the channel that replaces
+   it - a shape is a shape in greyscale and under every colour-blindness. */
+const MARKER: Record<Marker, (x: number, y: number) => string> = {
+  circle: () => "",
+  square: (x, y) => `${r(x - 3)},${r(y - 3)} ${r(x + 3)},${r(y - 3)} ${r(x + 3)},${r(y + 3)} ${r(x - 3)},${r(y + 3)}`,
+  diamond: (x, y) => `${r(x)},${r(y - 4.2)} ${r(x + 4.2)},${r(y)} ${r(x)},${r(y + 4.2)} ${r(x - 4.2)},${r(y)}`,
+  /* sat a shade low so the visual centre of a triangle lands on the point it
+     is marking rather than above it */
+  triangle: (x, y) => `${r(x)},${r(y - 4)} ${r(x + 3.8)},${r(y + 2.8)} ${r(x - 3.8)},${r(y + 2.8)}`,
+};
+
+/* Big enough to be a face and not a blob, small enough that eight of them
+   level on a Saturday in September are eight overlapping faces rather than one
+   shape. The art is cropped to heads for this reason: a whole Kart render at
+   this size is a smudge, and a face is still a face. */
+const ICON = 26;
 
 const shortLabel = (w: Data["byWeek"][number]) =>
   w.seasonType === "postseason" ? `P${w.week}` : `W${w.week}`;
@@ -131,30 +171,52 @@ export function TrendsChart({
               .map((v, x) => [v, x] as const)
               .filter(([v, x]) => v !== null && x >= from)
               .map(([v, x]) => [r(xAt(x, byWeek.length)), r(yAt(v as number, top))]);
-      return { manager, values, coords, style: styleFor(i) };
+      return { manager, values, coords, style: styleFor(manager, i) };
     });
 
-    /* Names stack up wherever two managers are level, which after one week is
-       most of them. Push them apart from the top down, then lift the whole
-       column if it has run off the bottom; the label may end up a few pixels
-       off its line, which is what the matching colour and dash are for. */
-    const GAP = 17;
+    /* Drivers and names stack up wherever two managers are level, which after
+       one week is most of them and in the first week of this season was all
+       eight. Push them apart from the top down, then, if the column has run
+       off the bottom, push it back up from the bottom - rather than sliding
+       the whole column, which just moves the overflow to the other end and
+       paints the leader's name over the paragraph above the chart, because
+       the svg is `overflow:visible` and nothing clips it.
+
+       The gap wants to be the height of a driver rather than the height of a
+       name, because the faces are the thing that must not overlap: two names a
+       few units apart are still two names, and two faces a few units apart are
+       a pile. Eight of them want 196 of the plot's 240 units, which fits - but
+       "fits" is a fact about this league and not about this code, and at ten
+       managers the column stops fitting and the passes below clamp the surplus
+       onto padT, which draws three names on one coordinate. So the gap is
+       whatever the column can actually afford, and only then the height of a
+       face. Crowding faces is a worse chart; stacking names is a broken one. */
     const labels = series
       .filter((s) => s.coords.length)
       .map((s) => ({
         s,
         y: s.coords[s.coords.length - 1][1],
+        /* where the line actually ends, kept because `y` is about to move.
+           A driver that has been nudged off its own line is drawn with a
+           leader back down to this, so the chart never claims a total it is
+           not showing. */
+        at: s.coords[s.coords.length - 1][1],
+        x: s.coords[s.coords.length - 1][0],
         /* the total the name is standing next to, so the gutter answers "how
            many" as well as "who" and the chart needs no hover */
         points: s.values.filter((v): v is number => v !== null).slice(-1)[0],
       }))
       .sort((a, b) => a.y - b.y);
+    const GAP = Math.min(ICON + 2, labels.length > 1 ? plotH / (labels.length - 1) : ICON + 2);
     let prev = -Infinity;
     for (const l of labels) l.y = prev = Math.max(l.y, prev + GAP);
-    const overflow = labels.length
-      ? labels[labels.length - 1].y - (GEOM.H - GEOM.padB)
-      : 0;
-    if (overflow > 0) for (const l of labels) l.y -= overflow;
+    const bottom = GEOM.H - GEOM.padB;
+    if (labels.length && labels[labels.length - 1].y > bottom) {
+      let next = bottom + GAP;
+      for (let i = labels.length - 1; i >= 0; i--) {
+        labels[i].y = next = Math.max(GEOM.padT, Math.min(labels[i].y, next - GAP));
+      }
+    }
 
     return { all, top, series, labels, weeks: byWeek };
   }, [byWeek, managers]);
@@ -251,41 +313,80 @@ export function TrendsChart({
                     strokeLinecap="round"
                   />
                 )}
-                {s.coords.map(([x, y], i) =>
-                  s.style.square ? (
-                    <rect
-                      key={i}
-                      data-marker=""
-                      x={r(x - 3)}
-                      y={r(y - 3)}
-                      width="6"
-                      height="6"
-                      fill="var(--ink)"
-                      stroke={s.style.stroke}
-                      strokeWidth="1.6"
-                    />
+                {/* Every point but the head of the line, which is drawn in a
+                    later pass as the driver. Skipping it here rather than
+                    drawing a dot underneath is deliberate: a 3.2-unit dot
+                    behind a 17-unit face is invisible when it lands and a
+                    smudge on the chin when the face is a few units off. */}
+                {s.coords.map(([x, y], i) => {
+                  if (s.style.kart && i === s.coords.length - 1) return null;
+                  const pts = MARKER[s.style.marker](x, y);
+                  return pts ? (
+                    <polygon key={i} data-marker="" points={pts} fill={s.style.stroke} />
                   ) : (
                     <circle key={i} data-marker="" cx={x} cy={y} r="3.2" fill={s.style.stroke} />
-                  )
-                )}
+                  );
+                })}
               </g>
             );
           })}
+
+          {/* The drivers, after every line rather than inside their own
+              series, because a face belongs on top of all eight lines and not
+              only on top of the ones drawn before it. They carry `data-marker`
+              because that is what they are - each is one series' last point -
+              so a one-week season is eight faces on a start line rather than a
+              chart with no markers at all.
+
+              They ride the decluttered y rather than the raw one, and where
+              those differ a leader runs back to the line. Left on the raw one
+              they simply overlap: this season opened with all eight managers
+              inside twelve points of each other, which is 120 units of chart
+              for 208 units of face. */}
+          {/* Leaders first and faces second, in two passes rather than one:
+              drawn inside each driver's own group, the eighth manager's leader
+              is painted across the first manager's face. */}
+          {labels.map(({ s, y, at, x }) =>
+            s.style.kart && Math.abs(y - at) > 1 ? (
+              <line
+                key={s.manager}
+                x1={x}
+                x2={x}
+                y1={r(at)}
+                y2={r(y)}
+                stroke={s.style.stroke}
+                strokeWidth="1"
+                className="lead"
+              />
+            ) : null
+          )}
+          {labels.map(({ s, y, x }) =>
+            s.style.kart ? (
+              <g key={s.manager} data-marker="" data-kart={s.manager}>
+                <KartIcon kart={s.style.kart} x={x} y={r(y)} size={ICON} />
+              </g>
+            ) : null
+          )}
 
           {labels.map(({ s, y, points }) => (
             <g key={s.manager}>
               {/* A sample of the line itself, so the dash pattern is beside
                   the name rather than only out in the plot. */}
+              {/* Clear of the driver, which is centred on the last point and
+                  so overhangs the plot by half its own width. The sample is
+                  still here rather than replaced by a second copy of the face:
+                  it carries the dash pattern, which is the half of the key
+                  that a face cannot show. */}
               <line
-                x1={gutter + 5}
-                x2={gutter + 21}
+                x1={gutter + ICON / 2 + 3}
+                x2={gutter + ICON / 2 + 17}
                 y1={r(y)}
                 y2={r(y)}
                 stroke={s.style.stroke}
                 strokeDasharray={s.style.dash}
                 strokeWidth="2"
               />
-              <text x={gutter + 25} y={r(y) + 4} className="nm" fill={s.style.stroke}>
+              <text x={gutter + ICON / 2 + 21} y={r(y) + 4} className="nm" fill={s.style.stroke}>
                 {cap(s.manager)}
                 <tspan className="nmp"> {points}</tspan>
               </text>
@@ -332,6 +433,9 @@ export const css = `
     .race .ax{font-family:ui-monospace,Menlo,monospace;font-size:12px;fill:var(--muted)}
     .race .ax.r{text-anchor:end} .race .ax.mid{text-anchor:middle}
     .race .nm{font-size:15px;font-weight:600}
+    /* The tie between a driver that has been nudged clear of the pack and the
+       point it belongs to. Thin and half-lit: it is a pointer, not a series. */
+    .race .lead{stroke-dasharray:2 2}
     .race .nmp{font-family:ui-monospace,Menlo,monospace;font-size:13px;font-weight:400}
     /* Off the screen but in the accessibility tree, which display:none and
        visibility:hidden are both the wrong side of. The 1px box with a clip on

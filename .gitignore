@@ -14,3 +14,11 @@ public/lines.json
 
 # The data-branch worktree the Action checks out.
 .data/
+
+# The full-size character renders the kart icons are cropped from: 12MB of
+# source for 92KB of assets. `scripts/build-karts.mjs` reads them from here and
+# writes public/karts/, which is what ships; keeping the sources out of the
+# repo keeps 12MB out of every clone and off every deploy. They are one-off
+# inputs rather than something the build regenerates, so nothing breaks without
+# them - only re-cropping does.
+assets/karts/

@@ -19,6 +19,7 @@
 
 import { describe, expect, test } from "vitest";
 
+import { KARTS } from "../app/components/Karts";
 import { sheet } from "../app/components/Style";
 import { base } from "../app/styles";
 
@@ -71,6 +72,88 @@ describe("text contrast", () => {
        order is asserted too. */
     expect(contrast(token("chalk"), ink)).toBeGreaterThan(contrast(token("muted"), ink));
     expect(contrast(token("muted"), ink)).toBeGreaterThan(contrast(token("dim"), ink));
+  });
+});
+
+describe("the drivers' colours", () => {
+  /* Not decoration. Each manager's name in the race chart's gutter is painted
+     in their driver's colour, and a name is text - so these have to clear the
+     same bar the tokens do, on both grounds. The chart is the one place on
+     this page where a colour arrives from a table of characters rather than
+     from the palette, which is exactly why it is audited here with them. */
+  for (const [manager, kart] of Object.entries(KARTS)) {
+    test(`${kart.driver} reads on both grounds`, () => {
+      expect(contrast(hex(kart.color), ink), `${manager} on --ink`).toBeGreaterThanOrEqual(AA);
+      expect(contrast(hex(kart.color), panel), `${manager} on --panel`).toBeGreaterThanOrEqual(AA);
+    });
+  }
+
+  test("no two drivers share a colour", () => {
+    const seen = new Map<string, string>();
+    for (const [manager, kart] of Object.entries(KARTS)) {
+      const clash = seen.get(kart.color.toUpperCase());
+      expect(clash, `${manager} and ${clash} are both ${kart.color}`).toBeUndefined();
+      seen.set(kart.color.toUpperCase(), manager);
+    }
+  });
+
+  /* Viénot, Brettel & Mollon (1999), applied to linearised sRGB: the standard
+     cheap simulation of dichromatic vision, and enough for the only question
+     asked of it here - do these two colours collapse into each other. */
+  const simulate = (m: number[][]) => (c: RGB) => {
+    const [r, g, b] = c.map(channel);
+    const out = m.map(([x, y, z]) => x * r + y * g + z * b);
+    return 0.2126 * out[0] + 0.7152 * out[1] + 0.0722 * out[2];
+  };
+  const CVD = {
+    protanopia: simulate([[0.567, 0.433, 0], [0.558, 0.442, 0], [0, 0.242, 0.758]]),
+    deuteranopia: simulate([[0.625, 0.375, 0], [0.7, 0.3, 0], [0, 0.3, 0.7]]),
+    tritanopia: simulate([[0.95, 0.05, 0], [0, 0.433, 0.567], [0, 0.475, 0.525]]),
+  };
+  /* Two colours a dichromat sees at less than this contrast with each other
+     are, for the purpose of telling two lines apart at two units wide, one
+     colour. */
+  const MERGED = 1.5;
+
+  test("every driver has a stroke and marker combination of their own", () => {
+    /* The property that makes the assertion below hold whatever anyone later
+       does to the palette: two dashes and four markers is exactly eight
+       combinations and the league is exactly eight, so no two series are ever
+       separated by colour alone. */
+    const combos = Object.values(KARTS).map((k) => `${k.dash} / ${k.marker}`);
+    expect(new Set(combos).size, `${combos.join(", ")}`).toBe(combos.length);
+  });
+
+  test("no pair a dichromat sees as one colour is left relying on colour", () => {
+    /* And the same thing measured from the other end, so a ninth manager or a
+       recoloured driver fails here rather than in front of a reader who cannot
+       tell Bowser's line from Mario's. Most of this palette does collapse -
+       eleven of the twenty-eight pairs, under protanopia - which is the point:
+       eight character-faithful colours cannot be made distinguishable, so they
+       are not asked to be. */
+    const entries = Object.entries(KARTS);
+    let merged = 0;
+    for (let i = 0; i < entries.length; i++) {
+      for (let j = i + 1; j < entries.length; j++) {
+        const [a, ka] = entries[i];
+        const [b, kb] = entries[j];
+        for (const [kind, see] of Object.entries(CVD)) {
+          const ratio = (() => {
+            const [hi, lo] = [see(hex(ka.color)), see(hex(kb.color))].sort((x, y) => y - x);
+            return (hi + 0.05) / (lo + 0.05);
+          })();
+          if (ratio >= MERGED) continue;
+          merged++;
+          expect(
+            ka.dash !== kb.dash || ka.marker !== kb.marker,
+            `under ${kind} ${a} and ${b} are one colour (${ratio.toFixed(2)}:1) ` +
+              `and share ${ka.dash} / ${ka.marker}`
+          ).toBe(true);
+        }
+      }
+    }
+    expect(merged, "no pair collapsed at all, so this test measured nothing")
+      .toBeGreaterThan(0);
   });
 });
 
