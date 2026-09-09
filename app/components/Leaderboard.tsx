@@ -44,6 +44,25 @@ export const EXP_STEPS = {
 export const expStep = (over: number) =>
   EXP_STEPS.at.reduce((n, at) => (Math.abs(over) >= at ? n + 1 : n), 0);
 
+/**
+ * A two-word column heading, stacked - the qualifier over the unit.
+ *
+ * Left to wrap on its own, whether a heading took one line or two depended on
+ * how much room the table happened to have, so at some widths "ACT" sat above
+ * "W-L" while "EXP W-L*" beside it stayed on one line, and the row read as a
+ * mistake. Stacking them all makes the header row the same shape everywhere,
+ * and buys the manager column the width the numeric ones give up.
+ *
+ * A block span rather than a `<br>`, and a real space between the two, so the
+ * heading is still one accessible name - "Act W-L", not "ActW-L" and not two
+ * headings.
+ */
+const Stack = ({ over, under }: { over: string; under: string }) => (
+  <>
+    <span className="hl">{over}</span>{" "}{under}
+  </>
+);
+
 export function Leaderboard({ data }: { data: Data }) {
   const [week, setWeek] = useViewState("leaderboard.week", -1);
   const [open, setOpen] = useViewState<string | null>("leaderboard.open", null);
@@ -133,10 +152,13 @@ export function Leaderboard({ data }: { data: Data }) {
                 a reader who sees only "W-L" next to "Exp W-L" will take the
                 first for the season and the second for the same games, which
                 is the one thing about this pair that is not true. */}
-            <th className="r">Act <span className="nb">W-L</span></th>
-            {showExp && <th className="r">Exp <span className="nb">W-L*</span></th>}
-            {showProj && <th className="r">EoW Proj</th>}
-            <th className="r">{live ? "Games left" : "+/-"}</th><th className="r">Ceil</th>
+            <th className="r"><Stack over="Act" under="W-L" /></th>
+            {showExp && <th className="r"><Stack over="Exp" under="W-L*" /></th>}
+            {showProj && <th className="r"><Stack over="EoW" under="Proj" /></th>}
+            <th className="r">
+              {live ? <Stack over="Games" under="left" /> : "+/-"}
+            </th>
+            <th className="r">Ceil</th>
           </tr>
         </thead>
         <tbody>
@@ -438,10 +460,10 @@ export const css = `
     .howexp summary:hover::after{text-decoration:underline}
     .howexp summary:focus-visible{outline:2px solid var(--amber);outline-offset:2px;border-radius:3px}
     .howexp p{margin:8px 0 0;max-width:62ch}
-    /* A phone has room for these headers only across two lines, and the line
-       they are allowed to break on is the space - "ACT W-" above an orphaned
-       "L" is what a hyphen invites and is worse than either label. */
-    th .nb{white-space:nowrap}
+    /* The upper half of a stacked heading. Block so the break is decided here
+       rather than by whatever width the column ends up with, and the lower
+       half keeps the cell's own alignment. */
+    th .hl{display:block}
     .exp{white-space:nowrap}
     /* Generated from EXP_STEPS so the sheet and the class the cell picks
        cannot drift apart, and so the audit has one table to read. An unshaded

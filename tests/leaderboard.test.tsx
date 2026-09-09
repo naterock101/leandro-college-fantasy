@@ -70,6 +70,25 @@ describe("the two records", () => {
     ]);
   });
 
+  test("the stacked headings are still one heading each", () => {
+    /* They are drawn on two lines - "ACT" over "W-L" - and that has to be a
+       layout fact and not a content one. A `<br>`, or a block span with no
+       space beside it, gives a screen reader "ActW-L" or two headings where
+       the table has one. */
+    const root = board(data).container as unknown as HTMLElement;
+    const table = within(root).getAllByRole("table")[0];
+    const stacked = [...table.querySelectorAll("th")].filter((th) => th.querySelector(".hl"));
+    expect(stacked.map((th) => th.textContent!.trim()))
+      .toEqual(["Act W-L", "Exp W-L*", "EoW Proj", "Games left"]);
+    for (const th of stacked) {
+      expect(th.textContent, `${th.textContent} lost the space between its lines`)
+        .toMatch(/\S \S/);
+    }
+    /* and the single-word headings are left alone */
+    expect(within(table).getByRole("columnheader", { name: "Manager" }).querySelector(".hl"))
+      .toBeNull();
+  });
+
   /** The expectation the payload carries for a manager at the end of a week. */
   const weekly = (i: number, manager: string) =>
     data.byWeek[i].cumulative[manager] as {
