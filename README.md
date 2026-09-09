@@ -532,19 +532,26 @@ together on arrival.
 - `projection` - the next scheduled week if every betting favourite wins, plus
   `expectedGained` and `expectedPoints` per manager, which is the same week
   weighted by win probability instead. Both are kept: the naive one is what the
-  arrow in the table means and has been on screen since before this existed,
-  and a browser holding cached JS must not break on the new fields
+  **EoW Proj** column and its arrow both mean, and a browser holding cached JS
+  must not break on the new fields
 - `luck[]` - points banked against points expected, over settled rostered games
   with a stored line. Carries `games` (how many counted) and `unpriced` (how
   many were excluded for having no line). **Nothing on the page reads this**:
-  the luck column came off the leaderboard and the expected *record* lives in
-  `byWeek`, where it accumulates. It stays in the payload because it is the
-  season's only record of the points comparison. See "Win probability" below
+  both expectations live in `byWeek`, where they accumulate and so can be shown
+  per week. It stays in the payload because the run log prints it, and because
+  it is a second, independently written sum over the same games - the last
+  week's `expectedPoints` and `pricedPoints` must equal this manager's
+  `expected` and `actual`, and `tests/build.test.mjs` asserts exactly that. See
+  "Win probability" below
 - `byWeek[].cumulative` - the running totals at the end of each week. Alongside
   `points`, `wins` and `losses` it carries `expectedWins`, `expectedLosses`,
   `priced` and `pricedWins`: the record the closing lines expected by then, how
-  many of the games behind it had a line, and how many of *those* were won.
-  This is what the leaderboard's **Exp W-L** reads
+  many of the games behind it had a line, and how many of *those* were won. Then
+  the same pair in points - `expectedPoints` and `pricedPoints`, what the lines
+  expected a manager to be paid by then and what they banked over those same
+  games. One `priced` serves both, because both run over exactly the same games.
+  This is what the leaderboard's **Exp Pts** column and the expected record in
+  each manager's dropdown read
 - `byConference` - every FBS team ranked by points within its conference, with drafter or null
 - `headToHead[]` - completed games where both teams are drafted. The league
   tiebreaker. Each entry carries `spread` (the closing line, or null if the
@@ -899,40 +906,49 @@ better. The sample is a decade old and sigma moves with the seasons sampled, so
 nothing here should be read as more precise than a whole percentage point.
 
 Four things are built on it. **Per-game win probability** beside the spread in
-Games of the week. **Expected points** - `wp(team) x tier value` summed per
-manager over the coming week, which is a better projection than "every
-favourite wins" because it does not throw away the size of the line. **Luck**:
-points banked minus points expected over settled games, so positive means
-running hot - still computed and published, no longer on screen. And the
-**expected record**, which is.
+Games of the week. **The next week's expected points** - `wp(team) x tier value`
+summed per manager over the coming week, which is a better projection than
+"every favourite wins" because it does not throw away the size of the line.
+**Luck**: points banked minus points expected over settled games, so positive
+means running hot - still computed and published, no longer on screen. And the
+**season's expectation**, both halves of which are.
 
-### Exp W-L
+### Exp Pts, and the records behind it
 
-The leaderboard's second record. It is the same probabilities summed *without*
-the tier weighting - a win is a win, which is exactly what makes it a different
-sentence from the points beside it. A manager can be ahead of the market on the
-record and behind it on the board, by winning the cheap games and losing the
-dear one.
+The leaderboard is a points league, so the column beside **Pts** is the points
+the closing lines expected - the same win probabilities, each weighted by what
+that win would have paid. The **expected record** is the identical sum
+*without* the weighting, where a win is a win, and it sits in the manager's
+dropdown next to their actual and projected records. That difference is the
+whole reason both exist: a manager can be ahead of the market on the record and
+behind it on the board, by winning the cheap games and losing the dear one.
+
+**Why the records are in the dropdown.** The table used to show one column of
+points and three of W-L, which put the two numbers a reader most wants to
+subtract - scored, and expected to have scored - nowhere near each other, and
+made the table eight columns wide doing it. Eight columns do not fit a 375px
+phone. In the dropdown each record gets a word saying what it is instead of a
+two-line abbreviation, and the table is seven columns and fits.
 
 **It accumulates, and it lives in `byWeek`.** What the lines expected of week 1
 on week 1; week 1 plus week 2 on week 2; and so on. That is not a presentation
-choice - it is why the figure is not in `luck`, which is a single season-level
-number that could only ever be right in one view. Both records are read out of
-the *same week* the rest of the row is, so picking a week off the strip moves
-them together. The live board reads the last week, which by construction is the
-season to date; `tests/build.test.mjs` pins that invariant, because if `byWeek`
-ever stopped ending at the season's totals the live board would quietly show a
-stale expectation against a current record.
+choice - it is why the figures are not in `luck`, which is a single
+season-level number that could only ever be right in one view. Everything on a
+row is read out of the *same week*, so picking a week off the strip moves the
+columns and the dropdown together. The live board reads the last week, which by
+construction is the season to date; `tests/build.test.mjs` pins that invariant,
+because if `byWeek` ever stopped ending at the season's totals the live board
+would quietly show a stale expectation against a current one.
 
 Each week is priced off the lines as they closed - the lines file is merge-only
 and never overwrites a stored line with a later fetch - so this is what was
 expected of that week at the time, not a number rewritten with hindsight.
 
-**Exp W-L may not be over the same games as Act W-L**, and which of those is
-true is in the summary line rather than behind the disclosure. Act W-L is every
-settled game up to the week on screen; Exp W-L covers only those that carried a
-line, because an unpriced game is one this model has nothing to say about. Each
-row's tooltip carries its own two denominators.
+**Exp Pts may not be over the same games as Pts**, and which of those is true is
+in the summary line rather than behind the disclosure. Pts is every settled game
+up to the week on screen; the expectation covers only those that carried a line,
+because an unpriced game is one this model has nothing to say about. Each cell's
+tooltip carries its own two denominators, and so does each expected record.
 
 That sentence is derived from the rows on screen rather than from a
 season-level count, because **both directions are wrong sentences**. Hiding a
@@ -940,10 +956,12 @@ real mismatch is the obvious one. Announcing a mismatch that does not exist is
 the other, and it is the live case: this season is 65 settled games with a line
 and none without, so the two columns currently cover exactly the same games.
 
-A manager with no priced game reads as a dash rather than 0-0: "we cannot say"
-and "expected to have played nothing" must not print the same. A payload
-written before the expectation existed drops the column rather than printing
-`undefined` down it.
+A manager with no priced game reads as a dash rather than 0: "we cannot say" and
+"expected to have scored nothing" must not print the same. A payload written
+before the expectation existed drops the column rather than printing `undefined`
+down it - and because the points pair shipped after the record pair, the two are
+checked separately: a week carrying the record and not the points loses the
+column and keeps the record in the dropdown.
 
 **The colour is a gradient, in three steps a side.** A flat teal-or-red said
 "ahead" and "behind" and nothing else, so a manager a tenth of a win off the
@@ -955,6 +973,13 @@ the line looks like every other number in it and only a real gap is loud. On
 this season that puts six of eight managers on the faintest step and nobody on
 the full token, which is the honest picture.
 
+The points column uses those same three thresholds scaled by `PER_WIN`, 2.4 -
+a win pays 3 for a power-conference team and 2 otherwise, and every roster is
+four of the first and six of the second, so a win averages 2.4 points exactly,
+for everyone. One judgement about how big a gap has to be before it is worth
+shouting about, expressed in whichever unit the figure is in, rather than three
+new numbers picked to look right.
+
 They are a table of hex values in `Leaderboard.tsx` that the component both
 styles from and picks classes from, rather than a blend computed at render
 time, because these are text colours and text colours on this page get audited:
@@ -963,22 +988,24 @@ grounds. Lowest is 4.96:1. It also checks each step moves measurably further
 from an unshaded cell than the last, since a gradient nobody can resolve is a
 flat colour with extra classes.
 
-**The colour compares like with like, which is why `pricedWins` is published.**
-The comparison has to be the wins over the priced games against the expectation
-over those same games. That
-number cannot be worked out on the page: deriving it as `wins - (played -
-priced)` assumes every unpriced game was a win, and for a manager on 0-3 with
-one priced game it produces *minus two*, which paints them two whole wins colder
-than they are. On a payload that predates the count the cell is left uncoloured
-rather than guessed, unless every settled game was priced - in which case Act
-W-L is already the right comparison.
+**The colour compares like with like, which is why `pricedWins` and
+`pricedPoints` are published.** The comparison has to be what was taken from the
+priced games against the expectation over those same games. Neither number can
+be worked out on the page: deriving the wins as `wins - (played - priced)`
+assumes every unpriced game was a win, and for a manager on 0-3 with one priced
+game it produces *minus two*, which paints them two whole wins colder than they
+are; the season points total makes the same mistake in the flattering direction,
+scoring a manager 6.1 ahead of a three-game expectation when he is 1.1 ahead. On
+a payload that predates the counts the cell is left uncoloured rather than
+guessed, unless every settled game was priced - in which case the season figures
+are already the right comparison.
 
 Two rules, both enforced by tests rather than convention:
 
 - **A game with no line is in neither half of the calculation**, and the count
   of excluded games travels with the number that excluded them - `unpriced` for
-  luck, `priced` per manager per week for the record. A figure that quietly
-  ignores part of the season is worse than no figure.
+  luck, `priced` per manager per week for both halves of the expectation. A
+  figure that quietly ignores part of the season is worse than no figure.
 - **Nothing reads the `closed` flag.** It is only ever set by a run that
   fetches that game's date, so every game that finished before it shipped will
   never carry it - 1 of 287 stored lines has it today. The spread survives

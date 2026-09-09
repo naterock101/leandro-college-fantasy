@@ -475,6 +475,16 @@ test("every week's expected record adds back to its own denominator", () => {
         `${manager} won ${c.pricedWins} of ${c.priced} priced`);
       assert.ok(c.pricedWins <= c.wins,
         `${manager} won ${c.pricedWins} priced of ${c.wins} in all`);
+      /* The points pair runs over exactly those same games, which is what lets
+         one `priced` serve both and what the leaderboard's colour depends on:
+         a win pays at most 3, so neither side of the points comparison can
+         exceed what the priced games had to give. */
+      assert.ok(c.expectedPoints >= 0 && c.expectedPoints <= c.priced * 3,
+        `${manager} expected ${c.expectedPoints} points from ${c.priced} games`);
+      assert.ok(c.pricedPoints >= 0 && c.pricedPoints <= c.priced * 3,
+        `${manager} banked ${c.pricedPoints} points over ${c.priced} games`);
+      assert.ok(c.pricedPoints <= c.points,
+        `${manager} banked ${c.pricedPoints} priced of ${c.points} in all`);
     }
   }
 });
@@ -491,6 +501,10 @@ test("the expected record accumulates rather than restarting each week", () => {
         `${manager} lost expected wins at ${built.byWeek[i].label}`);
       assert.ok(c.priced >= prev.priced,
         `${manager}'s denominator shrank at ${built.byWeek[i].label}`);
+      assert.ok(c.expectedPoints >= prev.expectedPoints,
+        `${manager} lost expected points at ${built.byWeek[i].label}`);
+      assert.ok(c.pricedPoints >= prev.pricedPoints,
+        `${manager} lost banked points at ${built.byWeek[i].label}`);
       if (c.priced > prev.priced) grew = true;
     }
   }
@@ -518,6 +532,30 @@ test("the expected record is the sum of the win probabilities, not the points", 
     assert.equal(last[manager].expectedWins, round1(wins), `${manager}'s expected wins`);
     assert.equal(last[manager].priced, priced[manager], `${manager}'s priced games`);
   }
+});
+
+test("the season's luck and the last week's points expectation are the same sum", () => {
+  /* Two accumulators over the same games, written in different functions and
+     published in different shapes: `luck` runs the whole season at once in
+     `build`, and `byWeek` builds it up a week at a time so a week view has a
+     figure of its own. They have to land on the same number, and the fact that
+     they do is what says the per-week one is not quietly counting a game
+     twice or dropping the postseason.
+
+     Only over the managers luck has anything to say about: a manager with no
+     priced game is 0 on both sides, which would pass this whether or not the
+     two agreed about anything. */
+  const last = built.byWeek[built.byWeek.length - 1].cumulative;
+  let compared = 0;
+  for (const [manager, l] of Object.entries(built.luck.managers)) {
+    assert.equal(last[manager].expectedPoints, l.expected,
+      `${manager}'s expected points`);
+    assert.equal(last[manager].pricedPoints, l.actual,
+      `${manager}'s banked points over the priced games`);
+    assert.equal(last[manager].priced, l.games, `${manager}'s priced games`);
+    if (l.games > 0) compared += 1;
+  }
+  assert.ok(compared >= 3, `only ${compared} manager(s) had a priced game to compare`);
 });
 
 test("the wins over the priced games cannot be recovered from the season record", () => {

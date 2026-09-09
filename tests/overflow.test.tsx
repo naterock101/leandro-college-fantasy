@@ -17,6 +17,13 @@
  * against the real DOM at a phone width, and the assertions are about the
  * declaration that actually wins.
  *
+ * The fifth was the manager dropdown, found later and by the same means:
+ * `.detail td` writes its own padding and so was never reached by the
+ * narrow-screen `td` rule, and the squad's points - the column the dropdown
+ * exists to show - sat off the right-hand edge. It is audited here now, which
+ * needs a row opened first: a dropdown nobody has clicked renders no markup to
+ * measure, and a suite that only walks the closed table cannot see it.
+ *
  * The numbers below were measured in Chrome at 375px before the fix - table
  * 402.3px against 347px of room, `.stakes` at x=377.6, `.score` at x=379.8 -
  * and the character bound in the last suite is a proxy for that measurement,
@@ -187,6 +194,109 @@ describe("the narrow-screen padding reaches every table", () => {
       [...new Set(wide)],
       "a more specific rule is outranking the narrow-screen padding"
     ).toEqual([]);
+  });
+});
+
+describe("a manager's dropdown fits the phone it is read on", () => {
+  /* The failure this is about was invisible from the sheet in the same way
+     the All teams one was, and for the same reason: `.detail td` sets its own
+     padding, which is one class more specific than the narrow-screen `td`
+     rule, so the dropdown kept its full-width padding inside a table that had
+     already given its up. Sitting inside a table wider than the screen, the
+     column the dropdown exists to show - what each of your teams has scored -
+     was the one hanging off the right-hand edge. */
+  const dropdown = async () => {
+    stubFetch();
+    await renderPage();
+    fireEvent.click(document.querySelectorAll<HTMLElement>(".rowtoggle")[0]);
+    const cell = document.querySelector(".detail td");
+    expect(cell, "no manager dropdown opened").not.toBeNull();
+    return cell as HTMLElement;
+  };
+
+  /* A fixed column's width, from the sheet or from the inline style the logo
+     carries - the crest is sized in the component rather than the stylesheet,
+     and a resolver that only reads the sheet would call it unbounded. */
+  const fixed = (el: Element) =>
+    px((el as HTMLElement).style.width || undefined) ?? px(value(el, "width"));
+
+  test("its cell gives up the padding every other cell gives up", async () => {
+    const cell = await dropdown();
+    for (const side of ["padding-left", "padding-right"]) {
+      const rule = winner(cell, side);
+      expect(rule?.narrow,
+        `${rule?.selector} is outranking the narrow-screen ${side} on the dropdown`)
+        .toBe(true);
+    }
+  });
+
+  test("the squad's points stay on screen", async () => {
+    const cell = await dropdown();
+    const room = ROOM - (px(value(cell, "padding-left")) ?? 0)
+                      - (px(value(cell, "padding-right")) ?? 0);
+    const tight: string[] = [];
+    for (const team of cell.querySelectorAll(".team")) {
+      const gap = px(value(team, "gap")) ?? 0;
+      let taken = 0;
+      let columns = 0;
+      for (const child of team.children) {
+        columns += 1;
+        /* the school name is the one thing here that may shrink and wrap */
+        if (child.matches(".tn")) continue;
+        const w = fixed(child);
+        if (w === undefined) {
+          tight.push(
+            `.${child.className.split(" ").pop()} has no width and does not shrink, ` +
+              `so "${child.textContent?.trim().slice(0, 30)}" sets its own`
+          );
+          continue;
+        }
+        taken += w;
+      }
+      const left = room - taken - gap * Math.max(0, columns - 1);
+      if (left < MU_MIN) {
+        tight.push(`the fixed columns leave the team name ${left}px, under ${MU_MIN}`);
+      }
+    }
+    expect([...new Set(tight)], "this squad row cannot fit 375px").toEqual([]);
+  });
+
+  test("nothing in a squad row is both unbreakable and long", async () => {
+    /* The failure the widths above cannot see, and the one that actually
+       shipped: the school was `white-space:nowrap` with an ellipsis, so its
+       min-content was the whole of "Middle Tennessee Blue Raiders". Inside a
+       table that is not one row overflowing - the detail cell spans every
+       column, so its floor is the *table's* floor, and the leaderboard came
+       out 27px wider than the phone with the squad's points hanging off the
+       edge. Which is why the bound is a character count and not a width:
+       jsdom cannot lay the row out, but it can see that a rule which forbids
+       wrapping is sitting on a string far too long to fit. */
+    const cell = await dropdown();
+    const unbreakable: string[] = [];
+    for (const row of cell.querySelectorAll(".team")) {
+      for (const part of row.querySelectorAll("*")) {
+        if (value(part, "white-space") !== "nowrap") continue;
+        const text = part.textContent ?? "";
+        if (text.length > NOWRAP_MAX) {
+          unbreakable.push(
+            `.${part.className} holds ${text.length} unbreakable characters, "${text.trim()}"`
+          );
+        }
+      }
+    }
+    expect(
+      [...new Set(unbreakable)],
+      "let this wrap at 430px, or the table cannot shrink past it"
+    ).toEqual([]);
+  });
+
+  test("and the three records wrap rather than pushing the line wider", async () => {
+    /* Three labelled records is more than a 375px line holds. They are allowed
+       to take two lines; what they may not do is set a floor under the width
+       of a row inside a table that has none to give. */
+    const cell = await dropdown();
+    const recs = cell.querySelector(".recs")!;
+    expect(value(recs, "flex-wrap"), "the records cannot wrap").toBe("wrap");
   });
 });
 

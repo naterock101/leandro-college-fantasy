@@ -99,12 +99,12 @@ export type Data = {
                `expectedLosses` are the record the closing lines expected by
                then - this week's expectation plus every week before it - and
                `priced` is how many of the games behind that pair carried a
-               line. All three postdate the rest of the block, so a cached page
-               has to render a payload written before they existed; the Exp W-L
-               column checks for them rather than assuming the week implies
-               them. `priced` travels with the pair because two records side by
-               side are only comparable when a reader can see whether they
-               cover the same games. */
+               line. All of them postdate the rest of the block, so a cached
+               page has to render a payload written before they existed; the
+               board checks for each pair rather than assuming the week implies
+               it. `priced` travels with them because two figures side by side
+               are only comparable when a reader can see whether they cover the
+               same games. */
             cumulative: Record<string, { points: number; wins: number; losses: number;
                                          expectedWins?: number; expectedLosses?: number;
                                          priced?: number;
@@ -112,7 +112,15 @@ export type Data = {
                                             the only thing the expectation can honestly
                                             be compared against and cannot be derived
                                             from `wins` and `priced` on the page */
-                                         pricedWins?: number }> }[];
+                                         pricedWins?: number;
+                                         /* the same pair in points: what the lines
+                                            expected a manager to be paid by then, and
+                                            what they banked over those same games.
+                                            Newer again than the record pair, so a
+                                            payload can carry one and not the other and
+                                            the board checks for each separately. */
+                                         expectedPoints?: number;
+                                         pricedPoints?: number }> }[];
   linesFetchedAt: string | null;
   projection: {
     label: string; games: number; projected: number; unprojected: number;

@@ -40,9 +40,68 @@ export const EXP_STEPS = {
   cold: ["#E3B9C5", "#DE91A2", "#D9697F"],
 } as const;
 
-/** Which step a gap of `over` wins lands in: 0 is level, 3 is the full token. */
-export const expStep = (over: number) =>
-  EXP_STEPS.at.reduce((n, at) => (Math.abs(over) >= at ? n + 1 : n), 0);
+/**
+ * Which step a gap of `over` lands in: 0 is level, 3 is the full token.
+ *
+ * `per` is what one win is worth in the unit being compared, so the same three
+ * judgements about how big a gap has to be before it is worth shouting about
+ * serve both expectations. In wins it is 1 and the thresholds are the ones
+ * above; in points it is `PER_WIN`.
+ */
+export const expStep = (over: number, per = 1) =>
+  EXP_STEPS.at.reduce((n, at) => (Math.abs(over) >= at * per ? n + 1 : n), 0);
+
+/**
+ * What a win is worth on average, for scaling the steps into points.
+ *
+ * A win pays 3 for a power-conference team and 2 otherwise, and every roster
+ * is four of the first and six of the second - so a win averages 2.4 points,
+ * exactly, for every manager in the league. Scaling by it rather than picking
+ * three new numbers keeps one judgement in one place: a gap that is a shade
+ * off the line in wins is a shade off the line in points too.
+ */
+export const PER_WIN = 2.4;
+
+/** The class for a gap of `over`, in a unit where a win is worth `per`. */
+const shadeOf = (over: number | null, per = 1) => {
+  /* No colour at all when the comparison could not be made, rather than the
+     colour of "dead level" - the cell would be claiming a result it has not
+     got. */
+  const step = over === null ? 0 : expStep(over, per);
+  return step === 0 ? "" : `${(over as number) > 0 ? "hot" : "cold"}${step}`;
+};
+
+/** One manager's running totals at the end of the week on screen. */
+type Cume = Data["byWeek"][number]["cumulative"][string];
+
+/**
+ * What a manager actually took from the games their expectation covers.
+ *
+ * The comparison has to be like for like, which is why the builder publishes
+ * these two counts: an expectation over the priced games can only be set
+ * against the wins and the points from *those* games. Neither can be worked
+ * out here - taking the unpriced games off the season record assumes every one
+ * of them was a win, which for a manager on 0-3 with one priced game gives
+ * minus two and paints them the wrong colour by a mile.
+ *
+ * A payload written before either count existed is still compared where
+ * nothing was left out, and otherwise left uncompared rather than guessed at.
+ */
+const settled = (c: Cume, r: { wins: number; losses: number; points: number }) => {
+  const missing = r.wins + r.losses - (c.priced ?? 0);
+  return {
+    missing,
+    wins: typeof c.pricedWins === "number" ? c.pricedWins : missing === 0 ? r.wins : null,
+    points: typeof c.pricedPoints === "number" ? c.pricedPoints
+      : missing === 0 ? r.points : null,
+  };
+};
+
+/** The tail of an expectation tooltip: what else, if anything, it left out. */
+const denominator = (missing: number, whole: string) =>
+  missing > 0
+    ? `. ${missing} more ${missing === 1 ? "was never priced and is" : "were never priced and are"} in neither column.`
+    : `, which is every game behind their ${whole}.`;
 
 /**
  * A two-word column heading, stacked - the qualifier over the unit.
@@ -111,6 +170,12 @@ export function Leaderboard({ data }: { data: Data }) {
   const showExp = Object.values(expected).some(
     (c) => typeof c.expectedWins === "number" && (c.priced ?? 0) > 0
   );
+  /* Checked separately from the record, and against its own field, because the
+     two pairs shipped one after the other: a cached page can meet a week that
+     carries the expected record and none of the expected points. */
+  const showExpPts = Object.values(expected).some(
+    (c) => typeof c.expectedPoints === "number" && (c.priced ?? 0) > 0
+  );
   /* Whether the two records are over the same games, which decides what the
      footnote is allowed to claim. Derived from the rows on screen rather than
      from a season-level count, so it stays true in a week view. */
@@ -122,7 +187,7 @@ export function Leaderboard({ data }: { data: Data }) {
      how wide the table is. Two optional columns is where that starts going
      wrong quietly, with a detail cell one short and the layout only slightly
      off. */
-  const cols = 6 + (showProj ? 1 : 0) + (showExp ? 1 : 0);
+  const cols = 5 + (showProj ? 1 : 0) + (showExpPts ? 1 : 0);
 
   return (
     <>
@@ -146,14 +211,19 @@ export function Leaderboard({ data }: { data: Data }) {
         <thead>
           <tr>
             <th className="r">#</th><th>Manager</th>
+            {/* Points, then what was expected of them and what they project
+                to - and the three records those belong to are one tap away in
+                the manager's own row.
+
+                The board is a points league, and it was showing one column of
+                points and three of W-L - so the two numbers a reader most
+                wants to set against each other, what a manager has scored and
+                what the market said they would have scored by now, were the
+                two that were never side by side. The records are not gone;
+                they are together in the dropdown, where the phone this is read
+                on has a whole line to give them rather than four characters. */}
             <th className="r">Pts</th>
-            {/* "Act" and "Exp" rather than one bare "W-L" and one qualified
-                one: the pair is only readable if both halves are labelled, and
-                a reader who sees only "W-L" next to "Exp W-L" will take the
-                first for the season and the second for the same games, which
-                is the one thing about this pair that is not true. */}
-            <th className="r"><Stack over="Act" under="W-L" /></th>
-            {showExp && <th className="r"><Stack over="Exp" under="W-L*" /></th>}
+            {showExpPts && <th className="r"><Stack over="Exp" under="Pts*" /></th>}
             {showProj && <th className="r"><Stack over="EoW" under="Proj" /></th>}
             <th className="r">
               {live ? <Stack over="Games" under="left" /> : "+/-"}
@@ -191,67 +261,38 @@ export function Leaderboard({ data }: { data: Data }) {
                   </button>
                 </td>
                 <td className="r pts">{r.points}</td>
-                <td className="r mono">{r.wins}-{r.losses}</td>
-                {showExp && (() => {
+                {showExpPts && (() => {
                   const c = expected[r.manager];
-                  /* Both halves together, not just the one that gets printed:
-                     they ship as a set, so a week carrying one and not the
-                     other is a bug rather than a version, and the dash is the
-                     right answer to both. It is also what narrows the optional
-                     fields for the rest of this cell. */
-                  const rec = c && (c.priced ?? 0) > 0 &&
-                    typeof c.expectedWins === "number" && typeof c.expectedLosses === "number"
-                    ? { wins: c.expectedWins, losses: c.expectedLosses, priced: c.priced ?? 0 }
-                    : null;
                   /* Nothing settled and priced for this manager is a dash, not
-                     a 0-0: "we cannot say" and "expected to have played
-                     nothing" are different sentences and must not print the
-                     same. A manager who is not in this week's snapshot at all
-                     lands here too. */
-                  if (!rec) {
+                     a 0: "we cannot say" and "expected to have scored nothing"
+                     are different sentences and must not print the same. A
+                     manager who is not in this week's snapshot at all lands
+                     here too, as does a week that carries the expected record
+                     and not yet the expected points. */
+                  if (!c || (c.priced ?? 0) === 0 || typeof c.expectedPoints !== "number") {
                     return (
                       <td className="r mono dim" title="No settled game of theirs carried a line">-</td>
                     );
                   }
-                  /* Above or below the expectation gets a colour, and the
-                     colour is never the only carrier - the two records are
-                     side by side and a reader can subtract them.
-
-                     Compared against the wins over the *priced* games, which is
-                     the only honest comparison and is why the builder publishes
-                     that count. It cannot be worked out here: subtracting the
-                     unpriced games from Act W-L assumes every one of them was a
-                     win, which for a manager on 0-3 with one priced game gives
-                     minus two, and paints them the wrong colour by a mile. When
-                     a payload predates the count, the comparison is only made
-                     where the two records cover the same games - and otherwise
-                     left uncoloured rather than guessed. */
-                  const played = r.wins + r.losses;
-                  const missing = played - rec.priced;
-                  const won = typeof c.pricedWins === "number"
-                    ? c.pricedWins
-                    : missing === 0 ? r.wins : null;
-                  const over = won === null ? 0 : won - rec.wins;
-                  /* No colour at all when the comparison could not be made,
-                     rather than the colour of "dead level" - the cell would be
-                     claiming a result it has not got. */
-                  const step = won === null ? 0 : expStep(over);
-                  const shade = step === 0 ? "" : `${over > 0 ? "hot" : "cold"}${step}`;
+                  const exp = c.expectedPoints;
+                  /* Set against the points banked over the *priced* games,
+                     never against the season total: the two would be a
+                     comparison of different slates, and the manager whose
+                     unpriced game was a win would be flattered by exactly what
+                     the model never saw. */
+                  const { missing, points } = settled(c, r);
+                  const over = points === null ? null : points - exp;
                   return (
                     <td
-                      className={`r mono exp ${shade}`}
+                      className={`r mono exp ${shadeOf(over, PER_WIN)}`}
                       title={
-                        `The closing lines expected ${rec.wins}-${rec.losses} from the ` +
-                        `${rec.priced} settled ${rec.priced === 1 ? "game" : "games"} of theirs that carried one` +
-                        (won === null
-                          ? ""
-                          : `, and they went ${won}-${rec.priced - won} in those`) +
-                        (missing > 0
-                          ? `. ${missing} more ${missing === 1 ? "was" : "were"} never priced and are in neither column.`
-                          : `, which is every game behind their ${r.wins}-${r.losses}.`)
+                        `The closing lines expected ${exp} points from the ` +
+                        `${c.priced} settled ${c.priced === 1 ? "game" : "games"} of theirs that carried one` +
+                        (points === null ? "" : `, and they banked ${points}`) +
+                        denominator(missing, `${r.points} points`)
                       }
                     >
-                      {rec.wins}-{rec.losses}
+                      {exp}
                     </td>
                   );
                 })()}
@@ -265,15 +306,23 @@ export function Leaderboard({ data }: { data: Data }) {
                   return (
                     <td
                       className="r mono proj"
-                      /* The expectation rides in the tooltip rather than taking
-                         a column of its own. It is the same week the Proj
-                         column is about, so it belongs on that cell, and the
-                         table is already as wide as a phone will take. */
+                      /* Points rather than the W-L it used to show, because
+                         points are what the arrow beside it is computed from:
+                         the projected table is sorted on this number, so the
+                         cell and the arrow now say the same thing in two ways
+                         instead of two things that only usually agree. The
+                         projected record is in the dropdown.
+
+                         The line-weighted expectation rides in the tooltip
+                         rather than taking a column of its own. It is the same
+                         week this column is about, so it belongs on this cell,
+                         and the table is already as wide as a phone will
+                         take. */
                       title={typeof pr.expectedGained === "number"
                         ? `${move}. Weighted by the lines rather than handing every game to the favourite: ${pr.expectedGained} points, for ${pr.expectedPoints} in all.`
                         : move}
                     >
-                      {pr.wins}-{pr.losses}
+                      {pr.points}
                       <span className={`arrow ${dir}`} title={move}>
                         {dir === "up" ? "▲" : dir === "down" ? "▼" : "–"}
                       </span>
@@ -286,6 +335,66 @@ export function Leaderboard({ data }: { data: Data }) {
               isOpen && (
                 <tr key={r.manager + "-d"} className="detail">
                   <td colSpan={cols} id={detail}>
+                    {/* The three records, on the line the phone can spare for
+                        them. Squeezed into the table each one had four
+                        characters and a two-line heading; here each has a word
+                        saying what it is, and the pair that used to be read by
+                        subtracting one column from the next sits next to what
+                        it is a record of. */}
+                    <div className="recs">
+                      <span className="rec">
+                        <span className="rl">Record</span>
+                        <span className="mono rv">{r.wins}-{r.losses}</span>
+                      </span>
+                      {showExp && (() => {
+                        const c = expected[r.manager];
+                        /* Both halves together, not just the one that gets
+                           printed: they ship as a set, so a week carrying one
+                           and not the other is a bug rather than a version,
+                           and the dash is the right answer to both. */
+                        if (!c || (c.priced ?? 0) === 0 ||
+                            typeof c.expectedWins !== "number" ||
+                            typeof c.expectedLosses !== "number") {
+                          return (
+                            <span className="rec" title="No settled game of theirs carried a line">
+                              <span className="rl">Expected</span>
+                              <span className="mono rv dim">-</span>
+                            </span>
+                          );
+                        }
+                        const { missing, wins } = settled(c, r);
+                        const over = wins === null ? null : wins - c.expectedWins;
+                        return (
+                          <span
+                            className="rec"
+                            title={
+                              `The closing lines expected ${c.expectedWins}-${c.expectedLosses} from the ` +
+                              `${c.priced} settled ${c.priced === 1 ? "game" : "games"} of theirs that carried one` +
+                              (wins === null ? "" : `, and they went ${wins}-${c.priced! - wins} in those`) +
+                              denominator(missing, `${r.wins}-${r.losses}`)
+                            }
+                          >
+                            <span className="rl">Expected</span>
+                            <span className={`mono rv exp ${shadeOf(over)}`}>
+                              {c.expectedWins}-{c.expectedLosses}
+                            </span>
+                          </span>
+                        );
+                      })()}
+                      {showProj && (() => {
+                        const pr = data.projection!.managers[r.manager];
+                        if (!pr) return null;
+                        return (
+                          <span
+                            className="rec"
+                            title={`Their record at the end of ${data.projection!.label.toLowerCase()} if every betting favourite wins`}
+                          >
+                            <span className="rl">{data.projection!.label} proj</span>
+                            <span className="mono rv">{pr.wins}-{pr.losses}</span>
+                          </span>
+                        );
+                      })()}
+                    </div>
                     {teams.map((t) => (
                       <div className="team" key={t.team}>
                         <span className={`tier ${t.tier}`}>{t.tier === "p4" ? 3 : 2}</span>
@@ -327,18 +436,19 @@ export function Leaderboard({ data }: { data: Data }) {
       <p className="caption">
         {showProj && (
           <>
-            EoW Proj is W-L at the end of {data.projection!.label.toLowerCase()} if
-            every betting favourite wins, and the arrow is where that would move
-            you in the table.
+            EoW Proj is your points at the end of{" "}
+            {data.projection!.label.toLowerCase()} if every betting favourite
+            wins, and the arrow is where that would move you in the table. The
+            record behind it is in your own row.
             {data.projection!.unprojected > 0 &&
               ` ${data.projection!.unprojected} of ${data.projection!.games} games have no line and are left out.`}{" "}
           </>
         )}
-        {/* Deliberately not a sentence about Act W-L. Both records are now read
-            out of the same week, so "Act W-L is every settled game" would be
-            true only on the live board and flatly wrong under a week snapshot,
-            where it is that week's cumulative record. What the two columns do
-            and do not share is the footnote's job, and it says it per view. */}
+        {/* Deliberately not a sentence about Pts. Both columns are read out of
+            the same week, so "Pts is every settled game" would be true only on
+            the live board and flatly wrong under a week snapshot, where it is
+            that week's cumulative total. What the two columns do and do not
+            share is the footnote's job, and it says it per view. */}
         Ceiling is current points plus every remaining scheduled game, less any
         games between two of your own teams.{" "}
         {data.postseasonScheduled
@@ -353,7 +463,7 @@ export function Leaderboard({ data }: { data: Data }) {
           it opens on find-in-page, and it costs no state. It sits outside the
           caption because <details> is flow content and a <p> may hold only
           phrasing - nested, the browser silently closes the paragraph first. */}
-      {showExp && (
+      {showExpPts && (
         <details className="howexp">
           <summary>
             {/* The clause that may not go behind the disclosure - and it has to
@@ -369,38 +479,42 @@ export function Leaderboard({ data }: { data: Data }) {
                 on to week 1" is what the general sentence says on the first
                 week, which is the week this column is most likely to be read
                 on for the first time. */}
-            *Exp W-L is the record the closing lines expected
+            *Exp Pts is the points the closing lines expected
             {expIdx === 0
               ? ` of ${expWeek!.label.toLowerCase()}.`
               : `, accumulated: what they expected of ${data.byWeek[0].label.toLowerCase()}, plus every week since, up to ${expWeek!.label.toLowerCase()}.`}{" "}
             {someUnpriced
               ? "A settled game the books never priced is in neither column, so the two do not always count the same games - hover a row for its own denominators."
-              : "Every settled game so far carried a line, so it is over exactly the games Act W-L is."}
+              : "Every settled game so far carried a line, so it is over exactly the games Pts is."}
           </summary>
           <p>
             Every closing line becomes a win probability - roughly, how often a
-            team favoured by that much wins. Add those up over a manager&rsquo;s
-            settled games and you get the wins the market expected them to have
-            by now; the rest of the games are the expected losses. A team
-            favoured by 7 is worth about{" "}
+            team favoured by that much wins - and each one is then worth what
+            the win itself would have paid, 3 points for a power-conference team
+            and 2 for the rest. Add those up over a manager&rsquo;s settled
+            games and you get the points the market expected them to have banked
+            by now. A team favoured by 7 wins about{" "}
             {/* Derived, not restated. This read "about 0.67 of a win" until
                 sigma was refitted from 16 to 14.4 and quietly made it wrong by
                 two points, while Games of the week went on printing 69% for
                 the same line. A worked example of the model has to come out of
                 the model. */}
-            {favouriteProbability(7).toFixed(2)} of a win, which is why the
-            numbers come out in tenths and why nobody is ever expected to be
-            3-0.
+            {favouriteProbability(7).toFixed(2)} of the time, so a
+            power-conference team laying that price is worth about{" "}
+            {(favouriteProbability(7) * 3).toFixed(2)} of its 3 points - which
+            is why the numbers come out in tenths and why nobody is ever
+            expected to be on a round number.
           </p>
           <p>
             The comparison is not a measure of how good your teams are: a
-            manager who drafted five heavy favourites is expected to win a lot,
-            and winning exactly that many puts them dead level. Running above
-            the line means the results have gone your way beyond what was
-            priced in. It weighs every game the same, which is what makes it a
-            different sentence from the points beside it - a manager can be
-            ahead of the market on the record and behind it on the board, by
-            winning the cheap games and losing the dear one.
+            manager who drafted five heavy favourites is expected to score a
+            lot, and scoring exactly that much puts them dead level. Running
+            above the line means the results have gone your way beyond what was
+            priced in. The expected record in each manager&rsquo;s row is the
+            same sum without the weighting - there a win is a win - which is
+            what lets the two disagree: a manager can be ahead of the market on
+            the record and behind it on the board, by winning the cheap games
+            and losing the dear one.
           </p>
           <p>
             The model assumes results scatter about {SIGMA} points either side
@@ -427,6 +541,19 @@ export const css = `
     .caret.up{transform:rotate(90deg)}
     .ceil{color:var(--teal)}
     .detail td{background:var(--panel);padding:9px 10px}
+    /* The three records, on their own line above the squad, where each gets a
+       word saying what it is instead of a two-line abbreviation.
+       Wrapping rather than three fixed columns: "Week 2 proj 15-7" is half
+       again the width of the other two, and a phone that cannot fit all three
+       should drop one to the next line rather than push anything off the right
+       edge - which is the failure that moved them out of the table. */
+    .recs{display:flex;flex-wrap:wrap;gap:5px 16px;padding-bottom:8px;margin-bottom:5px;
+      border-bottom:1px solid var(--rule)}
+    .rec{display:flex;align-items:baseline;gap:6px}
+    /* the same treatment the column headings get, because it is the same job */
+    .rl{font-family:ui-monospace,Menlo,monospace;font-size:9px;letter-spacing:.12em;
+      text-transform:uppercase;color:var(--muted)}
+    .rv{font-size:13px}
     .team{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12.5px}
     .team .tn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .team .cf{font-size:10px;width:78px;text-align:right;flex-shrink:0}
@@ -434,7 +561,7 @@ export const css = `
     .team .tp{color:var(--amber);font-weight:700;width:22px;text-align:right;flex-shrink:0}
     .note{margin-top:8px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--rule);padding-top:7px}
     .proj{color:var(--muted);white-space:nowrap}
-    /* the projected and expected columns make the leaderboard 8 wide, which
+    /* the projected and expected columns make the leaderboard 7 wide, which
        overruns a 375px phone at the default padding. th is shared with the All teams
        table, which is why the rule reads wider than the block it is written
        for; that table's own td padding is class-scoped and wins on
@@ -444,11 +571,25 @@ export const css = `
       td{padding-left:2px;padding-right:2px}
       .name{font-size:15px} .pts{font-size:16px}
       td.mono,.proj{font-size:12px}
-      /* Exp W-L is the widest cell in the table - "9.8-4.2" is seven
-         characters where every other numeric column is at most four - and it
-         is the one a phone can most afford to shrink, because it is read
-         against the column beside it rather than on its own. */
-      td.exp{font-size:11px}
+      /* The rule above cannot reach these: .detail td sets its own padding and
+         is one class more specific, which is the same miss that had the All
+         teams table 27px over a phone - and here it was pushing a squad's
+         points off the right-hand edge. */
+      .detail td{padding-left:4px;padding-right:4px}
+      /* The conference is the one part of a squad row that can give ground:
+         it is a label rather than a number, and it does not have to line up
+         with anything. */
+      .team .cf{width:60px}
+      /* And the school lets go of its single line here, which is the rule the
+         whole dropdown was hanging off. A cell may not be narrower than its
+         contents can go, and a nowrap name says "Northern Illinois Huskies"
+         cannot go below its full width - so the detail row, which
+         spans every column, was setting a floor under the *table* 27px wider
+         than the phone it was on, and the points at the end of each squad row
+         sat off the right-hand edge. The ellipsis is kept where there is room
+         for one line; at this width the name wraps instead. */
+      .team .tn{white-space:normal}
+      .recs{gap:4px 12px}
       .arrow{margin-left:2px}
     }
     /* Teal for hot and red for cold is the same pairing the spreads use for

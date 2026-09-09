@@ -613,18 +613,20 @@ function buildByWeek(doc, owners, games, PTS, lines) {
   }
 
   const running = Object.fromEntries(names.map((n) => [n, { points: 0, wins: 0, losses: 0 }]));
-  /* The expected record, accumulated alongside the real one: what the closing
-     lines said a manager would have won by the end of each week, which is the
-     week's own expectation plus every week before it. Kept at full precision
-     here and rounded only where it is published, so a twelve-week total is not
-     twelve roundings deep.
+  /* The expected record and the expected points, accumulated alongside the
+     real ones: what the closing lines said a manager would have won, and been
+     paid, by the end of each week - which is the week's own expectation plus
+     every week before it. Kept at full precision here and rounded only where
+     they are published, so a twelve-week total is not twelve roundings deep.
 
      `priced` is its denominator and travels with it, because the two records
      beside each other on the page are only comparable if a reader can see when
-     they cover different games. A settled game the books never priced is in
-     neither: an unpriced game is not a coin flip we happen to know nothing
+     they cover different games, and it is shared by both pairs because both
+     run over exactly the same games. A settled game the books never priced is
+     in neither: an unpriced game is not a coin flip we happen to know nothing
      about, it is a game this model has nothing to say about. */
-  const expected = Object.fromEntries(names.map((n) => [n, { wins: 0, priced: 0, won: 0 }]));
+  const expected = Object.fromEntries(names.map((n) =>
+    [n, { wins: 0, priced: 0, won: 0, points: 0, banked: 0 }]));
   const out = [];
 
   for (const k of [...buckets.keys()].sort()) {
@@ -657,12 +659,27 @@ function buildByWeek(doc, owners, games, PTS, lines) {
         if (typeof p !== "number") continue;
         expected[o.manager].wins += p;
         expected[o.manager].priced += 1;
+        /* The same probability, weighted by what the win was worth. That
+           weighting is the whole difference between the two expectations: to
+           the record a win is a win, and to the board a power-conference win
+           is worth half again as much as a Group of Five one. Which is why
+           both are published rather than one being derived from the other -
+           a manager can be ahead of the market on the record and behind it on
+           the points, by winning the cheap games and losing the dear one. */
+        expected[o.manager].points += p * PTS[o.tier];
         /* The wins over *these* games, which is the only thing the expectation
            can honestly be compared against. It cannot be recovered on the page
            from the season record and a count: subtracting the unpriced games
            from a manager's wins assumes every one of them was a win, which for
            a manager sitting at 0-3 with one priced game produces minus two. */
-        if (team === winner) expected[o.manager].won += 1;
+        if (team === winner) {
+          expected[o.manager].won += 1;
+          /* and the points banked over those same games, for the same reason
+             `won` is counted here: the points over the priced games cannot be
+             recovered on the page from a season total and a game count, because
+             nothing says which games the unpriced ones were or what they paid. */
+          expected[o.manager].banked += PTS[o.tier];
+        }
       }
     }
     out.push({
@@ -684,6 +701,8 @@ function buildByWeek(doc, owners, games, PTS, lines) {
           expectedLosses: round1(expected[n].priced - w),
           priced: expected[n].priced,
           pricedWins: expected[n].won,
+          expectedPoints: round1(expected[n].points),
+          pricedPoints: expected[n].banked,
         }];
       })),
     });
