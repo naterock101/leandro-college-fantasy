@@ -149,19 +149,19 @@
       "seasonType": "regular",
       "date": "2026-09-05T16:00:00.000Z",
       "winner": {
-        "team": "James Madison",
-        "manager": "charlie"
+        "team": "Houston",
+        "manager": "adam"
       },
       "loser": {
-        "team": "Liberty",
-        "manager": "steve"
+        "team": "Oregon State",
+        "manager": "devish"
       },
-      "score": "20-13",
+      "score": "33-20",
       "sameManager": false,
       "spread": {
-        "spread": -6,
-        "favorite": "James Madison",
-        "formatted": "James Madison -6",
+        "spread": -21,
+        "favorite": "Houston",
+        "formatted": "Houston -21",
         "overUnder": 50.5,
         "provider": "DraftKings",
         "closed": false
@@ -197,19 +197,19 @@
       "seasonType": "regular",
       "date": "2026-09-05T16:00:00.000Z",
       "winner": {
-        "team": "Houston",
-        "manager": "adam"
+        "team": "James Madison",
+        "manager": "charlie"
       },
       "loser": {
-        "team": "Oregon State",
-        "manager": "devish"
+        "team": "Liberty",
+        "manager": "steve"
       },
-      "score": "33-20",
+      "score": "20-13",
       "sameManager": false,
       "spread": {
-        "spread": -21,
-        "favorite": "Houston",
-        "formatted": "Houston -21",
+        "spread": -6,
+        "favorite": "James Madison",
+        "formatted": "James Madison -6",
         "overUnder": 50.5,
         "provider": "DraftKings",
         "closed": false
@@ -341,30 +341,6 @@
       "seasonType": "regular",
       "date": "2026-09-05T23:00:00.000Z",
       "winner": {
-        "team": "South Florida",
-        "manager": "charlie"
-      },
-      "loser": {
-        "team": "Florida International",
-        "manager": "clint"
-      },
-      "score": "19-9",
-      "sameManager": false,
-      "spread": {
-        "spread": -14.5,
-        "favorite": "South Florida",
-        "formatted": "South Florida -14.5",
-        "overUnder": 53.5,
-        "provider": "DraftKings",
-        "closed": false
-      },
-      "upset": false
-    },
-    {
-      "week": 1,
-      "seasonType": "regular",
-      "date": "2026-09-05T23:00:00.000Z",
-      "winner": {
         "team": "Memphis",
         "manager": "devish"
       },
@@ -379,6 +355,30 @@
         "favorite": "Memphis",
         "formatted": "Memphis -10.5",
         "overUnder": 52.5,
+        "provider": "DraftKings",
+        "closed": false
+      },
+      "upset": false
+    },
+    {
+      "week": 1,
+      "seasonType": "regular",
+      "date": "2026-09-05T23:00:00.000Z",
+      "winner": {
+        "team": "South Florida",
+        "manager": "charlie"
+      },
+      "loser": {
+        "team": "Florida International",
+        "manager": "clint"
+      },
+      "score": "19-9",
+      "sameManager": false,
+      "spread": {
+        "spread": -14.5,
+        "favorite": "South Florida",
+        "formatted": "South Florida -14.5",
+        "overUnder": 53.5,
         "provider": "DraftKings",
         "closed": false
       },
@@ -684,26 +684,6 @@
       "seasonType": "regular",
       "date": "2026-08-29T23:00:00.000Z",
       "winner": {
-        "team": "Florida State",
-        "manager": null
-      },
-      "loser": {
-        "team": "New Mexico State",
-        "manager": "leandro"
-      },
-      "score": "34-17",
-      "points": 0,
-      "h2h": false,
-      "sameManager": false,
-      "upset": false,
-      "line": "Florida State -30.5"
-    },
-    {
-      "key": "0|01",
-      "week": 1,
-      "seasonType": "regular",
-      "date": "2026-08-29T23:00:00.000Z",
-      "winner": {
         "team": "Stanford",
         "manager": null
       },
@@ -717,6 +697,26 @@
       "sameManager": false,
       "upset": false,
       "line": "Stanford -4.5"
+    },
+    {
+      "key": "0|01",
+      "week": 1,
+      "seasonType": "regular",
+      "date": "2026-08-29T23:00:00.000Z",
+      "winner": {
+        "team": "Florida State",
+        "manager": null
+      },
+      "loser": {
+        "team": "New Mexico State",
+        "manager": "leandro"
+      },
+      "score": "34-17",
+      "points": 0,
+      "h2h": false,
+      "sameManager": false,
+      "upset": false,
+      "line": "Florida State -30.5"
     },
     {
       "key": "0|01",
@@ -737,26 +737,6 @@
       "sameManager": false,
       "upset": true,
       "line": "UNLV -4"
-    },
-    {
-      "key": "0|01",
-      "week": 1,
-      "seasonType": "regular",
-      "date": "2026-09-03T23:00:00.000Z",
-      "winner": {
-        "team": "Delaware",
-        "manager": "tconn"
-      },
-      "loser": {
-        "team": "Merrimack",
-        "manager": null
-      },
-      "score": "42-7",
-      "points": 2,
-      "h2h": false,
-      "sameManager": false,
-      "upset": false,
-      "line": "Delaware -31.5"
     },
     {
       "key": "0|01",
@@ -797,6 +777,26 @@
       "sameManager": false,
       "upset": false,
       "line": "Buffalo -18.5"
+    },
+    {
+      "key": "0|01",
+      "week": 1,
+      "seasonType": "regular",
+      "date": "2026-09-03T23:00:00.000Z",
+      "winner": {
+        "team": "Delaware",
+        "manager": "tconn"
+      },
+      "loser": {
+        "team": "Merrimack",
+        "manager": null
+      },
+      "score": "42-7",
+      "points": 2,
+      "h2h": false,
+      "sameManager": false,
+      "upset": false,
+      "line": "Delaware -31.5"
     },
     {
       "key": "0|01",
@@ -844,26 +844,6 @@
       "seasonType": "regular",
       "date": "2026-09-05T00:00:00.000Z",
       "winner": {
-        "team": "Michigan State",
-        "manager": null
-      },
-      "loser": {
-        "team": "Toledo",
-        "manager": "tconn"
-      },
-      "score": "30-20",
-      "points": 0,
-      "h2h": false,
-      "sameManager": false,
-      "upset": false,
-      "line": "Michigan State -10"
-    },
-    {
-      "key": "0|01",
-      "week": 1,
-      "seasonType": "regular",
-      "date": "2026-09-05T00:00:00.000Z",
-      "winner": {
         "team": "Oklahoma",
         "manager": "clint"
       },
@@ -877,6 +857,26 @@
       "sameManager": false,
       "upset": false,
       "line": "Oklahoma -40.5"
+    },
+    {
+      "key": "0|01",
+      "week": 1,
+      "seasonType": "regular",
+      "date": "2026-09-05T00:00:00.000Z",
+      "winner": {
+        "team": "Michigan State",
+        "manager": null
+      },
+      "loser": {
+        "team": "Toledo",
+        "manager": "tconn"
+      },
+      "score": "30-20",
+      "points": 0,
+      "h2h": false,
+      "sameManager": false,
+      "upset": false,
+      "line": "Michigan State -10"
     },
     {
       "key": "0|01",
@@ -924,66 +924,6 @@
       "seasonType": "regular",
       "date": "2026-09-05T16:00:00.000Z",
       "winner": {
-        "team": "Tarleton State",
-        "manager": null
-      },
-      "loser": {
-        "team": "Bowling Green",
-        "manager": "leandro"
-      },
-      "score": "20-13",
-      "points": 0,
-      "h2h": false,
-      "sameManager": false,
-      "upset": true,
-      "line": "Bowling Green -1.5"
-    },
-    {
-      "key": "0|01",
-      "week": 1,
-      "seasonType": "regular",
-      "date": "2026-09-05T16:00:00.000Z",
-      "winner": {
-        "team": "James Madison",
-        "manager": "charlie"
-      },
-      "loser": {
-        "team": "Liberty",
-        "manager": "steve"
-      },
-      "score": "20-13",
-      "points": 2,
-      "h2h": true,
-      "sameManager": false,
-      "upset": false,
-      "line": "James Madison -6"
-    },
-    {
-      "key": "0|01",
-      "week": 1,
-      "seasonType": "regular",
-      "date": "2026-09-05T16:00:00.000Z",
-      "winner": {
-        "team": "Alabama",
-        "manager": "tconn"
-      },
-      "loser": {
-        "team": "East Carolina",
-        "manager": "nathan"
-      },
-      "score": "48-10",
-      "points": 3,
-      "h2h": true,
-      "sameManager": false,
-      "upset": false,
-      "line": "Alabama -27.5"
-    },
-    {
-      "key": "0|01",
-      "week": 1,
-      "seasonType": "regular",
-      "date": "2026-09-05T16:00:00.000Z",
-      "winner": {
         "team": "Houston",
         "manager": "adam"
       },
@@ -997,26 +937,6 @@
       "sameManager": false,
       "upset": false,
       "line": "Houston -21"
-    },
-    {
-      "key": "0|01",
-      "week": 1,
-      "seasonType": "regular",
-      "date": "2026-09-05T16:00:00.000Z",
-      "winner": {
-        "team": "Indiana",
-        "manager": "leandro"
-      },
-      "loser": {
-        "team": "North Texas",
-        "manager": null
-      },
-      "score": "52-16",
-      "points": 3,
-      "h2h": false,
-      "sameManager": false,
-      "upset": false,
-      "line": "Indiana -39.5"
     },
     {
       "key": "0|01",
@@ -1044,6 +964,26 @@
       "seasonType": "regular",
       "date": "2026-09-05T16:00:00.000Z",
       "winner": {
+        "team": "Alabama",
+        "manager": "tconn"
+      },
+      "loser": {
+        "team": "East Carolina",
+        "manager": "nathan"
+      },
+      "score": "48-10",
+      "points": 3,
+      "h2h": true,
+      "sameManager": false,
+      "upset": false,
+      "line": "Alabama -27.5"
+    },
+    {
+      "key": "0|01",
+      "week": 1,
+      "seasonType": "regular",
+      "date": "2026-09-05T16:00:00.000Z",
+      "winner": {
         "team": "Army",
         "manager": "steve"
       },
@@ -1062,21 +1002,61 @@
       "key": "0|01",
       "week": 1,
       "seasonType": "regular",
-      "date": "2026-09-05T16:30:00.000Z",
+      "date": "2026-09-05T16:00:00.000Z",
       "winner": {
-        "team": "Pittsburgh",
+        "team": "Indiana",
+        "manager": "leandro"
+      },
+      "loser": {
+        "team": "North Texas",
+        "manager": null
+      },
+      "score": "52-16",
+      "points": 3,
+      "h2h": false,
+      "sameManager": false,
+      "upset": false,
+      "line": "Indiana -39.5"
+    },
+    {
+      "key": "0|01",
+      "week": 1,
+      "seasonType": "regular",
+      "date": "2026-09-05T16:00:00.000Z",
+      "winner": {
+        "team": "James Madison",
         "manager": "charlie"
       },
       "loser": {
-        "team": "Miami (OH)",
+        "team": "Liberty",
         "manager": "steve"
       },
-      "score": "59-14",
-      "points": 3,
+      "score": "20-13",
+      "points": 2,
       "h2h": true,
       "sameManager": false,
       "upset": false,
-      "line": "Pittsburgh -16.5"
+      "line": "James Madison -6"
+    },
+    {
+      "key": "0|01",
+      "week": 1,
+      "seasonType": "regular",
+      "date": "2026-09-05T16:00:00.000Z",
+      "winner": {
+        "team": "Tarleton State",
+        "manager": null
+      },
+      "loser": {
+        "team": "Bowling Green",
+        "manager": "leandro"
+      },
+      "score": "20-13",
+      "points": 0,
+      "h2h": false,
+      "sameManager": false,
+      "upset": true,
+      "line": "Bowling Green -1.5"
     },
     {
       "key": "0|01",
@@ -1097,6 +1077,26 @@
       "sameManager": false,
       "upset": false,
       "line": "Ohio State -50.5"
+    },
+    {
+      "key": "0|01",
+      "week": 1,
+      "seasonType": "regular",
+      "date": "2026-09-05T16:30:00.000Z",
+      "winner": {
+        "team": "Pittsburgh",
+        "manager": "charlie"
+      },
+      "loser": {
+        "team": "Miami (OH)",
+        "manager": "steve"
+      },
+      "score": "59-14",
+      "points": 3,
+      "h2h": true,
+      "sameManager": false,
+      "upset": false,
+      "line": "Pittsburgh -16.5"
     },
     {
       "key": "0|01",
@@ -1144,26 +1144,6 @@
       "seasonType": "regular",
       "date": "2026-09-05T19:30:00.000Z",
       "winner": {
-        "team": "Duke",
-        "manager": null
-      },
-      "loser": {
-        "team": "Tulane",
-        "manager": "tconn"
-      },
-      "score": "17-3",
-      "points": 0,
-      "h2h": false,
-      "sameManager": false,
-      "upset": false,
-      "line": "Duke -9.5"
-    },
-    {
-      "key": "0|01",
-      "week": 1,
-      "seasonType": "regular",
-      "date": "2026-09-05T19:30:00.000Z",
-      "winner": {
         "team": "Penn State",
         "manager": "tconn"
       },
@@ -1204,19 +1184,19 @@
       "seasonType": "regular",
       "date": "2026-09-05T19:30:00.000Z",
       "winner": {
-        "team": "North Dakota State",
+        "team": "UTSA",
         "manager": "adam"
       },
       "loser": {
-        "team": "Fordham",
+        "team": "UT Rio Grande Valley",
         "manager": null
       },
-      "score": "38-0",
+      "score": "45-16",
       "points": 2,
       "h2h": false,
       "sameManager": false,
       "upset": false,
-      "line": "North Dakota State -41.5"
+      "line": "UTSA -28.5"
     },
     {
       "key": "0|01",
@@ -1224,39 +1204,19 @@
       "seasonType": "regular",
       "date": "2026-09-05T19:30:00.000Z",
       "winner": {
-        "team": "App State",
-        "manager": "devish"
-      },
-      "loser": {
-        "team": "Maine",
+        "team": "Duke",
         "manager": null
       },
-      "score": "55-3",
-      "points": 2,
+      "loser": {
+        "team": "Tulane",
+        "manager": "tconn"
+      },
+      "score": "17-3",
+      "points": 0,
       "h2h": false,
       "sameManager": false,
       "upset": false,
-      "line": "App State -20.5"
-    },
-    {
-      "key": "0|01",
-      "week": 1,
-      "seasonType": "regular",
-      "date": "2026-09-05T19:30:00.000Z",
-      "winner": {
-        "team": "Oregon",
-        "manager": "steve"
-      },
-      "loser": {
-        "team": "Boise State",
-        "manager": "clint"
-      },
-      "score": "34-27",
-      "points": 3,
-      "h2h": true,
-      "sameManager": false,
-      "upset": false,
-      "line": "Oregon -24.5"
+      "line": "Duke -9.5"
     },
     {
       "key": "0|01",
@@ -1284,19 +1244,59 @@
       "seasonType": "regular",
       "date": "2026-09-05T19:30:00.000Z",
       "winner": {
-        "team": "UTSA",
-        "manager": "adam"
+        "team": "App State",
+        "manager": "devish"
       },
       "loser": {
-        "team": "UT Rio Grande Valley",
+        "team": "Maine",
         "manager": null
       },
-      "score": "45-16",
+      "score": "55-3",
       "points": 2,
       "h2h": false,
       "sameManager": false,
       "upset": false,
-      "line": "UTSA -28.5"
+      "line": "App State -20.5"
+    },
+    {
+      "key": "0|01",
+      "week": 1,
+      "seasonType": "regular",
+      "date": "2026-09-05T19:30:00.000Z",
+      "winner": {
+        "team": "North Dakota State",
+        "manager": "adam"
+      },
+      "loser": {
+        "team": "Fordham",
+        "manager": null
+      },
+      "score": "38-0",
+      "points": 2,
+      "h2h": false,
+      "sameManager": false,
+      "upset": false,
+      "line": "North Dakota State -41.5"
+    },
+    {
+      "key": "0|01",
+      "week": 1,
+      "seasonType": "regular",
+      "date": "2026-09-05T19:30:00.000Z",
+      "winner": {
+        "team": "Oregon",
+        "manager": "steve"
+      },
+      "loser": {
+        "team": "Boise State",
+        "manager": "clint"
+      },
+      "score": "34-27",
+      "points": 3,
+      "h2h": true,
+      "sameManager": false,
+      "upset": false,
+      "line": "Oregon -24.5"
     },
     {
       "key": "0|01",
@@ -1344,26 +1344,6 @@
       "seasonType": "regular",
       "date": "2026-09-05T22:00:00.000Z",
       "winner": {
-        "team": "Old Dominion",
-        "manager": "steve"
-      },
-      "loser": {
-        "team": "Norfolk State",
-        "manager": null
-      },
-      "score": "31-10",
-      "points": 2,
-      "h2h": false,
-      "sameManager": false,
-      "upset": false,
-      "line": "Old Dominion -41.5"
-    },
-    {
-      "key": "0|01",
-      "week": 1,
-      "seasonType": "regular",
-      "date": "2026-09-05T22:00:00.000Z",
-      "winner": {
         "team": "Colorado State",
         "manager": "tconn"
       },
@@ -1382,101 +1362,21 @@
       "key": "0|01",
       "week": 1,
       "seasonType": "regular",
-      "date": "2026-09-05T23:00:00.000Z",
+      "date": "2026-09-05T22:00:00.000Z",
       "winner": {
-        "team": "Texas Tech",
-        "manager": "tconn"
-      },
-      "loser": {
-        "team": "Abilene Christian",
-        "manager": null
-      },
-      "score": "33-10",
-      "points": 3,
-      "h2h": false,
-      "sameManager": false,
-      "upset": false,
-      "line": "Texas Tech -45.5"
-    },
-    {
-      "key": "0|01",
-      "week": 1,
-      "seasonType": "regular",
-      "date": "2026-09-05T23:00:00.000Z",
-      "winner": {
-        "team": "Kansas State",
+        "team": "Old Dominion",
         "manager": "steve"
       },
       "loser": {
-        "team": "Nicholls",
+        "team": "Norfolk State",
         "manager": null
       },
-      "score": "71-3",
-      "points": 3,
-      "h2h": false,
-      "sameManager": false,
-      "upset": false,
-      "line": "Kansas State -41.5"
-    },
-    {
-      "key": "0|01",
-      "week": 1,
-      "seasonType": "regular",
-      "date": "2026-09-05T23:00:00.000Z",
-      "winner": {
-        "team": "South Florida",
-        "manager": "charlie"
-      },
-      "loser": {
-        "team": "Florida International",
-        "manager": "clint"
-      },
-      "score": "19-9",
-      "points": 2,
-      "h2h": true,
-      "sameManager": false,
-      "upset": false,
-      "line": "South Florida -14.5"
-    },
-    {
-      "key": "0|01",
-      "week": 1,
-      "seasonType": "regular",
-      "date": "2026-09-05T23:00:00.000Z",
-      "winner": {
-        "team": "Jacksonville State",
-        "manager": "adam"
-      },
-      "loser": {
-        "team": "Eastern Kentucky",
-        "manager": null
-      },
-      "score": "49-7",
+      "score": "31-10",
       "points": 2,
       "h2h": false,
       "sameManager": false,
       "upset": false,
-      "line": "Jacksonville State -22.5"
-    },
-    {
-      "key": "0|01",
-      "week": 1,
-      "seasonType": "regular",
-      "date": "2026-09-05T23:00:00.000Z",
-      "winner": {
-        "team": "Middle Tennessee",
-        "manager": "devish"
-      },
-      "loser": {
-        "team": "Murray State",
-        "manager": null
-      },
-      "score": "38-14",
-      "points": 2,
-      "h2h": false,
-      "sameManager": false,
-      "upset": false,
-      "line": "Middle Tennessee -22.5"
+      "line": "Old Dominion -41.5"
     },
     {
       "key": "0|01",
@@ -1504,19 +1404,19 @@
       "seasonType": "regular",
       "date": "2026-09-05T23:00:00.000Z",
       "winner": {
-        "team": "Memphis",
-        "manager": "devish"
+        "team": "Texas A&M",
+        "manager": "nathan"
       },
       "loser": {
-        "team": "Arkansas State",
-        "manager": "clint"
+        "team": "Missouri State",
+        "manager": null
       },
-      "score": "42-24",
-      "points": 2,
-      "h2h": true,
+      "score": "50-0",
+      "points": 3,
+      "h2h": false,
       "sameManager": false,
       "upset": false,
-      "line": "Memphis -10.5"
+      "line": "Texas A&M -38.5"
     },
     {
       "key": "0|01",
@@ -1544,19 +1444,139 @@
       "seasonType": "regular",
       "date": "2026-09-05T23:00:00.000Z",
       "winner": {
-        "team": "Texas A&M",
-        "manager": "nathan"
+        "team": "Kansas State",
+        "manager": "steve"
       },
       "loser": {
-        "team": "Missouri State",
+        "team": "Nicholls",
         "manager": null
       },
-      "score": "50-0",
+      "score": "71-3",
       "points": 3,
       "h2h": false,
       "sameManager": false,
       "upset": false,
-      "line": "Texas A&M -38.5"
+      "line": "Kansas State -41.5"
+    },
+    {
+      "key": "0|01",
+      "week": 1,
+      "seasonType": "regular",
+      "date": "2026-09-05T23:00:00.000Z",
+      "winner": {
+        "team": "Texas Tech",
+        "manager": "tconn"
+      },
+      "loser": {
+        "team": "Abilene Christian",
+        "manager": null
+      },
+      "score": "33-10",
+      "points": 3,
+      "h2h": false,
+      "sameManager": false,
+      "upset": false,
+      "line": "Texas Tech -45.5"
+    },
+    {
+      "key": "0|01",
+      "week": 1,
+      "seasonType": "regular",
+      "date": "2026-09-05T23:00:00.000Z",
+      "winner": {
+        "team": "Middle Tennessee",
+        "manager": "devish"
+      },
+      "loser": {
+        "team": "Murray State",
+        "manager": null
+      },
+      "score": "38-14",
+      "points": 2,
+      "h2h": false,
+      "sameManager": false,
+      "upset": false,
+      "line": "Middle Tennessee -22.5"
+    },
+    {
+      "key": "0|01",
+      "week": 1,
+      "seasonType": "regular",
+      "date": "2026-09-05T23:00:00.000Z",
+      "winner": {
+        "team": "Jacksonville State",
+        "manager": "adam"
+      },
+      "loser": {
+        "team": "Eastern Kentucky",
+        "manager": null
+      },
+      "score": "49-7",
+      "points": 2,
+      "h2h": false,
+      "sameManager": false,
+      "upset": false,
+      "line": "Jacksonville State -22.5"
+    },
+    {
+      "key": "0|01",
+      "week": 1,
+      "seasonType": "regular",
+      "date": "2026-09-05T23:00:00.000Z",
+      "winner": {
+        "team": "Memphis",
+        "manager": "devish"
+      },
+      "loser": {
+        "team": "Arkansas State",
+        "manager": "clint"
+      },
+      "score": "42-24",
+      "points": 2,
+      "h2h": true,
+      "sameManager": false,
+      "upset": false,
+      "line": "Memphis -10.5"
+    },
+    {
+      "key": "0|01",
+      "week": 1,
+      "seasonType": "regular",
+      "date": "2026-09-05T23:00:00.000Z",
+      "winner": {
+        "team": "South Florida",
+        "manager": "charlie"
+      },
+      "loser": {
+        "team": "Florida International",
+        "manager": "clint"
+      },
+      "score": "19-9",
+      "points": 2,
+      "h2h": true,
+      "sameManager": false,
+      "upset": false,
+      "line": "South Florida -14.5"
+    },
+    {
+      "key": "0|01",
+      "week": 1,
+      "seasonType": "regular",
+      "date": "2026-09-05T23:30:00.000Z",
+      "winner": {
+        "team": "Virginia Tech",
+        "manager": "adam"
+      },
+      "loser": {
+        "team": "VMI",
+        "manager": null
+      },
+      "score": "73-3",
+      "points": 3,
+      "h2h": false,
+      "sameManager": false,
+      "upset": false,
+      "line": "Virginia Tech -54.5"
     },
     {
       "key": "0|01",
@@ -1597,26 +1617,6 @@
       "sameManager": false,
       "upset": false,
       "line": "Michigan -27.5"
-    },
-    {
-      "key": "0|01",
-      "week": 1,
-      "seasonType": "regular",
-      "date": "2026-09-05T23:30:00.000Z",
-      "winner": {
-        "team": "Virginia Tech",
-        "manager": "adam"
-      },
-      "loser": {
-        "team": "VMI",
-        "manager": null
-      },
-      "score": "73-3",
-      "points": 3,
-      "h2h": false,
-      "sameManager": false,
-      "upset": false,
-      "line": "Virginia Tech -54.5"
     },
     {
       "key": "0|01",
@@ -1704,26 +1704,6 @@
       "seasonType": "regular",
       "date": "2026-09-06T01:30:00.000Z",
       "winner": {
-        "team": "San Diego State",
-        "manager": "charlie"
-      },
-      "loser": {
-        "team": "Portland State",
-        "manager": null
-      },
-      "score": "53-20",
-      "points": 2,
-      "h2h": false,
-      "sameManager": false,
-      "upset": false,
-      "line": "San Diego State -38.5"
-    },
-    {
-      "key": "0|01",
-      "week": 1,
-      "seasonType": "regular",
-      "date": "2026-09-06T01:30:00.000Z",
-      "winner": {
         "team": "Arizona",
         "manager": "leandro"
       },
@@ -1737,6 +1717,26 @@
       "sameManager": false,
       "upset": false,
       "line": "Arizona -32.5"
+    },
+    {
+      "key": "0|01",
+      "week": 1,
+      "seasonType": "regular",
+      "date": "2026-09-06T01:30:00.000Z",
+      "winner": {
+        "team": "San Diego State",
+        "manager": "charlie"
+      },
+      "loser": {
+        "team": "Portland State",
+        "manager": null
+      },
+      "score": "53-20",
+      "points": 2,
+      "h2h": false,
+      "sameManager": false,
+      "upset": false,
+      "line": "San Diego State -38.5"
     },
     {
       "key": "0|01",
@@ -1764,26 +1764,6 @@
       "seasonType": "regular",
       "date": "2026-09-06T02:00:00.000Z",
       "winner": {
-        "team": "New Mexico",
-        "manager": "leandro"
-      },
-      "loser": {
-        "team": "Central Michigan",
-        "manager": "charlie"
-      },
-      "score": "38-7",
-      "points": 2,
-      "h2h": true,
-      "sameManager": false,
-      "upset": false,
-      "line": "New Mexico -10.5"
-    },
-    {
-      "key": "0|01",
-      "week": 1,
-      "seasonType": "regular",
-      "date": "2026-09-06T02:00:00.000Z",
-      "winner": {
         "team": "Arizona State",
         "manager": "nathan"
       },
@@ -1797,6 +1777,26 @@
       "sameManager": false,
       "upset": false,
       "line": "Arizona State -43.5"
+    },
+    {
+      "key": "0|01",
+      "week": 1,
+      "seasonType": "regular",
+      "date": "2026-09-06T02:00:00.000Z",
+      "winner": {
+        "team": "New Mexico",
+        "manager": "leandro"
+      },
+      "loser": {
+        "team": "Central Michigan",
+        "manager": "charlie"
+      },
+      "score": "38-7",
+      "points": 2,
+      "h2h": true,
+      "sameManager": false,
+      "upset": false,
+      "line": "New Mexico -10.5"
     },
     {
       "key": "0|01",
