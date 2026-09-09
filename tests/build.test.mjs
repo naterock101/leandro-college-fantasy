@@ -150,10 +150,16 @@ test("ceiling is points plus every remaining game, less the own-matchup docking"
 });
 
 test("the last cumulative snapshot in byWeek is the standings table", () => {
+  /* The invariant the leaderboard leans on twice over: it sums byWeek to get
+     the season's game count, and it reads the *last* week's expectation for
+     the live board on the strength of that week being the season to date. The
+     expectation itself is not in this comparison because the standings table
+     has no counterpart to it - it is checked separately below. */
   const last = built.byWeek[built.byWeek.length - 1].cumulative;
   for (const row of built.standings) {
+    const { points, wins, losses } = last[row.manager];
     assert.deepEqual(
-      last[row.manager],
+      { points, wins, losses },
       { points: row.points, wins: row.wins, losses: row.losses },
       `${row.manager}'s final snapshot`
     );
@@ -446,20 +452,42 @@ test("every manager's luck is their banked points less their expected ones", () 
   }
 });
 
-test("the expected record counts exactly the games the points ledger counts", () => {
-  /* The two halves are published side by side and a reader subtracts them, so
-     the one thing that must not drift is their denominator. Wins and losses
-     add back to `games`, and `games` is already checked above against an
-     independent count from the roster and the lines file. */
-  for (const [manager, l] of Object.entries(built.luck.managers)) {
-    assert.equal(l.wins + l.losses, l.games, `${manager}'s actual record`);
-    assert.equal(round1(l.expectedWins + l.expectedLosses), l.games,
-      `${manager}'s expected record`);
-    /* Nobody is ever expected to lose a game they could not have lost, and
-       nobody is expected to win one they were not in. */
-    assert.ok(l.expectedWins >= 0 && l.expectedWins <= l.games,
-      `${manager} expected ${l.expectedWins} wins from ${l.games} games`);
+test("every week's expected record adds back to its own denominator", () => {
+  /* The pair is published side by side with the count of games behind it and a
+     reader subtracts them, so the one thing that must not drift is that
+     denominator. Rounding a running total is exactly how a twelve-week column
+     comes to claim 1.5-1.6 of three games, which is why the losses are derived
+     from the published wins rather than accumulated in parallel. */
+  for (const w of built.byWeek) {
+    for (const [manager, c] of Object.entries(w.cumulative)) {
+      assert.equal(round1(c.expectedWins + c.expectedLosses), c.priced,
+        `${manager}'s expected record at ${w.label}`);
+      /* Nobody is expected to win a game they were not in. */
+      assert.ok(c.expectedWins >= 0 && c.expectedWins <= c.priced,
+        `${manager} expected ${c.expectedWins} wins from ${c.priced} games`);
+      /* And it can only ever cover games that were actually played. */
+      assert.ok(c.priced <= c.wins + c.losses,
+        `${manager} priced ${c.priced} of ${c.wins + c.losses} played`);
+    }
   }
+});
+
+test("the expected record accumulates rather than restarting each week", () => {
+  /* The whole shape of the column: week 2 is week 1 plus week 2. A version
+     that showed one week's expectation against a cumulative record would look
+     entirely plausible and be nonsense. */
+  let grew = false;
+  for (let i = 1; i < built.byWeek.length; i++) {
+    for (const [manager, c] of Object.entries(built.byWeek[i].cumulative)) {
+      const prev = built.byWeek[i - 1].cumulative[manager];
+      assert.ok(c.expectedWins >= prev.expectedWins,
+        `${manager} lost expected wins at ${built.byWeek[i].label}`);
+      assert.ok(c.priced >= prev.priced,
+        `${manager}'s denominator shrank at ${built.byWeek[i].label}`);
+      if (c.priced > prev.priced) grew = true;
+    }
+  }
+  assert.ok(grew, "no manager's expectation grew, so this test measured nothing");
 });
 
 test("the expected record is the sum of the win probabilities, not the points", () => {
@@ -468,17 +496,33 @@ test("the expected record is the sum of the win probabilities, not the points", 
      deliberately absent: a win is a win here, which is the whole difference
      between this column and the points beside it. */
   const expected = Object.fromEntries(Object.keys(rosters.managers).map((m) => [m, 0]));
+  const priced = Object.fromEntries(Object.keys(rosters.managers).map((m) => [m, 0]));
   for (const { game, line } of settled()) {
     if (!line) continue;
     for (const team of [home(game), away(game)]) {
       const o = OWNER.get(team);
-      if (o) expected[o.manager] += winProbability(line, team);
+      if (!o) continue;
+      expected[o.manager] += winProbability(line, team);
+      priced[o.manager] += 1;
     }
   }
+  const last = built.byWeek[built.byWeek.length - 1].cumulative;
   for (const [manager, wins] of Object.entries(expected)) {
-    assert.equal(built.luck.managers[manager].expectedWins, round1(wins),
-      `${manager}'s expected wins`);
+    assert.equal(last[manager].expectedWins, round1(wins), `${manager}'s expected wins`);
+    assert.equal(last[manager].priced, priced[manager], `${manager}'s priced games`);
   }
+});
+
+test("a game with no line moves neither half of the expected record", () => {
+  /* The same rule luck follows, enforced where the column actually reads from.
+     Nathan's Texas A&M beat Missouri State 45-10 in week 2 and the books never
+     priced it: a win in Act W-L that Exp W-L is not entitled to an opinion
+     about. */
+  const unpriced = fixtureGames.find((g) => g.id === 20);
+  assert.equal(fixtureLines.games[unpriced.id], undefined, "game 20 acquired a line");
+  const last = built.byWeek[built.byWeek.length - 1].cumulative.nathan;
+  assert.equal(last.wins + last.losses, 5, "nathan's settled games");
+  assert.equal(last.priced, 2, "an unpriced game reached the expected record");
 });
 
 test("a manager whose only games went unpriced has no luck either way", () => {
@@ -487,10 +531,7 @@ test("a manager whose only games went unpriced has no luck either way", () => {
      "nothing to say", which is why the count of excluded games has to be on
      screen next to it. */
   for (const m of ["leandro", "steve"]) {
-    assert.deepEqual(built.luck.managers[m], {
-      games: 0, actual: 0, expected: 0, delta: 0,
-      wins: 0, losses: 0, expectedWins: 0, expectedLosses: 0,
-    });
+    assert.deepEqual(built.luck.managers[m], { games: 0, actual: 0, expected: 0, delta: 0 });
   }
 });
 

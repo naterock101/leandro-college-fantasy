@@ -475,17 +475,13 @@ function build(doc, owners, games, lines) {
          implying it is all of it. */
       games: luckPriced,
       unpriced: luckUnpriced,
-      /* Per manager this block carries two comparisons off one ledger: points
-         banked against points expected, and the record against the expected
-         record. They share a denominator by construction, which is the point -
-         see luckOf. */
       /* In table order, like projection.managers, so the golden file reads down
          the same list twice rather than down the standings once and the roster
          file once. */
       managers: Object.fromEntries(
         table.map((r) => [r.manager, luckOf(luckLedger[r.manager])])),
     },
-    byWeek: buildByWeek(doc, owners, games, PTS),
+    byWeek: buildByWeek(doc, owners, games, PTS, lines),
     gamesOfWeek: {
       label: gow.length ? (gow[0].seasonType === "postseason" ? `Postseason ${gow[0].week}` : `Week ${gow[0].week}`) : null,
       games: gow,
@@ -600,7 +596,7 @@ function project(table, upcoming, lines, val) {
   };
 }
 
-function buildByWeek(doc, owners, games, PTS) {
+function buildByWeek(doc, owners, games, PTS, lines) {
   const names = Object.keys(doc.managers);
   const buckets = new Map();
   /* Every rostered game the week holds, played or not, so a week can be shown
@@ -617,6 +613,18 @@ function buildByWeek(doc, owners, games, PTS) {
   }
 
   const running = Object.fromEntries(names.map((n) => [n, { points: 0, wins: 0, losses: 0 }]));
+  /* The expected record, accumulated alongside the real one: what the closing
+     lines said a manager would have won by the end of each week, which is the
+     week's own expectation plus every week before it. Kept at full precision
+     here and rounded only where it is published, so a twelve-week total is not
+     twelve roundings deep.
+
+     `priced` is its denominator and travels with it, because the two records
+     beside each other on the page are only comparable if a reader can see when
+     they cover different games. A settled game the books never priced is in
+     neither: an unpriced game is not a coin flip we happen to know nothing
+     about, it is a game this model has nothing to say about. */
+  const expected = Object.fromEntries(names.map((n) => [n, { wins: 0, priced: 0 }]));
   const out = [];
 
   for (const k of [...buckets.keys()].sort()) {
@@ -633,6 +641,23 @@ function buildByWeek(doc, owners, games, PTS) {
         running[ow.manager].points += p; running[ow.manager].wins++; delta[ow.manager] += p;
       }
       if (ol) running[ol.manager].losses++;
+
+      /* Inside the guard above, not before it: a game that reached this
+         function without a usable score produced no win and no loss, so it
+         must not produce an expectation either. The stored line for a finished
+         game is its closing line - the merge-only lines file never overwrites
+         one with a later fetch - which is as close as this repo gets to a
+         record of what was projected for that week at the time. */
+      const line = lines.games[g.id] ?? null;
+      if (!line) continue;
+      for (const team of [winner, loser]) {
+        const o = owners.get(team);
+        if (!o) continue;
+        const p = winProbability(line, team);
+        if (typeof p !== "number") continue;
+        expected[o.manager].wins += p;
+        expected[o.manager].priced += 1;
+      }
     }
     out.push({
       key: k,
@@ -642,7 +667,18 @@ function buildByWeek(doc, owners, games, PTS) {
       games: buckets.get(k).length,
       scheduled: scheduled.get(k) ?? buckets.get(k).length,
       delta,
-      cumulative: JSON.parse(JSON.stringify(running)),
+      /* Rounded here rather than accumulated rounded, and the losses derived
+         from the *published* wins so the pair on screen adds back to `priced`
+         exactly - the same rule `delta` follows in luckOf. */
+      cumulative: Object.fromEntries(names.map((n) => {
+        const w = round1(expected[n].wins);
+        return [n, {
+          ...running[n],
+          expectedWins: w,
+          expectedLosses: round1(expected[n].priced - w),
+          priced: expected[n].priced,
+        }];
+      })),
     });
   }
   return out;
@@ -685,11 +721,7 @@ if (out.projection) {
     const m = l.managers[s.manager];
     if (!m.games) continue;
     console.log(`  ${s.manager.padEnd(10)} ${String(m.actual).padStart(3)} banked, ` +
-      `${String(m.expected).padStart(5)} expected  ${m.delta >= 0 ? "+" : ""}${m.delta}` +
-      /* The record over the same ledger, which is the half the leaderboard
-         now shows. Logged beside the points so a run where the two disagree
-         about how many games they cover is visible on one line. */
-      `   ${m.wins}-${m.losses} against ${m.expectedWins}-${m.expectedLosses}`);
+      `${String(m.expected).padStart(5)} expected  ${m.delta >= 0 ? "+" : ""}${m.delta}`);
   }
 }
 /* Printed even when it is zero: this is the count that used to be silent, and

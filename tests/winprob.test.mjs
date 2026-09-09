@@ -154,43 +154,24 @@ test("expected points can never exceed the points that were available", () => {
 });
 
 test("an empty ledger is zero, not a hole", () => {
-  assert.deepEqual(luckOf([]), {
-    games: 0, actual: 0, expected: 0, delta: 0,
-    wins: 0, losses: 0, expectedWins: 0, expectedLosses: 0,
-  });
+  assert.deepEqual(luckOf([]), { games: 0, actual: 0, expected: 0, delta: 0 });
 });
 
-test("the record is the same ledger counted in wins rather than points", () => {
-  /* The two halves must never come to cover different games, which is the
-     whole reason they are computed in one pass. A 3-point team and a 2-point
-     team weigh the same here and differently beside it. */
-  const l = luckOf([
-    outcome(3, 0.8, true),
-    outcome(2, 0.25, true),
-    outcome(3, 0.6, false),
-  ]);
-  assert.equal(l.games, 3);
-  assert.equal(l.wins, 2);
-  assert.equal(l.losses, 1);
-  /* 0.8 + 0.25 + 0.6 = 1.65, and the tenths are the point: nobody is ever
-     expected to be a whole number of wins. */
-  assert.equal(l.expectedWins, 1.7);
-  assert.equal(l.expectedLosses, 1.3);
-  assert.equal(l.expectedWins + l.expectedLosses, l.games,
-    "the published pair does not add back to the games it covers");
-});
-
-test("a manager can be over on wins and under on points at once", () => {
-  /* Which is why both halves are published rather than one standing in for
-     the other: winning the cheap games and losing the dear one beats the
-     market on the record and loses to it on the board. */
-  const l = luckOf([
+test("the ledger weighs games by what the team is worth", () => {
+  /* Which is what separates this from the expected *record* in byWeek: there
+     every game counts one, here a power-conference win is worth three. The two
+     can point opposite ways, and both are true. */
+  const cheapWins = [
     outcome(2, 0.4, true),
     outcome(2, 0.4, true),
     outcome(3, 0.9, false),
-  ]);
-  assert.ok(l.wins > l.expectedWins, `${l.wins} wins against ${l.expectedWins} expected`);
-  assert.ok(l.delta < 0, `${l.actual} points against ${l.expected} expected`);
+  ];
+  const l = luckOf(cheapWins);
+  /* Two wins from 1.7 expected is ahead of the market on the record, and 4
+     points from 4.3 expected is behind it on the board. */
+  assert.equal(l.actual, 4);
+  assert.equal(l.expected, 4.3);
+  assert.ok(l.delta < 0, `${l.actual} banked against ${l.expected} expected`);
 });
 
 test("when every favourite holds, backing favourites is never unlucky", () => {

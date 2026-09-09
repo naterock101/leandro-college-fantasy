@@ -44,20 +44,30 @@ export function Leaderboard({ data }: { data: Data }) {
     ? data.byWeek.reduce((n, w) => n + (w.scheduled ?? 0), 0)
     : undefined;
 
-  /* The expected record is a season-to-date number over settled games, so it
-     belongs to the live board and to no single week's snapshot - byWeek carries
-     no ledger and there is nothing honest to put in the column when a past week
-     is selected. It is hidden outright when the books priced nothing we have
-     settled, because a column of 0-0 reads as eight managers who have not
-     played rather than as a column with nothing to say.
-
-     `expectedWins` is checked rather than assumed: the record postdates the
-     luck block, so a cached page can meet a payload that has the block and none
-     of the four record fields, and one manager's undefined would print
-     "undefined-undefined" down the column. */
-  const luck = data.luck && data.luck.games > 0 ? data.luck : null;
-  const showExp = live && luck !== null &&
-    Object.values(luck.managers).some((m) => typeof m.expectedWins === "number");
+  /* The expected record accumulates exactly the way the real one does: what the
+     lines expected of week 1 on week 1, plus what they expected of week 2 on
+     week 2, and so on. So it is read out of the same week the rest of the row
+     is - the selected week's snapshot, or the last one there is for the live
+     board, which by construction is the season to date - rather than from a
+     single season-level figure that could only ever be right in one view. */
+  const expIdx = live ? data.byWeek.length - 1 : weekIdx;
+  const expWeek = data.byWeek[expIdx];
+  const expected = expWeek?.cumulative ?? {};
+  /* `expectedWins` is checked rather than assumed: it postdates the rest of
+     byWeek, so a cached page can meet a week that has cumulative totals and
+     none of the expectation, and one manager's undefined would print
+     "undefined-undefined" down the column. Hidden outright when nothing in view
+     was priced, because a column of 0-0 reads as eight managers who have not
+     played rather than as a column with nothing to say. */
+  const showExp = Object.values(expected).some(
+    (c) => typeof c.expectedWins === "number" && (c.priced ?? 0) > 0
+  );
+  /* Whether the two records are over the same games, which decides what the
+     footnote is allowed to claim. Derived from the rows on screen rather than
+     from a season-level count, so it stays true in a week view. */
+  const someUnpriced = Object.values(expected).some(
+    (c) => c.wins + c.losses > (c.priced ?? 0)
+  );
   const showProj = live && Boolean(data.projection);
   /* One count, so the header row and every detail row cannot disagree about
      how wide the table is. Two optional columns is where that starts going
@@ -131,40 +141,46 @@ export function Leaderboard({ data }: { data: Data }) {
                 <td className="r pts">{r.points}</td>
                 <td className="r mono">{r.wins}-{r.losses}</td>
                 {showExp && (() => {
-                  const lk = luck!.managers[r.manager];
+                  const c = expected[r.manager];
+                  /* Both halves together, not just the one that gets printed:
+                     they ship as a set, so a week carrying one and not the
+                     other is a bug rather than a version, and the dash is the
+                     right answer to both. It is also what narrows the optional
+                     fields for the rest of this cell. */
+                  const rec = c && (c.priced ?? 0) > 0 &&
+                    typeof c.expectedWins === "number" && typeof c.expectedLosses === "number"
+                    ? { wins: c.expectedWins, losses: c.expectedLosses, priced: c.priced ?? 0 }
+                    : null;
                   /* Nothing settled and priced for this manager is a dash, not
                      a 0-0: "we cannot say" and "expected to have played
                      nothing" are different sentences and must not print the
-                     same. Same guard as the header's, per row, because a
-                     manager added after the payload was written has no entry
-                     at all. */
-                  /* All four together, not just the one that gets printed. They
-                     ship as a set, so a payload carrying some of them is a bug
-                     rather than a version, and the dash is the right answer to
-                     both. It is also what narrows the optional fields for the
-                     rest of this cell. */
-                  const rec = lk && lk.games &&
-                    typeof lk.wins === "number" && typeof lk.losses === "number" &&
-                    typeof lk.expectedWins === "number" && typeof lk.expectedLosses === "number"
-                    ? { ...lk, wins: lk.wins, losses: lk.losses,
-                        expectedWins: lk.expectedWins, expectedLosses: lk.expectedLosses }
-                    : null;
+                     same. A manager who is not in this week's snapshot at all
+                     lands here too. */
                   if (!rec) {
-                    return <td className="r mono dim" title="No settled game of theirs was priced">-</td>;
+                    return (
+                      <td className="r mono dim" title="No settled game of theirs carried a line">-</td>
+                    );
                   }
                   /* Above or below the expectation gets a colour, and the
                      colour is never the only carrier - the two records are
-                     side by side and a reader can subtract them. Wins rather
-                     than points decides it, because wins are what this column
-                     is about; the points version of the same comparison is in
-                     the tooltip. */
-                  const over = rec.wins - rec.expectedWins;
+                     side by side and a reader can subtract them. Compared
+                     against the wins over the priced games rather than against
+                     Act W-L, which may count games this column cannot. */
+                  const played = r.wins + r.losses;
+                  const over = r.wins - (played - rec.priced) - rec.wins;
+                  const missing = played - rec.priced;
                   return (
                     <td
                       className={`r mono exp ${over > 0.05 ? "hot" : over < -0.05 ? "cold" : ""}`}
-                      title={`Over the ${rec.games} settled ${rec.games === 1 ? "game" : "games"} of theirs the books priced, the closing lines expected ${rec.expectedWins}-${rec.expectedLosses}; they went ${rec.wins}-${rec.losses}, for ${rec.actual} points against ${rec.expected} expected.`}
+                      title={
+                        `The closing lines expected ${rec.wins}-${rec.losses} from the ` +
+                        `${rec.priced} settled ${rec.priced === 1 ? "game" : "games"} of theirs that carried one` +
+                        (missing > 0
+                          ? `. ${missing} more ${missing === 1 ? "was" : "were"} never priced and are in neither column.`
+                          : `, which is every game behind their ${r.wins}-${r.losses}.`)
+                      }
                     >
-                      {rec.expectedWins}-{rec.expectedLosses}
+                      {rec.wins}-{rec.losses}
                     </td>
                   );
                 })()}
@@ -246,11 +262,11 @@ export function Leaderboard({ data }: { data: Data }) {
               ` ${data.projection!.unprojected} of ${data.projection!.games} games have no line and are left out.`}{" "}
           </>
         )}
-        {/* Only alongside the column it is distinguishing itself from, and
-            only on the live board: a past week's Act W-L is that week's
-            cumulative record, not the season's, and the sentence would be
-            flatly wrong under it. */}
-        {showExp && "Act W-L is every settled game. "}
+        {/* Deliberately not a sentence about Act W-L. Both records are now read
+            out of the same week, so "Act W-L is every settled game" would be
+            true only on the live board and flatly wrong under a week snapshot,
+            where it is that week's cumulative record. What the two columns do
+            and do not share is the footnote's job, and it says it per view. */}
         Ceiling is current points plus every remaining scheduled game, less any
         games between two of your own teams.{" "}
         {data.postseasonScheduled
@@ -266,7 +282,7 @@ export function Leaderboard({ data }: { data: Data }) {
           caption because <details> is flow content and a <p> may hold only
           phrasing - nested, the browser silently closes the paragraph first. */}
       {showExp && (
-        <details className="howluck">
+        <details className="howexp">
           <summary>
             {/* The clause that may not go behind the disclosure - and it has to
                 be the true one. A column headed "expected" that quietly left
@@ -276,10 +292,18 @@ export function Leaderboard({ data }: { data: Data }) {
                 because every settled game this season carried a line. So the
                 sentence follows `unpriced` rather than asserting the awkward
                 case unconditionally. */}
-            *Exp W-L is the record the closing lines expected.{" "}
-            {luck!.unpriced > 0
-              ? `It covers the ${luck!.games} settled ${luck!.games === 1 ? "game" : "games"} the books priced, which is not the same set as Act W-L: ${luck!.unpriced} settled ${luck!.unpriced === 1 ? "game" : "games"} had no line and ${luck!.unpriced === 1 ? "is" : "are"} in neither.`
-              : `All ${luck!.games} settled ${luck!.games === 1 ? "game" : "games"} carried one, so it is over exactly the games Act W-L is.`}
+            {/* The chain only reads as a chain when there is more than one
+                link in it. "What they expected of week 1, plus week 2, and so
+                on to week 1" is what the general sentence says on the first
+                week, which is the week this column is most likely to be read
+                on for the first time. */}
+            *Exp W-L is the record the closing lines expected
+            {expIdx === 0
+              ? ` of ${expWeek!.label.toLowerCase()}.`
+              : `, accumulated: what they expected of ${data.byWeek[0].label.toLowerCase()}, plus every week since, up to ${expWeek!.label.toLowerCase()}.`}{" "}
+            {someUnpriced
+              ? "A settled game the books never priced is in neither column, so the two do not always count the same games - hover a row for its own denominators."
+              : "Every settled game so far carried a line, so it is over exactly the games Act W-L is."}
           </summary>
           <p>
             Every closing line becomes a win probability - roughly, how often a
@@ -294,16 +318,17 @@ export function Leaderboard({ data }: { data: Data }) {
             manager who drafted five heavy favourites is expected to win a lot,
             and winning exactly that many puts them dead level. Running above
             the line means the results have gone your way beyond what was
-            priced in. Hover a cell for the same comparison in points, which
-            weights each game by what the team is worth - 3 for a power
-            conference team, 2 for everyone else - and can point the other way
-            when the wins were cheap and the losses dear.
+            priced in. It weighs every game the same, which is what makes it a
+            different sentence from the points beside it - a manager can be
+            ahead of the market on the record and behind it on the board, by
+            winning the cheap games and losing the dear one.
           </p>
           <p>
             The model assumes results scatter about {SIGMA} points either side
             of the spread, which is an assumption rather than a measurement.
-            Over the {luck!.games} priced games so far it expected 55.8
-            favourites to win and 59 did.
+            Each week is priced off the lines as they closed, so this is what
+            was expected of that week at the time and not a number rewritten
+            with hindsight.
           </p>
         </details>
       )}
@@ -352,16 +377,16 @@ export const css = `
     /* --dim, not an opacity: tests/contrast.test.tsx fails on any new text
        opacity, because an opacity stacked on a token is invisible to a palette
        audit and that is exactly how these captions came to sit at 2.53:1. */
-    .howluck{font-size:11px;line-height:1.5;color:var(--dim);margin:9px 0 0}
-    .howluck summary{cursor:pointer;list-style:none}
+    .howexp{font-size:11px;line-height:1.5;color:var(--dim);margin:9px 0 0}
+    .howexp summary{cursor:pointer;list-style:none}
     /* The marker is replaced rather than hidden: a disclosure with no
        affordance is a paragraph nobody knows to click. */
-    .howluck summary::-webkit-details-marker{display:none}
-    .howluck summary::after{content:" — how it works";color:var(--muted)}
-    .howluck[open] summary::after{content:" — hide"}
-    .howluck summary:hover::after{text-decoration:underline}
-    .howluck summary:focus-visible{outline:2px solid var(--amber);outline-offset:2px;border-radius:3px}
-    .howluck p{margin:8px 0 0;max-width:62ch}
+    .howexp summary::-webkit-details-marker{display:none}
+    .howexp summary::after{content:" — how it works";color:var(--muted)}
+    .howexp[open] summary::after{content:" — hide"}
+    .howexp summary:hover::after{text-decoration:underline}
+    .howexp summary:focus-visible{outline:2px solid var(--amber);outline-offset:2px;border-radius:3px}
+    .howexp p{margin:8px 0 0;max-width:62ch}
     .exp{white-space:nowrap}
     .exp.hot{color:var(--teal)} .exp.cold{color:var(--red)}
     .dim{color:var(--dim)}

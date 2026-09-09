@@ -95,7 +95,19 @@ export type Data = {
                before it was added, so always read it through a fallback */
             scheduled?: number;
             delta: Record<string, number>;
-            cumulative: Record<string, { points: number; wins: number; losses: number }> }[];
+            /* The running totals at the end of this week. `expectedWins` and
+               `expectedLosses` are the record the closing lines expected by
+               then - this week's expectation plus every week before it - and
+               `priced` is how many of the games behind that pair carried a
+               line. All three postdate the rest of the block, so a cached page
+               has to render a payload written before they existed; the Exp W-L
+               column checks for them rather than assuming the week implies
+               them. `priced` travels with the pair because two records side by
+               side are only comparable when a reader can see whether they
+               cover the same games. */
+            cumulative: Record<string, { points: number; wins: number; losses: number;
+                                         expectedWins?: number; expectedLosses?: number;
+                                         priced?: number }> }[];
   linesFetchedAt: string | null;
   projection: {
     label: string; games: number; projected: number; unprojected: number;
@@ -110,25 +122,19 @@ export type Data = {
                                expectedPoints?: number }>;
   } | null;
   /* Points banked against points the closing lines expected, over settled games
-     that had a line, and the same comparison as a record. `unpriced` is the
-     count that had none and were left out of both sides of that subtraction -
-     it is on screen because a number over a third of the season, presented as a
-     season, would be worse than none. Optional for the same reason as results
-     and unscored.
+     that had a line. `unpriced` is the count that had none and were left out of
+     both sides of that subtraction - it is published because a luck number over
+     a third of the season, presented as a season, would be worse than none.
+     Optional for the same reason as results and unscored.
 
-     The four record fields carry the same `?` as `expectedGained` above and for
-     the same reason: they postdate the luck block, so a cached page has to
-     render a payload written before they existed. The Expected column checks
-     for them rather than assuming the block implies them. */
+     Nothing on the page reads this today: the luck column came off the
+     leaderboard and the expected *record* lives in byWeek, where it
+     accumulates. It stays in the payload because it is the season's only
+     record of the points comparison, and the run log prints it. */
   luck?: {
     games: number; unpriced: number;
     managers: Record<string, { games: number; actual: number;
-                               expected: number; delta: number;
-                               /* the record over the ledger's games only, which
-                                  is not the standings record - that one counts
-                                  the unpriced games too */
-                               wins?: number; losses?: number;
-                               expectedWins?: number; expectedLosses?: number }>;
+                               expected: number; delta: number }>;
   } | null;
   gamesOfWeek: { label: string | null; games: Game[] };
   byConference: Record<string, {

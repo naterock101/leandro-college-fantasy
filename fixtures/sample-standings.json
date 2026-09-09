@@ -1066,81 +1066,49 @@
         "games": 3,
         "actual": 5,
         "expected": 3.9,
-        "delta": 1.1,
-        "wins": 2,
-        "losses": 1,
-        "expectedWins": 1.5,
-        "expectedLosses": 1.5
+        "delta": 1.1
       },
       "nathan": {
         "games": 2,
         "actual": 2,
         "expected": 2.1,
-        "delta": -0.1,
-        "wins": 1,
-        "losses": 1,
-        "expectedWins": 1.1,
-        "expectedLosses": 0.9
+        "delta": -0.1
       },
       "tconn": {
         "games": 2,
         "actual": 3,
         "expected": 3.2,
-        "delta": -0.2,
-        "wins": 1,
-        "losses": 1,
-        "expectedWins": 1.2,
-        "expectedLosses": 0.8
+        "delta": -0.2
       },
       "adam": {
         "games": 1,
         "actual": 0,
         "expected": 1.7,
-        "delta": -1.7,
-        "wins": 0,
-        "losses": 1,
-        "expectedWins": 0.6,
-        "expectedLosses": 0.4
+        "delta": -1.7
       },
       "charlie": {
         "games": 1,
         "actual": 0,
         "expected": 1.8,
-        "delta": -1.8,
-        "wins": 0,
-        "losses": 1,
-        "expectedWins": 0.6,
-        "expectedLosses": 0.4
+        "delta": -1.8
       },
       "clint": {
         "games": 1,
         "actual": 0,
         "expected": 0.8,
-        "delta": -0.8,
-        "wins": 0,
-        "losses": 1,
-        "expectedWins": 0.3,
-        "expectedLosses": 0.7
+        "delta": -0.8
       },
       "leandro": {
         "games": 0,
         "actual": 0,
         "expected": 0,
-        "delta": 0,
-        "wins": 0,
-        "losses": 0,
-        "expectedWins": 0,
-        "expectedLosses": 0
+        "delta": 0
       },
       "steve": {
         "games": 0,
         "actual": 0,
         "expected": 0,
-        "delta": 0,
-        "wins": 0,
-        "losses": 0,
-        "expectedWins": 0,
-        "expectedLosses": 0
+        "delta": 0
       }
     }
   },
@@ -1166,42 +1134,66 @@
         "nathan": {
           "points": 0,
           "wins": 0,
-          "losses": 1
+          "losses": 1,
+          "expectedWins": 0.6,
+          "expectedLosses": 0.4,
+          "priced": 1
         },
         "tconn": {
           "points": 3,
           "wins": 1,
-          "losses": 1
+          "losses": 1,
+          "expectedWins": 0.7,
+          "expectedLosses": 0.3,
+          "priced": 1
         },
         "leandro": {
           "points": 0,
           "wins": 0,
-          "losses": 1
+          "losses": 1,
+          "expectedWins": 0,
+          "expectedLosses": 0,
+          "priced": 0
         },
         "charlie": {
           "points": 0,
           "wins": 0,
-          "losses": 0
+          "losses": 0,
+          "expectedWins": 0,
+          "expectedLosses": 0,
+          "priced": 0
         },
         "steve": {
           "points": 0,
           "wins": 0,
-          "losses": 0
+          "losses": 0,
+          "expectedWins": 0,
+          "expectedLosses": 0,
+          "priced": 0
         },
         "devish": {
           "points": 7,
           "wins": 3,
-          "losses": 1
+          "losses": 1,
+          "expectedWins": 1,
+          "expectedLosses": 1,
+          "priced": 2
         },
         "adam": {
           "points": 2,
           "wins": 1,
-          "losses": 1
+          "losses": 1,
+          "expectedWins": 0,
+          "expectedLosses": 0,
+          "priced": 0
         },
         "clint": {
           "points": 0,
           "wins": 0,
-          "losses": 2
+          "losses": 2,
+          "expectedWins": 0.3,
+          "expectedLosses": 0.7,
+          "priced": 1
         }
       }
     },
@@ -1226,42 +1218,66 @@
         "nathan": {
           "points": 5,
           "wins": 2,
-          "losses": 2
+          "losses": 2,
+          "expectedWins": 1.1,
+          "expectedLosses": 0.9,
+          "priced": 2
         },
         "tconn": {
           "points": 6,
           "wins": 2,
-          "losses": 2
+          "losses": 2,
+          "expectedWins": 1.2,
+          "expectedLosses": 0.8,
+          "priced": 2
         },
         "leandro": {
           "points": 0,
           "wins": 0,
-          "losses": 1
+          "losses": 1,
+          "expectedWins": 0,
+          "expectedLosses": 0,
+          "priced": 0
         },
         "charlie": {
           "points": 0,
           "wins": 0,
-          "losses": 1
+          "losses": 1,
+          "expectedWins": 0.6,
+          "expectedLosses": 0.4,
+          "priced": 1
         },
         "steve": {
           "points": 0,
           "wins": 0,
-          "losses": 0
+          "losses": 0,
+          "expectedWins": 0,
+          "expectedLosses": 0,
+          "priced": 0
         },
         "devish": {
           "points": 7,
           "wins": 3,
-          "losses": 1
+          "losses": 1,
+          "expectedWins": 1,
+          "expectedLosses": 1,
+          "priced": 2
         },
         "adam": {
           "points": 2,
           "wins": 1,
-          "losses": 1
+          "losses": 1,
+          "expectedWins": 0,
+          "expectedLosses": 0,
+          "priced": 0
         },
         "clint": {
           "points": 0,
           "wins": 0,
-          "losses": 2
+          "losses": 2,
+          "expectedWins": 0.3,
+          "expectedLosses": 0.7,
+          "priced": 1
         }
       }
     },
@@ -1286,42 +1302,66 @@
         "nathan": {
           "points": 7,
           "wins": 3,
-          "losses": 2
+          "losses": 2,
+          "expectedWins": 1.1,
+          "expectedLosses": 0.9,
+          "priced": 2
         },
         "tconn": {
           "points": 6,
           "wins": 2,
-          "losses": 2
+          "losses": 2,
+          "expectedWins": 1.2,
+          "expectedLosses": 0.8,
+          "priced": 2
         },
         "leandro": {
           "points": 0,
           "wins": 0,
-          "losses": 1
+          "losses": 1,
+          "expectedWins": 0,
+          "expectedLosses": 0,
+          "priced": 0
         },
         "charlie": {
           "points": 0,
           "wins": 0,
-          "losses": 1
+          "losses": 1,
+          "expectedWins": 0.6,
+          "expectedLosses": 0.4,
+          "priced": 1
         },
         "steve": {
           "points": 0,
           "wins": 0,
-          "losses": 0
+          "losses": 0,
+          "expectedWins": 0,
+          "expectedLosses": 0,
+          "priced": 0
         },
         "devish": {
           "points": 7,
           "wins": 3,
-          "losses": 1
+          "losses": 1,
+          "expectedWins": 1,
+          "expectedLosses": 1,
+          "priced": 2
         },
         "adam": {
           "points": 2,
           "wins": 1,
-          "losses": 1
+          "losses": 1,
+          "expectedWins": 0,
+          "expectedLosses": 0,
+          "priced": 0
         },
         "clint": {
           "points": 0,
           "wins": 0,
-          "losses": 3
+          "losses": 3,
+          "expectedWins": 0.3,
+          "expectedLosses": 0.7,
+          "priced": 1
         }
       }
     },
@@ -1346,42 +1386,66 @@
         "nathan": {
           "points": 7,
           "wins": 3,
-          "losses": 2
+          "losses": 2,
+          "expectedWins": 1.1,
+          "expectedLosses": 0.9,
+          "priced": 2
         },
         "tconn": {
           "points": 6,
           "wins": 2,
-          "losses": 2
+          "losses": 2,
+          "expectedWins": 1.2,
+          "expectedLosses": 0.8,
+          "priced": 2
         },
         "leandro": {
           "points": 0,
           "wins": 0,
-          "losses": 1
+          "losses": 1,
+          "expectedWins": 0,
+          "expectedLosses": 0,
+          "priced": 0
         },
         "charlie": {
           "points": 0,
           "wins": 0,
-          "losses": 1
+          "losses": 1,
+          "expectedWins": 0.6,
+          "expectedLosses": 0.4,
+          "priced": 1
         },
         "steve": {
           "points": 0,
           "wins": 0,
-          "losses": 0
+          "losses": 0,
+          "expectedWins": 0,
+          "expectedLosses": 0,
+          "priced": 0
         },
         "devish": {
           "points": 10,
           "wins": 4,
-          "losses": 1
+          "losses": 1,
+          "expectedWins": 1.5,
+          "expectedLosses": 1.5,
+          "priced": 3
         },
         "adam": {
           "points": 2,
           "wins": 1,
-          "losses": 2
+          "losses": 2,
+          "expectedWins": 0.6,
+          "expectedLosses": 0.4,
+          "priced": 1
         },
         "clint": {
           "points": 0,
           "wins": 0,
-          "losses": 3
+          "losses": 3,
+          "expectedWins": 0.3,
+          "expectedLosses": 0.7,
+          "priced": 1
         }
       }
     }

@@ -1,25 +1,27 @@
 /**
  * The leaderboard's two records, and the window between them.
  *
- * Act W-L is every settled game. Exp W-L is what the closing lines expected
- * over the settled games that had a line - a subset, which may or may not be a
- * proper one: the fixture leaves eight games unpriced and the live season
- * currently leaves none. Every assertion here is about that gap being handled
- * honestly in both directions:
+ * Both columns accumulate, and both are read out of the same week. Act W-L is
+ * every settled game up to the week on screen; Exp W-L is what the closing
+ * lines expected of week 1, plus week 2, and so on to that same week - over
+ * whichever of those games carried a line, which may or may not be all of them
+ * (the fixture leaves eight unpriced, the live season currently leaves none).
  *
- * 1. **The column disappears rather than inventing numbers.** The record
- *    fields postdate the luck block, so a browser holding this JS can be
- *    handed a payload that has `luck` and none of them. The failure that
- *    reads as plausible is a column of `undefined-undefined`, or worse `0-0`,
- *    which says "expected to have played nothing" in the words of "we have
- *    nothing to say".
- * 2. **A manager with no priced game gets a dash, not a nought.** Same
- *    sentence, one row down.
- * 3. **The denominator is on screen.** Not in a tooltip, not behind the
- *    disclosure's fold: in the summary a reader sees without clicking.
- * 4. **And it is the true denominator.** A footnote that announces a mismatch
- *    when every settled game was priced is wrong in the same way and just as
- *    loudly as one that hides a real mismatch.
+ * What is worth testing:
+ *
+ * 1. **It really accumulates.** Week 2 is week 1 plus week 2, not week 2 on its
+ *    own. A column that silently showed one week's expectation against a
+ *    season's record would look entirely plausible and be nonsense.
+ * 2. **It follows the week strip.** Both records move together; neither is
+ *    pinned to a season-level figure that is right in one view only.
+ * 3. **The column disappears rather than inventing numbers.** The expectation
+ *    postdates the rest of `byWeek`, so a browser holding this JS can be handed
+ *    weeks that have cumulative totals and none of it. The failure that reads
+ *    as plausible is `undefined-undefined`, or worse `0-0`, which says
+ *    "expected to have played nothing" in the words of "we cannot say".
+ * 4. **The footnote states the true denominator.** Announcing a mismatch when
+ *    every settled game was priced is wrong in the same way, and just as
+ *    loudly, as hiding a real one.
  */
 
 import { describe, expect, test } from "vitest";
@@ -46,10 +48,13 @@ const headers = (root: HTMLElement) =>
     .getAllByRole("columnheader")
     .map((th) => th.textContent!.trim());
 
-/** One manager's row, as `{ header: text }`. */
+/** One manager's row, as `{ header: text }`.
+ *  Scoped to the leaderboard's own table: on the full page a manager's name
+ *  also appears in games of the week, and an unscoped lookup finds both. */
 const row = (root: HTMLElement, manager: string) => {
   const cols = headers(root);
-  const cell = within(root).getByText(manager).closest("tr")!;
+  const table = within(root).getAllByRole("table")[0];
+  const cell = within(table).getByText(manager).closest("tr")!;
   const out: Record<string, string> = {};
   [...cell.querySelectorAll("td")].forEach((td, i) => {
     out[cols[i]] = td.textContent!.trim();
@@ -65,78 +70,138 @@ describe("the two records", () => {
     ]);
   });
 
-  test("Act W-L is the standings record and Exp W-L is the ledger's", () => {
+  /** The expectation the payload carries for a manager at the end of a week. */
+  const weekly = (i: number, manager: string) =>
+    data.byWeek[i].cumulative[manager] as {
+      points: number; wins: number; losses: number;
+      expectedWins: number; expectedLosses: number; priced: number;
+    };
+
+  const lastWeek = data.byWeek.length - 1;
+
+  test("Act W-L is the season's record and Exp W-L is the accumulated expectation", () => {
     const root = board(data).container as unknown as HTMLElement;
-    /* Devish is 4-1 across every settled game and 2-1 across the three of them
-       the books priced, which is exactly the gap this column has to survive:
-       an expected record that adds up to fewer games than the actual one. */
+    /* Devish is 4-1 across every settled game and the lines expected 1.5-1.5
+       from the three of them the books priced, which is exactly the gap this
+       column has to survive: an expectation over fewer games than the record
+       beside it. */
     const r = row(root, "Devish");
     const standings = data.standings.find((s) => s.manager === "devish")!;
-    const ledger = data.luck!.managers.devish;
+    const c = weekly(lastWeek, "devish");
 
     expect(r["Act W-L"]).toBe(`${standings.wins}-${standings.losses}`);
-    expect(r["Exp W-L*"]).toBe(`${ledger.expectedWins}-${ledger.expectedLosses}`);
-    expect(ledger.games, "the fixture stopped exercising the gap")
+    expect(r["Exp W-L*"]).toBe(`${c.expectedWins}-${c.expectedLosses}`);
+    expect(c.priced, "the fixture stopped exercising the gap")
       .toBeLessThan(standings.wins + standings.losses);
+  });
+
+  test("the live board reads the last week, which is the season to date", () => {
+    /* The one thing that lets a single per-week figure serve both views. If
+       byWeek ever stopped ending at the season's totals, the live board would
+       quietly show a stale expectation against a current record. */
+    for (const s of data.standings) {
+      const c = weekly(lastWeek, s.manager);
+      expect(c.wins, `${s.manager}'s wins`).toBe(s.wins);
+      expect(c.losses, `${s.manager}'s losses`).toBe(s.losses);
+      expect(c.points, `${s.manager}'s points`).toBe(s.points);
+    }
+  });
+
+  test("it accumulates rather than showing one week on its own", () => {
+    /* The failure that would look entirely plausible: week 2 showing week 2's
+       expectation against week 2's cumulative record. Every week's expectation
+       has to be at least the week before's, and somewhere it has to grow. */
+    let grew = false;
+    for (const m of data.standings.map((s) => s.manager)) {
+      for (let i = 1; i <= lastWeek; i++) {
+        const prev = weekly(i - 1, m);
+        const now = weekly(i, m);
+        if (!prev || !now) continue;
+        expect(now.expectedWins, `${m} went backwards at week ${i}`)
+          .toBeGreaterThanOrEqual(prev.expectedWins);
+        expect(now.priced, `${m}'s denominator shrank at week ${i}`)
+          .toBeGreaterThanOrEqual(prev.priced);
+        if (now.priced > prev.priced) grew = true;
+      }
+    }
+    expect(grew, "no manager's expectation grew, so this measured nothing").toBe(true);
+  });
+
+  test("and the published pair always adds back to its own denominator", () => {
+    /* Rounding a running total is how a twelve-week column comes to say
+       1.5-1.6 of three games. The losses are derived from the published wins
+       for exactly this reason. */
+    for (const w of data.byWeek) {
+      for (const [m, c] of Object.entries(w.cumulative)) {
+        const rec = c as { expectedWins: number; expectedLosses: number; priced: number };
+        expect(Math.round((rec.expectedWins + rec.expectedLosses) * 10) / 10,
+          `${m} at ${w.label}`).toBe(rec.priced);
+      }
+    }
   });
 
   test("a manager with no priced game reads as a dash, not as 0-0", () => {
     const root = board(data).container as unknown as HTMLElement;
     /* Leandro's one settled game was never priced. "Nothing to say" and
        "expected to be level at nothing" are different sentences. */
-    expect(data.luck!.managers.leandro.games).toBe(0);
+    expect(weekly(lastWeek, "leandro").priced).toBe(0);
     expect(row(root, "Leandro")["Exp W-L*"]).toBe("-");
   });
 
   test("the games it does not cover are in the summary, not behind the fold", () => {
     board(data);
     /* getByText on the <summary> itself: a reader who never opens the
-       disclosure still has to be told the two columns count different games,
-       or the subtraction they do in their head is wrong. */
+       disclosure still has to be told the two columns can count different
+       games, or the subtraction they do in their head is wrong. */
     const summary = screen.getByText(/Exp W-L is the record the closing lines expected/i);
     expect(summary.tagName).toBe("SUMMARY");
-    expect(data.luck!.unpriced, "the fixture stopped exercising the mismatch")
-      .toBeGreaterThan(0);
-    expect(summary.textContent).toMatch(
-      new RegExp(`${data.luck!.unpriced} settled games? had no line`)
-    );
-    expect(summary.textContent).toMatch(/not the same set as Act W-L/i);
+    const mismatched = Object.values(data.byWeek[lastWeek].cumulative).some((c) => {
+      const rec = c as { wins: number; losses: number; priced: number };
+      return rec.wins + rec.losses > rec.priced;
+    });
+    expect(mismatched, "the fixture stopped exercising the mismatch").toBe(true);
+    expect(summary.textContent).toMatch(/do not always count the same games/i);
   });
 
   test("and it does not claim a mismatch when there is not one", () => {
     /* The live payload today is 65 settled games with a line and none without,
-       so the two columns cover exactly the same games and print the same
-       denominators. A footnote insisting otherwise would be the most confident
-       wrong sentence on the page - which is the thing this column's whole
-       small print exists to avoid. */
-    const priced = {
+       so the two columns cover exactly the same games. A footnote insisting
+       otherwise would be the most confident wrong sentence on the page - which
+       is the thing this column's whole small print exists to avoid. */
+    const allPriced = {
       ...data,
-      luck: { ...data.luck!, unpriced: 0 },
+      byWeek: data.byWeek.map((w) => ({
+        ...w,
+        cumulative: Object.fromEntries(
+          Object.entries(w.cumulative).map(([m, c]) => {
+            const rec = c as any;
+            return [m, { ...rec, priced: rec.wins + rec.losses }];
+          })
+        ),
+      })),
     } as unknown as Data;
-    board(priced);
+    board(allPriced);
     const summary = screen.getByText(/Exp W-L is the record the closing lines expected/i);
-    expect(summary.textContent).not.toMatch(/not the same set/i);
-    expect(summary.textContent).not.toMatch(/had no line/i);
+    expect(summary.textContent).not.toMatch(/do not always count the same games/i);
     expect(summary.textContent).toMatch(/exactly the games Act W-L is/i);
   });
 });
 
 describe("payloads that predate the column", () => {
-  /* The window this is about: a browser holding today's JS, handed a payload
-     the bot wrote before the record fields existed. It has `luck`, so the old
-     gate would have shown the column, and every cell would have read
-     "undefined-undefined". */
+  /* The window this is about: a browser holding today's JS, handed weeks the
+     bot wrote before the expectation existed. They have cumulative totals, so
+     the rows render; every Exp cell would read "undefined-undefined". */
   const legacy = {
     ...data,
-    luck: {
-      ...data.luck!,
-      managers: Object.fromEntries(
-        Object.entries(data.luck!.managers).map(([m, l]) => [
-          m,
-          { games: l.games, actual: l.actual, expected: l.expected, delta: l.delta },
-        ])
+    byWeek: data.byWeek.map((w) => ({
+      ...w,
+      cumulative: Object.fromEntries(
+        Object.entries(w.cumulative).map(([m, c]) => {
+          const rec = c as any;
+          return [m, { points: rec.points, wins: rec.wins, losses: rec.losses }];
+        })
       ),
-    },
+    })),
   } as unknown as Data;
 
   test("drop the column rather than printing undefined down it", () => {
@@ -151,34 +216,40 @@ describe("payloads that predate the column", () => {
   });
 });
 
-describe("a past week", () => {
-  test("has no expected record, because byWeek carries no ledger", async () => {
+describe("the week strip", () => {
+  test("moves both records together", async () => {
+    /* The point of reading the expectation out of the selected week rather
+       than out of one season-level figure: pick week 1 and both columns are
+       week 1's, not week 1's record against the season's expectation. */
     stubFetch();
     const { container } = await renderPage();
     const root = container as unknown as HTMLElement;
-    expect(headers(root)).toContain("Exp W-L*");
+    const lastWeek = data.byWeek.length - 1;
+    const at = (i: number, m: string) => data.byWeek[i].cumulative[m] as any;
 
-    /* The week strip: "Live" and then one button per scored week. Picking a
-       week replaces the live totals with that week's snapshot, and the ledger
-       does not follow - so the column has to go rather than keep showing a
-       season-to-date number against a one-week record. */
+    expect(headers(root)).toContain("Exp W-L*");
+    expect(row(root, "Nathan")["Exp W-L*"])
+      .toBe(`${at(lastWeek, "nathan").expectedWins}-${at(lastWeek, "nathan").expectedLosses}`);
+
     fireEvent.click(within(root).getAllByRole("button", { name: "1" })[0]);
-    expect(headers(root)).not.toContain("Exp W-L*");
-    expect(headers(root)).toContain("Act W-L");
+    expect(headers(root), "the column vanished on a week view").toContain("Exp W-L*");
+    expect(row(root, "Nathan")["Act W-L"])
+      .toBe(`${at(0, "nathan").wins}-${at(0, "nathan").losses}`);
+    expect(row(root, "Nathan")["Exp W-L*"])
+      .toBe(`${at(0, "nathan").expectedWins}-${at(0, "nathan").expectedLosses}`);
+
+    /* And week 1's expectation is genuinely smaller than the season's, which
+       is what makes the assertion above about accumulation and not about two
+       ways of writing the same number. */
+    expect(at(0, "nathan").expectedWins).toBeLessThan(at(lastWeek, "nathan").expectedWins);
   });
 
-  test("and drops the sentence that says Act W-L is the whole season", async () => {
-    /* Under a week snapshot the column is that week's cumulative record, so
-       "Act W-L is every settled game" is simply false - and with no Exp column
-       beside it, the sentence has nothing left to distinguish anyway. */
+  test("names the week the expectation has run to", async () => {
     stubFetch();
     const { container } = await renderPage();
     const root = container as unknown as HTMLElement;
-    expect(within(root).getByText(/Act W-L is every settled game/i)).toBeTruthy();
-
     fireEvent.click(within(root).getAllByRole("button", { name: "1" })[0]);
-    expect(within(root).queryByText(/Act W-L is every settled game/i)).toBeNull();
-    /* the rest of the caption is still there */
-    expect(within(root).getByText(/Ceiling is current points/i)).toBeTruthy();
+    const summary = within(root).getByText(/Exp W-L is the record the closing lines expected/i);
+    expect(summary.textContent).toMatch(/week 1/i);
   });
 });
