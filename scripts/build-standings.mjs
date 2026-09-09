@@ -524,7 +524,12 @@ function project(table, upcoming, lines, val) {
     expected[row.manager] = 0;
   }
 
-  let projected = 0, unprojected = 0;
+  /* Two ways a game reaches the end of this loop unprojected, and they are
+     different sentences: the books never priced it, or they priced it and
+     called it even. `unprojected` stays as their sum because a browser holding
+     cached JS reads it, and the two halves ride alongside so the caption can
+     say which happened rather than asserting the commoner one. */
+  let projected = 0, unprojected = 0, unpriced = 0, pickems = 0;
   for (const g of week) {
     const line = g.spread;
 
@@ -539,7 +544,11 @@ function project(table, upcoming, lines, val) {
       expected[sd.manager] += p * val(sd.tier);
     }
 
-    if (!line || !line.favorite) { unprojected++; continue; }
+    if (!line || !line.favorite) {
+      unprojected++;
+      if (line) pickems++; else unpriced++;
+      continue;
+    }
     projected++;
     for (const sd of [g.home, g.away]) {
       if (!sd.manager) continue;
@@ -592,6 +601,8 @@ function project(table, upcoming, lines, val) {
     games: week.length,
     projected,
     unprojected,
+    unpriced,
+    pickems,
     managers,
   };
 }

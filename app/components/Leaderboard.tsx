@@ -97,6 +97,52 @@ const settled = (c: Cume, r: { wins: number; losses: number; points: number }) =
   };
 };
 
+/**
+ * Why the naive projection could not project some of the coming week.
+ *
+ * "Have no line" was the whole sentence, and it is only true of one of the two
+ * reasons a game gets left out. A pick-em *has* a line - the books priced it
+ * and called it even - and it is skipped because there is no favourite to hand
+ * the points to, which is a different fact about a different kind of game. The
+ * weighted expectation in the tooltip does use it, at half a win a side, so
+ * the page was calling a game unpriced in one place and pricing it in another.
+ *
+ * The counts are optional, so a payload that predates them keeps the old
+ * wording rather than guessing which half its total was.
+ */
+const leftOut = (p: Data["projection"] & object) => {
+  /* One game left out is a real week - it is the commonest case there is - so
+     the verbs agree with the count rather than being written for the plural
+     and left to read as broken English the first time it is 1. */
+  const n = (count: number) => ({
+    of: `${count} of ${p.games} games`,
+    is: count === 1 ? "is" : "are",
+    has: count === 1 ? "has" : "have",
+  });
+
+  /* The halves have to add back to the total they are halves of. They are
+     written together and always will be, but the sentence below reads them as
+     a complete account of `unprojected` - and a payload where they are not one
+     would print "0 of 60 games have no line" while the column beside it left
+     one out. Same fallback as a payload that has no halves at all. */
+  if (typeof p.unpriced !== "number" || typeof p.pickems !== "number"
+      || p.unpriced + p.pickems !== p.unprojected) {
+    const w = n(p.unprojected);
+    return `${w.of} could not be projected and ${w.is} left out.`;
+  }
+  if (p.pickems === 0) {
+    const w = n(p.unpriced);
+    return `${w.of} ${w.has} no line and ${w.is} left out.`;
+  }
+  if (p.unpriced === 0) {
+    const w = n(p.pickems);
+    return `${w.of} ${p.pickems === 1 ? "is a pick-em" : "are pick-ems"} with no ` +
+      `favourite, and ${w.is} left out.`;
+  }
+  return `${n(p.unprojected).of} are left out: ${p.unpriced} with no line, and ` +
+    `${p.pickems} ${p.pickems === 1 ? "that is a pick-em" : "that are pick-ems"}.`;
+};
+
 /** The tail of an expectation tooltip: what else, if anything, it left out. */
 const denominator = (missing: number, whole: string) =>
   missing > 0
@@ -440,8 +486,7 @@ export function Leaderboard({ data }: { data: Data }) {
             {data.projection!.label.toLowerCase()} if every betting favourite
             wins, and the arrow is where that would move you in the table. The
             record behind it is in your own row.
-            {data.projection!.unprojected > 0 &&
-              ` ${data.projection!.unprojected} of ${data.projection!.games} games have no line and are left out.`}{" "}
+            {data.projection!.unprojected > 0 && ` ${leftOut(data.projection!)}`}{" "}
           </>
         )}
         {/* Deliberately not a sentence about Pts. Both columns are read out of

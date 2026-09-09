@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 
 import { cap, shortDate } from "../../lib/format.mjs";
-import { favouriteProbability, percent, SIGMA } from "../../lib/winprob.mjs";
+import { favouriteChance, percent, SIGMA } from "../../lib/winprob.mjs";
 import { useViewState } from "../hooks/useViewState";
 import { Dropdown } from "./Dropdown";
 import { TeamName } from "./TeamName";
@@ -101,10 +101,10 @@ export function GamesOfWeek({ data }: { data: Data }) {
             <span
               className="mono wp"
               title={g.spread.favorite
-                ? `${g.spread.favorite} wins ${percent(favouriteProbability(g.spread.spread))} of the time at this price`
+                ? `${g.spread.favorite} wins ${percent(favouriteChance(g.spread))} of the time at this price`
                 : "A pick-em: even money either way"}
             >
-              {percent(favouriteProbability(g.spread.spread))}
+              {percent(favouriteChance(g.spread))}
             </span>
           )}
           <span className="mono stakes">{g.stakes}pt</span>
@@ -113,13 +113,23 @@ export function GamesOfWeek({ data }: { data: Data }) {
       {!games.length && <p className="caption">No games match that filter.</p>}
       {data.linesFetchedAt && (
         <p className="caption">
-          Spreads from {books(games)}, refreshed{" "}
+          Lines from {books(games)}, refreshed{" "}
           {new Date(data.linesFetchedAt).toLocaleString(undefined,
             { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}.
-          {" "}The percentage is the favourite&rsquo;s chance of winning outright,
-          assuming results land about {SIGMA} points either side of the number -
-          which is fitted to about 9,600 games rather than guessed, but is still
-          a model and not a measurement of this game.
+          {" "}The percentage is the favourite&rsquo;s chance of winning
+          outright, assuming results land about {SIGMA} points either side of
+          the number - which is fitted to about 9,600 games rather than guessed,
+          but is still a model and not a measurement of this game.
+          {games.some((g) => typeof g.spread?.probability === "number") && (
+            /* Only when one is on screen. A standing sentence about a case
+               that arises on about one game a week would be a paragraph the
+               league re-reads all season for nothing. */
+            <>
+              {" "}A row marked ML is one the book would not put a spread on:
+              there the percentage is the moneyline itself with the margin
+              taken out, and no model is involved.
+            </>
+          )}
         </p>
       )}
     </section>

@@ -33,11 +33,18 @@ export type Load = "idle" | "loading" | "ready" | "failed";
 export type Tier = "p4" | "g5";
 
 export type Spread = {
-  spread: number;
+  /* null on a price built from the moneyline, which is what a book leaves up
+     on a game it will not put a spread on. Never back-solved from the model:
+     a spread nobody posted has no business being printed as one. */
+  spread: number | null;
   favorite: string | null;
   formatted: string;
   overUnder: number | null;
   provider: string;
+  /* The favourite's chance, de-vigged from the two American prices. Present
+     only on a moneyline price, and read in preference to the spread - see
+     favouriteChance in lib/winprob.mjs. */
+  probability?: number;
 };
 
 export type TeamRow = {
@@ -124,6 +131,11 @@ export type Data = {
   linesFetchedAt: string | null;
   projection: {
     label: string; games: number; projected: number; unprojected: number;
+    /* The two halves of `unprojected`, which is their sum: games the books
+       never priced, and games they priced as a pick-em. Optional because they
+       postdate it, and the caption falls back to the vaguer sentence when a
+       payload has only the total. */
+    unpriced?: number; pickems?: number;
     managers: Record<string, { wins: number; losses: number; points: number;
                                gained: number; rankDelta: number;
                                /* The line-weighted projection, added alongside

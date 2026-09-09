@@ -450,6 +450,147 @@
           ]
         }
       ]
+    },
+    {
+      "id": "401868326",
+      "date": "2026-09-12T20:00Z",
+      "name": "Alabama State Hornets at Troy Trojans",
+      "shortName": "ALST @ TROY",
+      "competitions": [
+        {
+          "id": "401868326",
+          "date": "2026-09-12T20:00Z",
+          "neutralSite": false,
+          "competitors": [
+            {
+              "id": "2653",
+              "homeAway": "home",
+              "score": "0",
+              "team": {
+                "id": "2653",
+                "location": "Troy",
+                "name": "Trojans",
+                "abbreviation": "TROY",
+                "displayName": "Troy Trojans"
+              }
+            },
+            {
+              "id": "2011",
+              "homeAway": "away",
+              "score": "0",
+              "team": {
+                "id": "2011",
+                "location": "Alabama State",
+                "name": "Hornets",
+                "abbreviation": "ALST",
+                "displayName": "Alabama State Hornets"
+              }
+            }
+          ],
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled"
+            }
+          },
+          "odds": [
+            {
+              "provider": {
+                "id": "100",
+                "name": "DraftKings",
+                "priority": 1
+              },
+              "overUnder": 51.5,
+              "awayTeamOdds": {
+                "favorite": false,
+                "underdog": false,
+                "favoriteAtOpen": false,
+                "team": {
+                  "id": "2011",
+                  "abbreviation": "ALST",
+                  "name": "Hornets",
+                  "displayName": "Alabama State Hornets"
+                }
+              },
+              "homeTeamOdds": {
+                "favorite": false,
+                "underdog": false,
+                "favoriteAtOpen": false,
+                "team": {
+                  "id": "2653",
+                  "abbreviation": "TROY",
+                  "name": "Trojans",
+                  "displayName": "Troy Trojans"
+                }
+              },
+              "moneyline": {
+                "displayName": "Moneyline",
+                "shortDisplayName": "ML",
+                "home": {
+                  "close": {
+                    "odds": "-1650"
+                  },
+                  "open": {
+                    "odds": "-1650"
+                  }
+                },
+                "away": {
+                  "close": {
+                    "odds": "+950"
+                  },
+                  "open": {
+                    "odds": "+950"
+                  }
+                }
+              },
+              "pointSpread": {
+                "displayName": "Spread",
+                "shortDisplayName": "Spread",
+                "home": {
+                  "close": {
+                    "line": "OFF",
+                    "odds": "OFF"
+                  },
+                  "open": {
+                    "line": "OFF",
+                    "odds": "OFF"
+                  }
+                },
+                "away": {
+                  "close": {
+                    "line": "OFF",
+                    "odds": "-108"
+                  },
+                  "open": {
+                    "line": "OFF",
+                    "odds": "-108"
+                  }
+                }
+              },
+              "total": {
+                "over": {
+                  "close": {
+                    "line": "o51.5",
+                    "odds": "-112"
+                  }
+                },
+                "under": {
+                  "close": {
+                    "line": "u51.5",
+                    "odds": "-108"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ]
     }
   ]
 }

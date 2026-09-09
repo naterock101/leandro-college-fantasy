@@ -11,7 +11,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  SIGMA, erf, phi, favouriteProbability, winProbability, luckOf, round1, percent,
+  SIGMA, erf, phi, favouriteProbability, favouriteChance, winProbability,
+  luckOf, round1, percent,
 } from "../lib/winprob.mjs";
 
 /* Values from a table rather than from our own implementation, so this is a
@@ -252,6 +253,27 @@ test("the two sides of a priced game sum to one, and an unpriced game has no pro
   assert.equal(winProbability(null, "Texas A&M"), null);
   assert.equal(winProbability(undefined, "Texas A&M"), null);
   assert.equal(winProbability({ spread: null, favorite: null }, "Texas A&M"), null);
+});
+
+test("a stored probability is used instead of the model, not alongside it", () => {
+  /* A moneyline price carries the market's own probability, so there is
+     nothing for sigma to do: turning a spread into a chance is the guess this
+     model exists to make, and a book that has already made it is a better
+     source than the model is. */
+  const ml = { spread: null, favorite: "Troy", probability: 0.9083 };
+  assert.equal(favouriteChance(ml), 0.9083);
+  assert.equal(winProbability(ml, "Troy"), 0.9083);
+  close(winProbability(ml, "Alabama State"), 1 - 0.9083, "the underdog");
+
+  /* and the spread path is untouched where there is a spread */
+  const line = { spread: -6.5, favorite: "Texas A&M" };
+  assert.equal(favouriteChance(line), favouriteProbability(-6.5));
+  assert.equal(favouriteChance(null), null);
+  assert.equal(favouriteChance({ spread: null, favorite: "Troy" }), null,
+    "no spread and no probability is nothing to say, not a coin flip");
+
+  /* A pick-em still reads as even money from either half of the price. */
+  assert.equal(winProbability({ spread: 0, favorite: null }, "UNLV"), 0.5);
 });
 
 /* ------------------------------------------------------------------ */

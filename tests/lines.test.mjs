@@ -18,7 +18,8 @@ import { dirname, resolve, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
-  normProvider, formatSpread, cfbdObservation, espnObservation, espnDates, mergeLines,
+  normProvider, formatSpread, formatMoneyline, impliedProbability, devig,
+  cfbdObservation, espnObservation, espnDates, mergeLines,
 } from "../lib/lines.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -148,6 +149,51 @@ describe("merge-only retention", () => {
   test("an observation with no price and nothing stored adds nothing", () => {
     const merged = mergeLines({}, [{ id: "9", seenAt: T0, closed: true, price: null }]);
     assert.deepEqual(merged, {}, "a game we never priced must not appear as an empty entry");
+  });
+
+  test("a moneyline never displaces a stored spread", () => {
+    /* The sequence this exists for is real and runs one way: a book posts a
+       spread, then pulls it as kickoff nears and leaves the moneyline up. On a
+       settled game, taking the downgrade would rewrite the closing line the
+       luck and expectation work reads - the same thing merge-only prevents. */
+    const spread = { spread: -19.5, favorite: "Troy", formatted: "Troy -19.5",
+                     overUnder: 51.5, provider: "DraftKings" };
+    const merged = mergeLines({ "1": { ...spread, seenAt: T0, closed: false } }, [{
+      id: "1", seenAt: "2026-09-02T00:00:00.000Z", closed: true,
+      price: { spread: null, favorite: "Troy", formatted: "Troy ML -1650",
+               overUnder: 51.5, provider: "DraftKings", probability: 0.9083 },
+    }]);
+    assert.equal(merged["1"].spread, -19.5, "the stored spread was overwritten");
+    assert.equal(merged["1"].probability, undefined);
+    assert.equal(merged["1"].seenAt, T0);
+    /* and the observation still does the one thing it is entitled to do */
+    assert.equal(merged["1"].closed, true, "closed must still be recorded");
+  });
+
+  test("but a moneyline is kept when there is no spread to lose", () => {
+    const price = { spread: null, favorite: "Troy", formatted: "Troy ML -1650",
+                    overUnder: 51.5, provider: "DraftKings", probability: 0.9083 };
+    const first = mergeLines({}, [{ id: "1", seenAt: T0, closed: false, price }]);
+    assert.equal(first["1"].probability, 0.9083);
+    assert.equal(first["1"].seenAt, T0);
+
+    /* and a moneyline that moved is a price that moved */
+    const moved = mergeLines(first, [{
+      id: "1", seenAt: "2026-09-02T00:00:00.000Z", closed: false,
+      price: { ...price, formatted: "Troy ML -1400", probability: 0.8934 },
+    }]);
+    assert.equal(moved["1"].seenAt, "2026-09-02T00:00:00.000Z",
+      "seenAt must follow the moneyline as it follows the spread");
+
+    /* and a spread, when one finally appears, is the upgrade */
+    const upgraded = mergeLines(first, [{
+      id: "1", seenAt: "2026-09-03T00:00:00.000Z", closed: false,
+      price: { spread: -19.5, favorite: "Troy", formatted: "Troy -19.5",
+               overUnder: 51.5, provider: "DraftKings" },
+    }]);
+    assert.equal(upgraded["1"].spread, -19.5);
+    assert.equal(upgraded["1"].probability, undefined,
+      "a stale probability beside a fresh spread would be two prices for one game");
   });
 });
 
@@ -290,6 +336,146 @@ describe("ESPN normalisation", () => {
     assert.equal(espnObservation({ id: "1", competitions: [{ odds: [{}] }] }, T0).price, null);
   });
 
+  /* ---------------------------------------------------------------- */
+  /* the moneyline fallback                                             */
+  /* ---------------------------------------------------------------- */
+
+  test("a game the book will not spread is priced off its moneyline", () => {
+    /* Alabama State at Troy, captured 2026-09-12: DraftKings has the game but
+       `pointSpread` reads literally "OFF", which is a book declining to price
+       a side. It used to reach the page as no line at all, so Troy's owner was
+       short a game in every column built on the market. */
+    const o = espnObservation(eventById("401868326"), T0);
+    assert.equal(o.price.spread, null, "no spread may be invented from a moneyline");
+    assert.equal(o.price.favorite, "Troy");
+    assert.equal(o.price.formatted, "Troy ML -1650");
+    assert.equal(o.price.provider, "DraftKings");
+    assert.equal(o.price.overUnder, 51.5);
+    /* -1650 alone implies 0.9429. The pair holds 3.8%, and taking that out is
+       the difference between the book's price and the market's opinion. */
+    assert.equal(o.price.probability, 0.9083);
+  });
+
+  test("de-vigging is the pair, not one side of it", () => {
+    assert.equal(Math.round(impliedProbability(-1650) * 1e4) / 1e4, 0.9429);
+    assert.equal(Math.round(impliedProbability(950) * 1e4) / 1e4, 0.0952);
+    assert.equal(Math.round(devig(-1650, 950) * 1e4) / 1e4, 0.9083);
+    /* Both sides of one game add to 1 once the margin is gone. */
+    assert.equal(Math.round((devig(-1650, 950) + devig(950, -1650)) * 1e6) / 1e6, 1);
+    /* An even market is a pick-em, and -110 both ways is what one looks like. */
+    assert.equal(devig(-110, -110), 0.5);
+  });
+
+  test("a pair that cannot be a real market is refused rather than believed", () => {
+    /* A wrong probability is worse than none here: it would be published as a
+       market opinion and weighted like one everywhere the model is summed. */
+    for (const [h, a] of [[-1650, null], [null, 950], [0, 950], [NaN, 950],
+                          [100, 100], [-10000, -10000],
+                          /* nothing lives strictly between -100 and +100, and
+                             -50 read as a price is a heavy favourite reported
+                             as a one-in-three shot */
+                          [-50, 950], [-1650, 60]]) {
+      assert.equal(devig(h, a), null, `${h}/${a} should not produce a probability`);
+    }
+  });
+
+  test("the two prices come from the same quote or not at all", () => {
+    /* De-vigging is the pair divided by its own total, so a close against an
+       open is two moments subtracted from each other and the margin that comes
+       out is not one anybody offered. Here the book has pulled the home side
+       and left an opening price behind: the answer is no price, not a pair
+       assembled from whatever each side happens to still have. */
+    const mixed = structuredClone(eventById("401868326"));
+    mixed.competitions[0].odds[0].moneyline = {
+      home: { close: { odds: "-1650" } },
+      away: { open: { odds: "+950" } },
+    };
+    assert.equal(espnObservation(mixed, T0).price, null,
+      "a close on one side and an open on the other is not a market");
+
+    /* A whole block that happens to be the opening one is still one market,
+       and is used. The rule is same-quote, not close-only. */
+    const opens = structuredClone(eventById("401868326"));
+    opens.competitions[0].odds[0].moneyline = {
+      home: { close: { odds: "OFF" }, open: { odds: "-1650" } },
+      away: { close: { odds: "OFF" }, open: { odds: "+950" } },
+    };
+    assert.equal(espnObservation(opens, T0).price.probability, 0.9083);
+  });
+
+  test("a moneyline that is OFF is not a number", () => {
+    /* The string the book uses to say it is not pricing this. Read as a
+       number it would come back 0 or NaN and take a whole game with it. */
+    const ev = structuredClone(eventById("401868326"));
+    ev.competitions[0].odds[0].moneyline.home = { close: { odds: "OFF" }, open: { odds: "OFF" } };
+    assert.equal(espnObservation(ev, T0).price, null);
+  });
+
+  test("a named favourite is never published at even money", () => {
+    /* The invariant behind rounding the probability before branching on it:
+       whatever the pair, a price either names a favourite and publishes a
+       chance above a half, or names nobody and is a pick-em. A favourite
+       carrying 0.5 would be handed the game by the projection and coloured as
+       the favourite on the page, on a price that says it is a coin flip. */
+    for (const [h, a] of [[-1650, 950], [-105, -105], [-110, -110], [-120, 100],
+                          [100, -120], [-2500, 1100], [-100, -100]]) {
+      const ev = structuredClone(eventById("401868326"));
+      ev.competitions[0].odds[0].moneyline = {
+        home: { close: { odds: String(h) } }, away: { close: { odds: String(a) } },
+      };
+      const { price } = espnObservation(ev, T0);
+      if (!price) continue;
+      if (price.favorite === null) {
+        assert.equal(price.probability, undefined, `${h}/${a}: a pick-em carries no probability`);
+      } else {
+        assert.ok(price.probability > 0.5, `${h}/${a}: ${price.favorite} at ${price.probability}`);
+      }
+    }
+  });
+
+  test("an even moneyline is written as the pick-em it is", () => {
+    /* Rather than a probability of 0.5 with no favourite, which would be a
+       second way of saying what this repo already has one way of saying. */
+    const ev = structuredClone(eventById("401868326"));
+    ev.competitions[0].odds[0].moneyline = {
+      home: { close: { odds: "-110" } }, away: { close: { odds: "-110" } },
+    };
+    const { price } = espnObservation(ev, T0);
+    assert.equal(price.spread, 0);
+    assert.equal(price.favorite, null);
+    assert.equal(price.formatted, "PK");
+    assert.equal(price.probability, undefined);
+  });
+
+  test("a spread beats a moneyline on the same game", () => {
+    /* The fallback is a fallback. A book quoting both is quoting one price,
+       and the spread is the one the rest of the repo is built to read. */
+    const ev = structuredClone(eventById("401868326"));
+    ev.competitions[0].odds[0].spread = -19.5;
+    ev.competitions[0].odds[0].homeTeamOdds.favorite = true;
+    const { price } = espnObservation(ev, T0);
+    assert.equal(price.spread, -19.5);
+    assert.equal(price.formatted, "Troy -19.5");
+    assert.equal(price.probability, undefined);
+  });
+
+  test("formatMoneyline says which kind of number it is", () => {
+    /* It shares a column with "Georgia -41.5", and a reader who takes -1650
+       for a spread is reading a number eighty times too large. */
+    assert.equal(formatMoneyline("Troy", -1650), "Troy ML -1650");
+    assert.equal(formatMoneyline("Troy", 120), "Troy ML +120");
+  });
+
+  test("the per-event odds shape is read too, not just the scoreboard's", () => {
+    /* ESPN writes the same price two ways in two endpoints, and neither is
+       documented. The numeric shape is what sports.core.api returns. */
+    const ev = structuredClone(eventById("401868326"));
+    delete ev.competitions[0].odds[0].moneyline;
+    ev.competitions[0].odds[0].homeTeamOdds.moneyLine = -1650;
+    ev.competitions[0].odds[0].awayTeamOdds.moneyLine = 950;
+    assert.equal(espnObservation(ev, T0).price.probability, 0.9083);
+  });
+
   test("the fetch window is Eastern days, not UTC ones", () => {
     /* Saturday 2026-09-05, 22:00 ET, which is Sunday 02:00Z. A UTC window
        would already have rolled to the 6th and would ask ESPN for a day whose
@@ -408,6 +594,22 @@ describe("build-lines.mjs", () => {
     const doc = JSON.parse(readFileSync(out, "utf8"));
     assert.equal(doc.season, 2026);
     assert.ok(Object.keys(doc.games).length >= 4);
+  });
+
+  test("a moneyline price survives the whole script", () => {
+    /* `probability` is added late in the price object and passes through the
+       observation, the merge and the written file before anything reads it.
+       Dropped anywhere along the way the feature would silently do nothing:
+       every column would read exactly as it did before, with the game left
+       out and no error anywhere. */
+    const dir = mkdtempSync(join(tmpdir(), "lines-"));
+    const out = join(dir, "lines.json");
+    runOk(["--espn-fixture", ESPN_FIXTURE, "--no-cfbd", "--out", out]);
+    const entry = JSON.parse(readFileSync(out, "utf8")).games["401868326"];
+    assert.equal(entry.spread, null);
+    assert.equal(entry.favorite, "Troy");
+    assert.equal(entry.formatted, "Troy ML -1650");
+    assert.equal(entry.probability, 0.9083);
   });
 
   test("an unreadable stored file is not overwritten", () => {

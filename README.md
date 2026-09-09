@@ -410,6 +410,50 @@ cross-check if ESPN reshapes itself. It is a paid-budget call, so
 `build-lines.mjs` throttles it to one per 7 hours by comparing against the
 `cfbdFetchedAt` it wrote last time.
 
+### The moneyline fallback
+
+A book takes the spread off a game it thinks is too lopsided to price and
+leaves the moneyline up. On 2026-09-12 DraftKings had Alabama State at Troy
+with `pointSpread` reading literally `"OFF"`, alongside a moneyline of
+**-1650 / +950** and a total. Neither feed had a spread for it, so the game
+reached the page as no line at all - and Leandro, who owns Troy, was short a
+game in every column built on the market.
+
+So a price may carry a **`probability`** instead of a `spread`: the two
+American prices with the margin taken out. -1650 alone implies 0.9429 and +950
+implies 0.0952; the pair holds 3.8%, and proportional de-vigging puts Troy at
+**0.9083**. `favouriteChance` in `lib/winprob.mjs` prefers a stored probability
+over the spread, which is not a tie-break - a moneyline *is* a probability,
+where a spread has to be turned into one by assuming how results scatter. Sigma
+is the estimate in that assumption, so this path does strictly less guessing.
+
+**`spread` is null on such a price, never back-solved from the model.** Under
+sigma 14.4 that Troy price is worth about 19 points, and printing "Troy -19.5"
+in the same column as real spreads would be a number this repo invented and
+then attributed to a book. It renders as `Troy ML -1650`, and Games of the week
+says what an ML row is, but only on a week that has one.
+
+It is a fallback and not a second source:
+
+- within one observation the spread is preferred, and only an odds array with
+  no spread in it anywhere reaches the moneyline path;
+- across runs `mergeLines` will not let a spreadless price displace a stored
+  spread. The sequence is real and one-way - a book posts a spread, then pulls
+  it near kickoff - and taking the downgrade would rewrite a closing line,
+  which is the same thing merge-only exists to prevent;
+- the two prices are read from the same quote or not at all. De-vigging is the
+  pair over its own total, so a close on one side against an open on the other
+  subtracts two different moments and reports a margin nobody offered;
+- a pair that cannot be a real market is refused rather than believed. Nothing
+  lives strictly between -100 and +100, and a total outside (1, 1.5) is not a
+  book's margin. A wrong probability here is worse than none: it would be
+  published as a market opinion and weighted like one everywhere.
+
+**Size it before believing in it.** Of 80 FBS games on 2026-09-12, 78 had a
+spread, 1 had a moneyline only, and 1 - West Georgia at Arkansas State - had no
+odds at all in either feed or in ESPN's per-event endpoint. This recovers about
+one game a week, always a blowout, for zero API budget.
+
 ### The file is merge-only
 
 **ESPN deletes the odds object once a game goes final.** Checked on 2026-09-05:
@@ -533,7 +577,12 @@ together on arrival.
   `expectedGained` and `expectedPoints` per manager, which is the same week
   weighted by win probability instead. Both are kept: the naive one is what the
   **EoW Proj** column and its arrow both mean, and a browser holding cached JS
-  must not break on the new fields
+  must not break on the new fields. `unprojected` is the games it could not
+  hand to anyone, and `unpriced` and `pickems` are its two halves - a game the
+  books never priced, and one they priced and called even. They are different
+  sentences and the caption says which: a pick-em *has* a line, and the
+  weighted expectation uses it at half a win a side, so calling it unpriced was
+  the page contradicting itself one tooltip away
 - `luck[]` - points banked against points expected, over settled rostered games
   with a stored line. Carries `games` (how many counted) and `unpriced` (how
   many were excluded for having no line). **Nothing on the page reads this**:
@@ -905,8 +954,9 @@ than a quarter point from the data or if 16 would explain the observed rates
 better. The sample is a decade old and sigma moves with the seasons sampled, so
 nothing here should be read as more precise than a whole percentage point.
 
-Four things are built on it. **Per-game win probability** beside the spread in
-Games of the week. **The next week's expected points** - `wp(team) x tier value`
+Four things are built on it, and one game a week skips it: a moneyline price
+carries the market's own probability, so there is nothing for sigma to do. The
+four are: **per-game win probability** beside the line in Games of the week. **The next week's expected points** - `wp(team) x tier value`
 summed per manager over the coming week, which is a better projection than
 "every favourite wins" because it does not throw away the size of the line.
 **Luck**: points banked minus points expected over settled games, so positive

@@ -36,6 +36,7 @@ import { fireEvent, screen, within } from "@testing-library/react";
 
 import { favouriteProbability } from "../lib/winprob.mjs";
 import { expStep, Leaderboard, PER_WIN } from "../app/components/Leaderboard";
+import { GamesOfWeek } from "../app/components/GamesOfWeek";
 import { ViewState } from "../app/hooks/useViewState";
 import type { Data } from "../app/types";
 import { payload, renderPage, stubFetch } from "./helpers";
@@ -333,6 +334,79 @@ describe("the two points columns", () => {
   });
 });
 
+describe("the games the projection could not project", () => {
+  /* "Have no line" was the whole sentence, and it is true of only one of the
+     two reasons a game is left out. A pick-em has a line - the books priced it
+     and called it even - and the weighted expectation in the row's own tooltip
+     uses it, at half a win a side. So the page was calling a game unpriced in
+     one place and pricing it in another. */
+  const withProjection = (over: Record<string, number>) => board({
+    ...data,
+    projection: { ...data.projection!, ...over },
+  } as unknown as Data).container as unknown as HTMLElement;
+
+  const caption = (root: HTMLElement) =>
+    root.querySelector(".caption")!.textContent!;
+
+  test("an unpriced game is called unpriced", () => {
+    expect(caption(withProjection({ games: 60, unprojected: 2, unpriced: 2, pickems: 0 })))
+      .toContain("2 of 60 games have no line and are left out");
+  });
+
+  test("a pick-em is not", () => {
+    const text = caption(withProjection({ games: 60, unprojected: 1, unpriced: 0, pickems: 1 }));
+    expect(text).toContain("1 of 60 games is a pick-em with no favourite, and is left out");
+    expect(text, "a priced game must not be reported as unpriced")
+      .not.toMatch(/ha(s|ve) no line/);
+  });
+
+  test("and the verbs agree with the count", () => {
+    /* One game is the commonest case there is, and "1 of 60 games have no line
+       and are left out" is the sentence a plural-only template writes. */
+    expect(caption(withProjection({ games: 60, unprojected: 1, unpriced: 1, pickems: 0 })))
+      .toContain("1 of 60 games has no line and is left out");
+    for (const over of [{ unprojected: 1, unpriced: 1, pickems: 0 },
+                        { unprojected: 1, unpriced: 0, pickems: 1 },
+                        /* halves that do not add back to their total, which
+                           is a payload from a version this page cannot read */
+                        { unprojected: 1, unpriced: 0, pickems: 0 }]) {
+      const text = caption(withProjection({ games: 60, ...over }));
+      expect(text, JSON.stringify(over)).not.toMatch(/\b1 of 60 games (have|are)\b/);
+    }
+  });
+
+  test("and a week with both says which is which", () => {
+    expect(caption(withProjection({ games: 60, unprojected: 3, unpriced: 2, pickems: 1 })))
+      .toContain("3 of 60 games are left out: 2 with no line, and 1 that is a pick-em");
+  });
+
+  test("nothing is said when nothing was left out", () => {
+    expect(caption(withProjection({ games: 60, unprojected: 0, unpriced: 0, pickems: 0 })))
+      .not.toMatch(/left out/);
+  });
+
+  test("halves that do not add up fall back rather than under-report", () => {
+    /* The sentence reads the two counts as a complete account of the total, so
+       a payload where they are not one would say "0 of 60 games have no line"
+       while a game really was left out. */
+    expect(caption(withProjection({ games: 60, unprojected: 2, unpriced: 0, pickems: 0 })))
+      .toContain("2 of 60 games could not be projected and are left out");
+  });
+
+  test("a payload predating the split keeps the vaguer sentence", () => {
+    /* It may not guess which half its total was, and it may not go on claiming
+       the commoner one. */
+    const legacy = { ...data.projection!, games: 60, unprojected: 2 } as Record<string, unknown>;
+    delete legacy.unpriced;
+    delete legacy.pickems;
+    const root = board({ ...data, projection: legacy } as unknown as Data)
+      .container as unknown as HTMLElement;
+    const text = caption(root);
+    expect(text).toContain("2 of 60 games could not be projected and are left out");
+    expect(text).not.toMatch(/undefined/);
+  });
+});
+
 describe("the records in the dropdown", () => {
   const lastWeek = data.byWeek.length - 1;
 
@@ -499,5 +573,51 @@ describe("the week strip", () => {
     fireEvent.click(within(root).getAllByRole("button", { name: "1" })[0]);
     const summary = within(root).getByText(/Exp Pts is the points the closing lines expected/i);
     expect(summary.textContent).toMatch(/week 1/i);
+  });
+});
+
+/**
+ * The moneyline row, where it is rendered.
+ *
+ * It lives in this file rather than one of its own because there is one thing
+ * to check on the page and it is a sentence: a price with no spread has to
+ * read as the moneyline it is, and the percentage beside it has to be the
+ * market's own number rather than the model's guess at what spread would have
+ * produced it.
+ */
+describe("a game the book would not spread", () => {
+  /* Troy at -1650 against Alabama State at +950, de-vigged - the real price
+     DraftKings had up on 2026-09-12, and the shape lib/lines.mjs stores. */
+  const ml = {
+    spread: null, favorite: "Troy", formatted: "Troy ML -1650",
+    overUnder: 51.5, provider: "DraftKings", probability: 0.9083,
+  };
+
+  const withMoneyline = () => {
+    const games = data.gamesOfWeek.games.map((g, i) =>
+      i === 0 ? { ...g, spread: ml } : g);
+    return { ...data, gamesOfWeek: { ...data.gamesOfWeek, games } } as unknown as Data;
+  };
+
+  test("prints the moneyline, and the market's own chance beside it", () => {
+    const { container } = render(<GamesOfWeek data={withMoneyline()} />);
+    const root = container as unknown as HTMLElement;
+    expect(within(root).getByText("Troy ML -1650")).toBeTruthy();
+    /* 91%, not the 84% the model gives for the 19-point spread this price is
+       worth - the whole point of preferring a probability the book stated. */
+    expect(within(root).getByText("91%")).toBeTruthy();
+    expect(root.textContent).not.toMatch(/undefined|NaN/);
+  });
+
+  test("and says what an ML row is, but only on a week that has one", () => {
+    const { container } = render(<GamesOfWeek data={withMoneyline()} />);
+    expect((container as unknown as HTMLElement).textContent)
+      .toMatch(/A row marked ML is one the book would not put a spread on/);
+
+    /* A standing sentence about a case that arises on about one game a week
+       would be a paragraph the league re-reads all season for nothing. */
+    const { container: plain } = render(<GamesOfWeek data={data} />);
+    expect((plain as unknown as HTMLElement).textContent)
+      .not.toMatch(/A row marked ML/);
   });
 });
