@@ -21,6 +21,7 @@ import {
   normProvider, formatSpread, formatMoneyline, impliedProbability, devig,
   cfbdObservation, espnObservation, fpiObservation, espnDates, mergeLines,
 } from "../lib/lines.mjs";
+import { percent } from "../lib/winprob.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SCRIPT = resolve(ROOT, "scripts/build-lines.mjs");
@@ -546,6 +547,19 @@ describe("ESPN normalisation", () => {
     assert.equal(o.price.formatted, "Arkansas State FPI");
     assert.ok(!/-?\d/.test(o.price.formatted), "no number that could read as a line");
     assert.equal(o.price.overUnder, null);
+  });
+
+  test("nobody is ever certain, however sure the model is", () => {
+    /* FPI says 99.8 on the sort of mismatch that gets here, and whole percents
+       round that to 100. The rest of the repo will not say 100: `percent` caps
+       at 99 on purpose, and the spread model tops out at 0.9975. This path
+       feeds the projection as well as the page, so it is capped at the source
+       rather than on the way out. */
+    const o = fpiObservation(predictor(99.8, 0.2), competition(), "401868241", T0);
+    assert.equal(o.price.probability, 0.99);
+    assert.equal(percent(o.price.probability), "99%");
+    const total = fpiObservation(predictor(100, 0), competition(), "401868241", T0);
+    assert.equal(total.price.probability, 0.99);
   });
 
   test("a predictor that does not describe one game is refused", () => {

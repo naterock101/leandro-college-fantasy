@@ -398,6 +398,19 @@ describe("the games the projection could not project", () => {
       .not.toMatch(/FPI|ESPN's model/);
   });
 
+  test("the weighted expectation says so too, since it counts the same game", () => {
+    /* That sum weights every game in the week by its own chance, so it picks
+       up a modelled game exactly as the naive projection does - and the note
+       under a manager's squad claimed all of it came "from the current
+       lines". */
+    const root = board({
+      ...data,
+      projection: { ...data.projection!, modelled: 1 },
+    } as unknown as Data).container as unknown as HTMLElement;
+    const note = open(root, "Nathan").querySelector(".note")!.textContent!;
+    expect(note).toMatch(/from the current lines, and ESPN's model where no book priced a game, for/);
+  });
+
   test("nothing is said when nothing was left out", () => {
     expect(caption(withProjection({ games: 60, unprojected: 0, unpriced: 0, pickems: 0 })))
       .not.toMatch(/left out/);
@@ -647,6 +660,19 @@ describe("a game the book would not spread", () => {
     /* and the tooltip does not call a forecast a price */
     expect(within(root).getByText("91%").getAttribute("title"))
       .toMatch(/No book priced this game\. ESPN's FPI gives Arkansas State 91%/);
+  });
+
+  test("the model is not listed among the books", () => {
+    /* "Lines from DraftKings and ESPNFPI" - a forecast named as a book, and
+       mangled by the space-stripping that exists for CFBD's "Draft Kings".
+       What an FPI row is has its own sentence; it is not another name in a
+       list of the places a price came from. */
+    const games = data.gamesOfWeek.games.map((g, i) => i === 0 ? { ...g, spread: fpi } : g);
+    const { container } = render(<GamesOfWeek
+      data={{ ...data, gamesOfWeek: { ...data.gamesOfWeek, games } } as unknown as Data} />);
+    const text = (container as unknown as HTMLElement).textContent!;
+    expect(text).toMatch(/Lines from DraftKings, refreshed/);
+    expect(text).not.toMatch(/ESPNFPI|and ESPN FPI,/);
   });
 
   test("and says what an ML row is, but only on a week that has one", () => {

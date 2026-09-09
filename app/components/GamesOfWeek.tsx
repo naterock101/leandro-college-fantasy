@@ -13,9 +13,15 @@ const side = (team: string, spread: { favorite: string | null } | null) =>
   !spread?.favorite ? "" : spread.favorite === team ? "fav" : "dog";
 
 /* Rows can come from different books, and CFBD spells the same one both
-   "DraftKings" and "Draft Kings", so list what is actually on screen. */
+   "DraftKings" and "Draft Kings", so list what is actually on screen.
+
+   Books only. A modelled row's provider is "ESPN FPI", which is not a book and
+   which the space-stripping above - there for "Draft Kings" - renders as
+   "ESPNFPI"; the sentence came out "Lines from DraftKings and ESPNFPI". What
+   an FPI row is gets its own sentence below, because it is a different kind of
+   thing and not another name in a list of books. */
 const books = (games: Game[]) => {
-  const seen = [...new Set(games.filter((g) => g.spread)
+  const seen = [...new Set(games.filter((g) => g.spread && !g.spread.model)
     .map((g) => g.spread!.provider.replace(/\s+/g, "")))];
   if (!seen.length) return "the book";
   return seen.length === 1 ? seen[0] : seen.slice(0, -1).join(", ") + " and " + seen[seen.length - 1];

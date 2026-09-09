@@ -754,12 +754,16 @@ for (const s of out.standings) {
     (s.collisionLoss ? `   (-${s.collisionLoss} own matchup)` : "")
   );
 }
-const priced = out.gamesOfWeek.games.filter((g) => g.spread).length;
+/* Split, because a modelled price is not a spread and a run log that counts
+   it as one is the first place a reader would be told otherwise. */
+const priced = out.gamesOfWeek.games.filter((g) => g.spread && !g.spread.model).length;
+const modelled = out.gamesOfWeek.games.filter((g) => g.spread?.model).length;
 console.log(`games of the week (${out.gamesOfWeek.label ?? "none"}): ${out.gamesOfWeek.games.length}` +
-  (lines.fetchedAt ? `, ${priced} with a spread` : ", no lines file"));
+  (lines.fetchedAt ? `, ${priced} priced` : ", no lines file") +
+  (modelled ? `, ${modelled} on FPI` : ""));
 if (out.projection) {
   const p = out.projection;
-  console.log(`projection (${p.label}): ${p.projected}/${p.games} games priced` +
+  console.log(`projection (${p.label}): ${p.projected}/${p.games} games projected` +
     (p.unprojected ? `, ${p.unprojected} unprojected` : ""));
   const gains = out.standings.map((s) => `${s.manager} +${p.managers[s.manager].expectedGained}`);
   console.log(`  expected points: ${gains.join(", ")}`);

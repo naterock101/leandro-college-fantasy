@@ -462,7 +462,16 @@ export function Leaderboard({ data }: { data: Data }) {
                       <div className="note">
                         {data.projection!.label} expectation:{" "}
                         <b>+{data.projection!.managers[r.manager].expectedGained}</b>{" "}
-                        points from the current lines, for{" "}
+                        points from the current lines
+                        {/* This sum weights every game in the week by its own
+                            chance, so it picks up a modelled game the same way
+                            the naive projection does - and "from the current
+                            lines" would then be describing a game no book put
+                            a line on. Said at league level because that is the
+                            level the count is published at. */}
+                        {(data.projection!.modelled ?? 0) > 0 &&
+                          ", and ESPN's model where no book priced a game"}
+                        , for{" "}
                         {data.projection!.managers[r.manager].expectedPoints} in all.
                       </div>
                     )}
