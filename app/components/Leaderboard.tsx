@@ -14,6 +14,36 @@ import { TeamName } from "./TeamName";
  * own state and nothing else's: the page shell keeps the tab, the payload and
  * the poll, and everything below that belongs to the section that draws it.
  */
+/**
+ * How far above or below expectation earns how much colour.
+ *
+ * A flat teal-or-red said "ahead" and "behind" and nothing else, so a manager
+ * a tenth of a win off the line was painted exactly as loudly as one two wins
+ * clear of it - and in a league where most rows sit near expectation most of
+ * the time, that is a column of shouting. The steps run from the colour of an
+ * ordinary unshaded cell out to the full token, so a row near the line barely
+ * separates from the ones either side of it and only a real gap is loud.
+ *
+ * Three steps rather than a continuous ramp, and hex rather than a computed
+ * blend, because these are text colours and text colours on this page get
+ * audited: tests/contrast.test.tsx imports this table and checks every shade
+ * against both grounds. A colour interpolated at render time would be
+ * invisible to that, which is the same reason nothing here uses opacity.
+ *
+ * The values are --chalk mixed 40%, 70% and 100% of the way to --teal and
+ * --red. Lowest is 4.96:1 on --panel, so every step clears AA.
+ */
+export const EXP_STEPS = {
+  /* the gap in wins at which each step starts */
+  at: [0.25, 0.75, 1.5],
+  hot: ["#A9D7D2", "#79C5B8", "#49B49E"],
+  cold: ["#E3B9C5", "#DE91A2", "#D9697F"],
+} as const;
+
+/** Which step a gap of `over` wins lands in: 0 is level, 3 is the full token. */
+export const expStep = (over: number) =>
+  EXP_STEPS.at.reduce((n, at) => (Math.abs(over) >= at ? n + 1 : n), 0);
+
 export function Leaderboard({ data }: { data: Data }) {
   const [week, setWeek] = useViewState("leaderboard.week", -1);
   const [open, setOpen] = useViewState<string | null>("leaderboard.open", null);
@@ -180,9 +210,14 @@ export function Leaderboard({ data }: { data: Data }) {
                     ? c.pricedWins
                     : missing === 0 ? r.wins : null;
                   const over = won === null ? 0 : won - rec.wins;
+                  /* No colour at all when the comparison could not be made,
+                     rather than the colour of "dead level" - the cell would be
+                     claiming a result it has not got. */
+                  const step = won === null ? 0 : expStep(over);
+                  const shade = step === 0 ? "" : `${over > 0 ? "hot" : "cold"}${step}`;
                   return (
                     <td
-                      className={`r mono exp ${over > 0.05 ? "hot" : over < -0.05 ? "cold" : ""}`}
+                      className={`r mono exp ${shade}`}
                       title={
                         `The closing lines expected ${rec.wins}-${rec.losses} from the ` +
                         `${rec.priced} settled ${rec.priced === 1 ? "game" : "games"} of theirs that carried one` +
@@ -403,7 +438,12 @@ export const css = `
     .howexp summary:focus-visible{outline:2px solid var(--amber);outline-offset:2px;border-radius:3px}
     .howexp p{margin:8px 0 0;max-width:62ch}
     .exp{white-space:nowrap}
-    .exp.hot{color:var(--teal)} .exp.cold{color:var(--red)}
+    /* Generated from EXP_STEPS so the sheet and the class the cell picks
+       cannot drift apart, and so the audit has one table to read. An unshaded
+       cell keeps the body colour, which is the point: level with expectation
+       should look like every other number in the row. */
+${EXP_STEPS.hot.map((c, i) => `    .exp.hot${i + 1}{color:${c}}`).join("\n")}
+${EXP_STEPS.cold.map((c, i) => `    .exp.cold${i + 1}{color:${c}}`).join("\n")}
     .dim{color:var(--dim)}
     .arrow{margin-left:4px;font-size:9px;vertical-align:1px}
     .arrow.up{color:var(--teal)} .arrow.down{color:var(--red)} .arrow.flat{color:var(--dim)}

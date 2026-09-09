@@ -117,12 +117,10 @@ test("the normal is the right shape, not just the right width", () => {
      wrong distribution. Grouped into bands, the model has to land on the
      observed rate to within noise at every price, not only on average.
 
-     The 0.5-3.5 band is excluded and this is the one place that is admitted
-     rather than hidden: the source has 1.5-point favourites at 45.0%, 2-point
-     at 64.1% and 2.5-point at 45.2%, three adjacent buckets that cannot all be
-     right. A favourite under even money at n=396 is a bookkeeping fault, and
-     the model is not going to be bent to reproduce one. */
+     Short prices are excluded here and get a test of their own below, because
+     the model is knowingly wrong about them. */
   const bands = [[4, 7], [7.5, 10.5], [11, 14.5], [15, 21]];
+  /* deliberately starts at 4: see "short favourites" below */
   for (const [lo, hi] of bands) {
     let won = 0, n = 0, expected = 0;
     for (const [spread, w, g] of STASSEN) {
@@ -137,6 +135,74 @@ test("the normal is the right shape, not just the right width", () => {
       `spreads ${lo}-${hi}: observed ${(actual * 100).toFixed(1)}%, ` +
       `model ${(model * 100).toFixed(1)}%, over ${n} games`);
   }
+});
+
+/* Phil Steele, college football 1997-2023, 20,505 games: how often the
+   underdog won outright, by band of spread. A second sample, a different
+   decade, and counted from the other side - which is what makes it worth
+   carrying next to Stassen rather than instead of it. */
+const STEELE = [
+  { lo: 0, hi: 3, n: 3118, dog: 0.475 },
+  { lo: 3.5, hi: 7, n: 4837, dog: 0.354 },
+  { lo: 7.5, hi: 10, n: 2510, dog: 0.261 },
+  { lo: 10.5, hi: 14, n: 2769, dog: 0.201 },
+  { lo: 14.5, hi: 17, n: 1647, dog: 0.131 },
+  { lo: 17.5, hi: 24, n: 2571, dog: 0.0739 },
+];
+
+/* Spreads are not spread evenly inside a band - short prices are far more
+   common - so a band's midpoint overstates its typical game. The weights come
+   from Stassen's per-bucket game counts, which is the one thing that table is
+   unimpeachable about however noisy its win rates are. */
+const bandDogRate = (band, sigma) => {
+  let games = 0, dogs = 0;
+  for (const [spread, n] of STASSEN.map(([s, , g]) => [s, g])) {
+    if (spread < band.lo || spread > band.hi) continue;
+    games += n;
+    dogs += n * (1 - phi(spread / sigma));
+  }
+  return dogs / games;
+};
+
+test("a second sample, counted from the underdog's side, agrees", () => {
+  /* Stassen could be wrong in a way that a fit to Stassen would never show.
+     This is the guard against that: an independent tabulation, and the
+     constant has to sit close to what it implies too. */
+  let best = { sigma: 0, L: -Infinity };
+  for (let sigma = 10; sigma <= 24; sigma += 0.01) {
+    const L = STEELE.reduce((acc, b) => {
+      const p = bandDogRate(b, sigma);
+      const dogs = Math.round(b.n * b.dog);
+      return acc + dogs * Math.log(p) + (b.n - dogs) * Math.log(1 - p);
+    }, 0);
+    if (L > best.L) best = { sigma, L };
+  }
+  assert.ok(Math.abs(best.sigma - SIGMA) < 0.4,
+    `Steele's ${best.n ?? 20505} games fit sigma ${best.sigma.toFixed(2)}, the constant says ${SIGMA}`);
+});
+
+test("the model is knowingly wrong about short favourites, in a known direction", () => {
+  /* Both sources say a game priced inside a field goal is closer to a coin
+     flip than a normal centred on the spread makes it: Stassen's 0.5-3.5 band
+     runs 2.8 points below the model, Steele's "+3 or less" 3.6 points below.
+     Two samples built differently agreeing on direction and rough size is not
+     noise, so this is a property of the model rather than a defect in a table.
+
+     It is not corrected: fitting a second parameter to two band-level numbers
+     is an epicycle with nothing left to validate it against, and short prices
+     are ~15% of games, so a manager's season is off by on the order of a tenth
+     of an expected win. This test exists so the bias stays a known one - if it
+     ever inverts or trebles, that is worth finding out from a red test rather
+     than from a reader. */
+  const short = STEELE[0];
+  assert.equal(short.lo, 0);
+  const model = bandDogRate(short, SIGMA);
+  const gap = short.dog - model;
+  assert.ok(gap > 0,
+    `short underdogs used to beat the model; now they win ${(short.dog * 100).toFixed(1)}% ` +
+    `against a modelled ${(model * 100).toFixed(1)}%`);
+  assert.ok(gap < 0.08,
+    `the short-price bias has grown to ${(gap * 100).toFixed(1)} points, which is no longer small`);
 });
 
 test("a pick-em is exactly 50%, from either side", () => {

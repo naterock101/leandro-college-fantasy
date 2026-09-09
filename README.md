@@ -844,10 +844,21 @@ price actually won. Maximum likelihood over the 8,516 with a real price gives
 
 | data | sigma |
 |---|---|
-| every priced bucket, 8,516 games | 14.43 |
-| spreads 1 to 21 | 14.38 |
-| buckets of 150 games or more | 14.74 |
-| spreads 4 and up | 14.31 |
+| Stassen, every priced bucket, 8,516 games | 14.43 |
+| Stassen, spreads 1 to 21 | 14.38 |
+| Stassen, buckets of 150 games or more | 14.74 |
+| Stassen, spreads 4 and up | 14.31 |
+| Steele, 20,505 games, 1997-2023 | 14.52 |
+| Steele, bands inside Stassen's price range | 14.24 |
+
+**Corroborated on a second, larger, newer sample.** [Phil
+Steele's](https://philsteele.com/how-often-do-underdogs-win-outright/)
+tabulation of outright underdog wins covers 20,505 college games across
+1997-2023 and was fitted independently: 14.52, with 14.4 the point of least
+weighted error on his bands too (1.53% against 16's 2.38%). Two samples,
+different decades, different authors, and counted from opposite sides - one
+counts favourites winning, the other underdogs - landing on 14.43 and 14.52 is
+about as pinned down as this number gets.
 
 14.4 beats 16 on that data by every measure - weighted RMS error against the
 observed win rates falls from 4.61% to 4.30%, and a 7-point favourite comes out
@@ -855,18 +866,30 @@ at 68.6% against the 69.05% observed, where 16 said 66.9% - and it beats it on
 this season too: 56.7 expected favourite wins from 65 settled games against 59
 actual, where 16 expected 55.8.
 
-**The shape holds, which is the part worth checking.** A sigma can be fitted to
-any monotone curve and still describe the wrong distribution. Grouped into
-bands of spread, five of six sit within 0.6 points of the model, well inside
-one standard error. Only the smallest band, 0.5 to 3.5, is off, at 2.8 low -
-and that is where the source's own buckets alternate implausibly (1.5-point
-favourites at 45.0%, 2-point at 64.1%, 2.5-point at 45.2%, three adjacent
-buckets that cannot all be right). A favourite under even money at n=396 is a
-bookkeeping fault, so the model is not bent to reproduce it; the exclusion is
-stated in `tests/winprob.test.mjs` rather than hidden. Separately, Boyd's Bets
-finds essentially no correlation between the size of the spread and the size of
-the scatter in college football, 0.09, which is the assumption a single sigma
-makes.
+**The shape holds above a field goal, and is knowingly wrong below one.** A
+sigma can be fitted to any monotone curve and still describe the wrong
+distribution, so the bands matter as much as the width. Above 3.5 every band on
+both sources lands within noise of the model.
+
+Below it, the model overstates the favourite: Stassen's 0.5-3.5 band comes in
+2.8 points under, Steele's "+3 or less" 3.6 points under - 47.5% of those
+underdogs won outright against the 43.9% the model expects. This README
+previously called that a fault in Stassen's tabulation, on the strength of three
+adjacent buckets there that cannot all be right (1.5-point favourites at 45.0%,
+2-point at 64.1%, 2.5-point at 45.2%). Those buckets are still suspect, but a
+second source built a different way shows the same effect in the same
+direction, so **the band-level effect is real**: a game priced inside a field
+goal is closer to a coin flip than a normal centred on the spread makes it.
+
+It is deliberately not corrected. Fitting a second parameter to two band-level
+observations is an epicycle with nothing left to validate it against, and short
+prices are about 15% of games, so a manager's season is off by on the order of
+a tenth of an expected win. `tests/winprob.test.mjs` pins the bias instead, so
+it stays a known one - the test fails if it inverts or trebles.
+
+Separately, Boyd's Bets finds essentially no correlation between the size of
+the spread and the size of the scatter in college football, 0.09, which is the
+assumption a single sigma makes.
 
 **It is still one named constant** so it can be argued with in one place, and
 the argument is now a test: `tests/winprob.test.mjs` carries the Stassen table,
@@ -922,9 +945,27 @@ and "expected to have played nothing" must not print the same. A payload
 written before the expectation existed drops the column rather than printing
 `undefined` down it.
 
+**The colour is a gradient, in three steps a side.** A flat teal-or-red said
+"ahead" and "behind" and nothing else, so a manager a tenth of a win off the
+line was painted exactly as loudly as one two wins clear of it - and in a
+league where most rows sit near expectation most of the time, that is a column
+of shouting. The steps are `--chalk` mixed 40%, 70% and 100% of the way to
+`--teal` or `--red`, crossing at gaps of 0.25, 0.75 and 1.5 wins, so a row near
+the line looks like every other number in it and only a real gap is loud. On
+this season that puts six of eight managers on the faintest step and nobody on
+the full token, which is the honest picture.
+
+They are a table of hex values in `Leaderboard.tsx` that the component both
+styles from and picks classes from, rather than a blend computed at render
+time, because these are text colours and text colours on this page get audited:
+`tests/contrast.test.tsx` imports the table and checks all six against both
+grounds. Lowest is 4.96:1. It also checks each step moves measurably further
+from an unshaded cell than the last, since a gradient nobody can resolve is a
+flat colour with extra classes.
+
 **The colour compares like with like, which is why `pricedWins` is published.**
-Teal is above the market and red is below, and the comparison has to be the
-wins over the priced games against the expectation over those same games. That
+The comparison has to be the wins over the priced games against the expectation
+over those same games. That
 number cannot be worked out on the page: deriving it as `wins - (played -
 priced)` assumes every unpriced game was a win, and for a manager on 0-3 with
 one priced game it produces *minus two*, which paints them two whole wins colder

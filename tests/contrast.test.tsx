@@ -20,6 +20,7 @@
 import { describe, expect, test } from "vitest";
 
 import { KARTS } from "../app/components/Karts";
+import { EXP_STEPS, expStep } from "../app/components/Leaderboard";
 import { sheet } from "../app/components/Style";
 import { base } from "../app/styles";
 
@@ -154,6 +155,56 @@ describe("the drivers' colours", () => {
     }
     expect(merged, "no pair collapsed at all, so this test measured nothing")
       .toBeGreaterThan(0);
+  });
+});
+
+describe("the expected-record gradient", () => {
+  /* Six shades that exist only in one component's own sheet, and every one of
+     them is a number a reader has to be able to read. They are audited here
+     with the tokens rather than trusted, which is also why they are a table of
+     hex values the component both styles from and picks classes from - a blend
+     computed at render time would be invisible to this file. */
+  for (const side of ["hot", "cold"] as const) {
+    EXP_STEPS[side].forEach((colour, i) => {
+      test(`${side} step ${i + 1} reads on both grounds`, () => {
+        expect(contrast(hex(colour), ink), `${colour} on --ink`).toBeGreaterThanOrEqual(AA);
+        expect(contrast(hex(colour), panel), `${colour} on --panel`).toBeGreaterThanOrEqual(AA);
+      });
+    });
+  }
+
+  test("the steps actually separate, and run toward the token", () => {
+    /* A gradient whose steps a reader cannot tell apart is a flat colour with
+       extra classes. Each step has to move measurably further from the colour
+       of an ordinary cell than the one before it. */
+    const chalk = token("chalk");
+    for (const side of ["hot", "cold"] as const) {
+      let prev = 1;
+      for (const colour of EXP_STEPS[side]) {
+        const away = contrast(hex(colour), chalk);
+        expect(away, `${side}: ${colour} is no further from an unshaded cell than the step before`)
+          .toBeGreaterThan(prev);
+        prev = away;
+      }
+      /* and the last step is the token itself, not a near miss */
+      const end = side === "hot" ? token("teal") : token("red");
+      expect(hex(EXP_STEPS[side][EXP_STEPS[side].length - 1])).toEqual(end);
+    }
+  });
+
+  test("a row near expectation is not painted at all", () => {
+    /* The whole point of the gradient. Most rows sit near the line most of the
+       time, and a column that shouts at all of them says nothing. */
+    expect(expStep(0)).toBe(0);
+    expect(expStep(0.2)).toBe(0);
+    expect(expStep(-0.2)).toBe(0);
+    expect(expStep(0.3)).toBe(1);
+    expect(expStep(-1)).toBe(2);
+    expect(expStep(2.5)).toBe(3);
+    /* symmetric: being two wins hot is as loud as being two wins cold */
+    for (const gap of [0.1, 0.4, 0.9, 1.7, 4]) {
+      expect(expStep(gap)).toBe(expStep(-gap));
+    }
   });
 });
 

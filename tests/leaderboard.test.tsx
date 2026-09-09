@@ -27,7 +27,7 @@
 import { describe, expect, test } from "vitest";
 import { fireEvent, screen, within } from "@testing-library/react";
 
-import { Leaderboard } from "../app/components/Leaderboard";
+import { expStep, Leaderboard } from "../app/components/Leaderboard";
 import { ViewState } from "../app/hooks/useViewState";
 import type { Data } from "../app/types";
 import { payload, renderPage, stubFetch } from "./helpers";
@@ -141,19 +141,58 @@ describe("the two records", () => {
   });
 
   test("the colour compares like with like when games went unpriced", () => {
-    /* Clint is 0-3 over the season and 0-1 over the games that carried a line,
-       against 0.3 expected: a shade cold. The version that derived his priced
-       wins from the season record made that -2.3 and painted him the coldest
-       row on the board. */
+    /* Clint is 0-3 over the season and 0-1 over the one game that carried a
+       line, against 0.2 expected. That is a fifth of a win off the market:
+       level, and it should carry no colour at all.
+
+       The version that derived his priced wins from the season record scored
+       him at -2.2 - it counted his two unpriced games as wins he had failed to
+       have - and painted him the coldest row on the board. So the assertion is
+       "no colour", and what it is guarding is the two full steps of red the
+       arithmetic used to invent. */
     const root = board(data).container as unknown as HTMLElement;
     const c = weekly(lastWeek, "clint");
     expect(c.priced, "the fixture stopped exercising this").toBe(1);
     expect(c.pricedWins).toBe(0);
 
+    const played = c.wins + c.losses;
+    expect(expStep(c.pricedWins - c.expectedWins), "clint is level").toBe(0);
+    expect(expStep(c.wins - (played - c.priced) - c.expectedWins),
+      "the old arithmetic no longer paints him the full token").toBe(3);
+
     const table = within(root).getAllByRole("table")[0];
     const cell = within(table).getByText(`${c.expectedWins}-${c.expectedLosses}`);
-    expect(cell.className, "clint should be a shade cold, not blazing").toMatch(/\bcold\b/);
+    expect(cell.className, `clint: ${cell.className}`).not.toMatch(/\b(hot|cold)\d\b/);
     expect(cell.getAttribute("title")).toMatch(/went 0-1 in those/);
+  });
+
+  test("the colour is graded, so a near-miss and a rout do not look the same", () => {
+    /* What the gradient is for. Two rows both behind the market should not be
+       painted identically when one is a rout and the other is rounding. */
+    const root = board({
+      ...data,
+      byWeek: data.byWeek.map((w, i) => i < lastWeek ? w : {
+        ...w,
+        cumulative: {
+          ...w.cumulative,
+          /* level, a shade behind, and two wins behind, on the same slate */
+          nathan: { points: 0, wins: 3, losses: 0, priced: 3, pricedWins: 2,
+                    expectedWins: 2, expectedLosses: 1 },
+          tconn: { points: 0, wins: 3, losses: 0, priced: 3, pricedWins: 2,
+                   expectedWins: 2.6, expectedLosses: 0.4 },
+          devish: { points: 0, wins: 3, losses: 0, priced: 3, pricedWins: 1,
+                    expectedWins: 2.9, expectedLosses: 0.1 },
+        },
+      }),
+    } as unknown as Data).container as unknown as HTMLElement;
+
+    const table = within(root).getAllByRole("table")[0];
+    const shade = (text: string) =>
+      within(table).getByText(text).className.match(/\b(hot|cold)\d\b/)?.[0] ?? "none";
+
+    expect(shade("2-1"), "dead level should carry no colour at all").toBe("none");
+    expect(shade("2.6-0.4"), "0.6 behind is the faintest step").toBe("cold1");
+    expect(shade("2.9-0.1"), "1.9 behind is the full token").toBe("cold3");
   });
 
   test("a manager with no priced game reads as a dash, not as 0-0", () => {
