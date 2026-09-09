@@ -486,7 +486,15 @@ export function Leaderboard({ data }: { data: Data }) {
             {data.projection!.label.toLowerCase()} if every betting favourite
             wins, and the arrow is where that would move you in the table. The
             record behind it is in your own row.
-            {data.projection!.unprojected > 0 && ` ${leftOut(data.projection!)}`}{" "}
+            {data.projection!.unprojected > 0 && ` ${leftOut(data.projection!)}`}
+            {(data.projection!.modelled ?? 0) > 0 &&
+              /* Said whenever it happens, unlike the games that were left out
+                 - this is a number in the column rather than one missing from
+                 it, and a reader comparing two managers is entitled to know
+                 that one of them is being carried by a forecast. */
+              ` ${data.projection!.modelled} ${data.projection!.modelled === 1
+                ? "game had no line at all and is projected from"
+                : "games had no line at all and are projected from"} ESPN's model instead.`}{" "}
           </>
         )}
         {/* Deliberately not a sentence about Pts. Both columns are read out of

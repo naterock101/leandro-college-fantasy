@@ -380,6 +380,24 @@ describe("the games the projection could not project", () => {
       .toContain("3 of 60 games are left out: 2 with no line, and 1 that is a pick-em");
   });
 
+  test("a game carried by the model is named, whenever it happens", () => {
+    /* Unlike the games left out, this is a number *in* the column rather than
+       one missing from it, and a reader comparing two managers is entitled to
+       know that one of them is being carried by a forecast rather than by a
+       price anybody offered. */
+    const text = caption(withProjection({ games: 60, unprojected: 0, unpriced: 0,
+                                          pickems: 0, modelled: 1 }));
+    expect(text).toContain("1 game had no line at all and is projected from ESPN's model instead");
+    expect(caption(withProjection({ games: 60, unprojected: 0, unpriced: 0,
+                                    pickems: 0, modelled: 2 })))
+      .toContain("2 games had no line at all and are projected from ESPN's model instead");
+  });
+
+  test("and a payload with no such game says nothing about the model", () => {
+    expect(caption(withProjection({ games: 60, unprojected: 0, unpriced: 0, pickems: 0 })))
+      .not.toMatch(/FPI|ESPN's model/);
+  });
+
   test("nothing is said when nothing was left out", () => {
     expect(caption(withProjection({ games: 60, unprojected: 0, unpriced: 0, pickems: 0 })))
       .not.toMatch(/left out/);
@@ -593,6 +611,12 @@ describe("a game the book would not spread", () => {
     overUnder: 51.5, provider: "DraftKings", probability: 0.9083,
   };
 
+  /* And the price of last resort, for the game no book would touch. */
+  const fpi = {
+    spread: null, favorite: "Arkansas State", formatted: "Arkansas State FPI",
+    overUnder: null, provider: "ESPN FPI", probability: 0.91, model: true,
+  };
+
   const withMoneyline = () => {
     const games = data.gamesOfWeek.games.map((g, i) =>
       i === 0 ? { ...g, spread: ml } : g);
@@ -607,6 +631,22 @@ describe("a game the book would not spread", () => {
        worth - the whole point of preferring a probability the book stated. */
     expect(within(root).getByText("91%")).toBeTruthy();
     expect(root.textContent).not.toMatch(/undefined|NaN/);
+  });
+
+  test("an FPI row says the model, and does not repeat its own number", () => {
+    const games = data.gamesOfWeek.games.map((g, i) => i === 0 ? { ...g, spread: fpi } : g);
+    const { container } = render(<GamesOfWeek
+      data={{ ...data, gamesOfWeek: { ...data.gamesOfWeek, games } } as unknown as Data} />);
+    const root = container as unknown as HTMLElement;
+
+    /* The label carries no percentage: the column beside it already does, and
+       "Arkansas State FPI 91% 91%" is what happens when both try. */
+    expect(within(root).getByText("Arkansas State FPI")).toBeTruthy();
+    expect(within(root).getByText("91%")).toBeTruthy();
+    expect(root.textContent).toMatch(/An FPI row is a game no book would price at all/);
+    /* and the tooltip does not call a forecast a price */
+    expect(within(root).getByText("91%").getAttribute("title"))
+      .toMatch(/No book priced this game\. ESPN's FPI gives Arkansas State 91%/);
   });
 
   test("and says what an ML row is, but only on a week that has one", () => {

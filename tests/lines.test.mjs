@@ -19,7 +19,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   normProvider, formatSpread, formatMoneyline, impliedProbability, devig,
-  cfbdObservation, espnObservation, espnDates, mergeLines,
+  cfbdObservation, espnObservation, fpiObservation, espnDates, mergeLines,
 } from "../lib/lines.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -168,6 +168,40 @@ describe("merge-only retention", () => {
     assert.equal(merged["1"].seenAt, T0);
     /* and the observation still does the one thing it is entitled to do */
     assert.equal(merged["1"].closed, true, "closed must still be recorded");
+  });
+
+  test("a model never displaces a market price", () => {
+    /* FPI has an opinion on every game, including the ones the books have
+       priced. Without this rule a run that fetched a predictor would overwrite
+       a real closing line with a forecast, and the expectation columns - which
+       exclude modelled prices - would quietly stop counting a game they had
+       been counting all season. */
+    const spread = { spread: -19.5, favorite: "Troy", formatted: "Troy -19.5",
+                     overUnder: 51.5, provider: "DraftKings" };
+    const merged = mergeLines({ "1": { ...spread, seenAt: T0, closed: false } }, [{
+      id: "1", seenAt: "2026-09-02T00:00:00.000Z", closed: false,
+      price: { spread: null, favorite: "Troy", formatted: "Troy FPI",
+               overUnder: null, provider: "ESPN FPI", probability: 0.93, model: true },
+    }]);
+    assert.equal(merged["1"].spread, -19.5);
+    assert.equal(merged["1"].model, undefined);
+    assert.equal(merged["1"].provider, "DraftKings");
+  });
+
+  test("but a market price replaces a model, whenever one turns up", () => {
+    const model = { spread: null, favorite: "Arkansas State", formatted: "Arkansas State FPI",
+                    overUnder: null, provider: "ESPN FPI", probability: 0.91, model: true };
+    const stored = mergeLines({}, [{ id: "1", seenAt: T0, closed: false, price: model }]);
+    assert.equal(stored["1"].model, true);
+
+    const priced = mergeLines(stored, [{
+      id: "1", seenAt: "2026-09-02T00:00:00.000Z", closed: false,
+      price: { spread: -20.5, favorite: "Arkansas State", formatted: "Arkansas State -20.5",
+               overUnder: 52.5, provider: "DraftKings" },
+    }]);
+    assert.equal(priced["1"].spread, -20.5);
+    assert.equal(priced["1"].model, undefined, "the mark must not survive the upgrade");
+    assert.equal(priced["1"].probability, undefined);
   });
 
   test("but a moneyline is kept when there is no spread to lose", () => {
@@ -476,6 +510,61 @@ describe("ESPN normalisation", () => {
     assert.equal(espnObservation(ev, T0).price.probability, 0.9083);
   });
 
+  /* ---------------------------------------------------------------- */
+  /* the model of last resort                                           */
+  /* ---------------------------------------------------------------- */
+
+  /* West Georgia at Arkansas State as ESPN's predictor really answered it on
+     2026-09-09: no book anywhere would price the game, and FPI gives the home
+     side 91.4%. */
+  const predictor = (home, away) => ({
+    homeTeam: { statistics: [{ name: "gameProjection", displayValue: String(home) }] },
+    awayTeam: { statistics: [{ name: "gameProjection", displayValue: String(away) }] },
+  });
+  const competition = (completed = false, state = "pre") => ({
+    competitors: [
+      { homeAway: "home", team: { location: "Arkansas State" } },
+      { homeAway: "away", team: { location: "West Georgia" } },
+    ],
+    status: { type: { completed, state } },
+  });
+
+  test("a game no book will price at all falls back to the model", () => {
+    const o = fpiObservation(predictor(91.4, 8.6), competition(), "401868241", T0);
+    assert.equal(o.price.favorite, "Arkansas State");
+    assert.equal(o.price.probability, 0.91);
+    assert.equal(o.price.spread, null);
+    assert.equal(o.price.provider, "ESPN FPI");
+    assert.equal(o.price.model, true, "the mark is what keeps it out of the market columns");
+  });
+
+  test("and it never formats as a price a book offered", () => {
+    /* FPI publishes a predicted margin too - 20.2 points here - and rendering
+       that would put "Arkansas State -20.5" in the same column as real
+       spreads, which is the one thing a forecast must not look like. */
+    const o = fpiObservation(predictor(91.4, 8.6), competition(), "401868241", T0);
+    assert.equal(o.price.formatted, "Arkansas State FPI");
+    assert.ok(!/-?\d/.test(o.price.formatted), "no number that could read as a line");
+    assert.equal(o.price.overUnder, null);
+  });
+
+  test("a predictor that does not describe one game is refused", () => {
+    /* The two percentages are separately published numbers, and a pair that
+       does not add up is a response this code has misread. Believing half of
+       it would put a confident wrong favourite into the projection. */
+    for (const [h, a] of [[91.4, 30], [null, 8.6], [140, -40], [50, 50]]) {
+      const o = fpiObservation(predictor(h, a), competition(), "401868241", T0);
+      assert.equal(o, null, `${h}/${a} should not produce a price`);
+    }
+    assert.equal(fpiObservation({}, competition(), "401868241", T0), null);
+    assert.equal(fpiObservation(predictor(91.4, 8.6), competition(), "", T0), null);
+  });
+
+  test("an unnameable favourite is refused rather than printed", () => {
+    const nameless = { competitors: [{ homeAway: "away", team: { location: "West Georgia" } }] };
+    assert.equal(fpiObservation(predictor(91.4, 8.6), nameless, "401868241", T0), null);
+  });
+
   test("the fetch window is Eastern days, not UTC ones", () => {
     /* Saturday 2026-09-05, 22:00 ET, which is Sunday 02:00Z. A UTC window
        would already have rolled to the 6th and would ask ESPN for a day whose
@@ -610,6 +699,23 @@ describe("build-lines.mjs", () => {
     assert.equal(entry.favorite, "Troy");
     assert.equal(entry.formatted, "Troy ML -1650");
     assert.equal(entry.probability, 0.9083);
+  });
+
+  test("replaying a fixture never reaches the network for a predictor", () => {
+    /* This suite is hermetic by construction and the FPI step is the one
+       thing in the script that could break that: Howard at Indiana is in the
+       fixture unpriced, rostered and not yet kicked off, which is exactly the
+       shape the step goes looking for. Left ungated it would fire a live
+       request in the middle of every fixture-based test here, and the file
+       those tests assert on would depend on what ESPN thought that morning. */
+    const dir = mkdtempSync(join(tmpdir(), "lines-"));
+    const out = join(dir, "lines.json");
+    const r = runBuild(["--espn-fixture", ESPN_FIXTURE, "--no-cfbd", "--out", out]);
+    assert.equal(r.status, 0, r.out);
+    assert.match(r.out, /fpi: skipped, replaying a fixture/);
+    const games = JSON.parse(readFileSync(out, "utf8")).games;
+    assert.equal(Object.values(games).some((g) => g.model), false,
+      "a replay invented a modelled price");
   });
 
   test("an unreadable stored file is not overwritten", () => {

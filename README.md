@@ -397,7 +397,9 @@ calls and blows the free tier.
 
 ## Betting lines
 
-Two sources, joined on the game id and never on a school name.
+Sources joined on the game id and never on a school name.
+
+Three sources, and only the middle one costs anything.
 
 **ESPN's public scoreboard is primary** and runs on every standings run. No key,
 no quota, `access-control-allow-origin: *`, `cache-control: max-age=3`. Its
@@ -453,6 +455,46 @@ It is a fallback and not a second source:
 spread, 1 had a moneyline only, and 1 - West Georgia at Arkansas State - had no
 odds at all in either feed or in ESPN's per-event endpoint. This recovers about
 one game a week, always a blowout, for zero API budget.
+
+### ESPN FPI, the model of last resort
+
+That last game is the one no market will touch: no spread, no moneyline, no
+total. Left unpriced it does not merely go unmeasured - it drops out of the
+naive projection and takes its owner's points with it, so Clint's end-of-week
+total was short by a game he will almost certainly win.
+
+ESPN's FPI predictor has an opinion on it (Arkansas State 91.4%), so
+`fpiObservation` turns that into a price and marks it **`model: true`**.
+
+**The mark is the whole feature.** FPI is a forecast; a spread and a moneyline
+are money at risk. The page says "the closing lines expected" about its
+expectation columns, and that sentence has to stay true, so a modelled price:
+
+- **projects** a game - it has a favourite, so `EoW Proj` hands over the points;
+- and appears in **nothing** the page calls a market figure: not luck, not the
+  expected record, not the expected points, not `upset` tagging, not a results
+  row's `line`, not the head-to-head `spread`. `tests/build.test.mjs` asserts
+  that as an identity rather than a checklist: giving a settled unpriced game a
+  modelled price must produce a byte-identical payload.
+
+Worth being clear about which figures were actually hurt. An unpriced game does
+**not** distort the expectation columns - they exclude it from *both* sides and
+publish `priced` as the denominator, so they get narrower rather than wrong.
+The projection is the one that silently goes short, which is why it is the one
+this feeds. `projection.modelled` counts the games it carried, and the caption
+says so on any week that has one.
+
+**When it runs.** Last, after both book sources, and only for a rostered game
+that has not kicked off and that nothing else priced - so "last resort" is
+enforced by when the step runs rather than by a rule it has to remember. One
+request per such game, unmetered, sorted soonest-first and capped at ten a run.
+A game already holding a price is never re-asked, modelled or not: FPI moves a
+point or two on these mismatches, and refreshing would be a request every ten
+minutes all week for a number that cannot change the projection.
+
+`--espn-fixture` disables it. A captured payload that then phones a live
+endpoint is not a capture, and Howard at Indiana sits in that fixture unpriced,
+rostered and pre-kickoff - exactly the shape this step goes looking for.
 
 ### The file is merge-only
 

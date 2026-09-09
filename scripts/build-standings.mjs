@@ -360,7 +360,13 @@ function build(doc, owners, games, lines) {
        and so can never be an upset, and a game the books never priced simply
        goes untagged. */
     const line = lines.games[g.id] ?? null;
-    const upset = Boolean(line && line.favorite && line.favorite !== winner);
+    /* A modelled price is not a market, and every figure below this line is a
+       statement about what the market said. FPI exists in this file only so
+       the projection can reach a game the books ignored; letting it into luck,
+       the expected record or upset tagging would make "the closing lines
+       expected" false on exactly the games nobody can check. */
+    const market = line && line.model !== true ? line : null;
+    const upset = Boolean(market && market.favorite && market.favorite !== winner);
 
     if (oh || oa) {
       /* Luck, one game at a time. The line is the stored closing price, and it
@@ -370,7 +376,7 @@ function build(doc, owners, games, lines) {
          set it at all. The spread survives regardless, and the spread is what
          the model reads. An unpriced game is excluded from both sides of the
          subtraction rather than treated as a coin flip. */
-      if (!line) {
+      if (!market) {
         luckUnpriced++;
       } else {
         luckPriced++;
@@ -378,7 +384,7 @@ function build(doc, owners, games, lines) {
           if (!o) continue;
           luckLedger[o.manager].push({
             value: val(o.tier),
-            probability: winProbability(line, team),
+            probability: winProbability(market, team),
             won: team === winner,
           });
         }
@@ -396,7 +402,9 @@ function build(doc, owners, games, lines) {
         h2h: Boolean(oh && oa),
         sameManager: Boolean(oh && oa && oh.manager === oa.manager),
         upset,
-        line: line ? line.formatted : null,
+        /* The market's line or nothing. A results row reading "Arkansas State
+           FPI" would present a forecast as the price that was on offer. */
+        line: market ? market.formatted : null,
       });
     }
 
@@ -407,7 +415,7 @@ function build(doc, owners, games, lines) {
         loser: { team: loser, manager: owners.get(loser).manager },
         score: `${Math.max(hp, ap)}-${Math.min(hp, ap)}`,
         sameManager: owners.get(winner).manager === owners.get(loser).manager,
-        spread: line,
+        spread: market,
         upset,
       });
     }
@@ -529,7 +537,7 @@ function project(table, upcoming, lines, val) {
      called it even. `unprojected` stays as their sum because a browser holding
      cached JS reads it, and the two halves ride alongside so the caption can
      say which happened rather than asserting the commoner one. */
-  let projected = 0, unprojected = 0, unpriced = 0, pickems = 0;
+  let projected = 0, unprojected = 0, unpriced = 0, pickems = 0, modelled = 0;
   for (const g of week) {
     const line = g.spread;
 
@@ -550,6 +558,10 @@ function project(table, upcoming, lines, val) {
       continue;
     }
     projected++;
+    /* Projected, and worth saying how. A game reaching the end of the week
+       on ESPN's forecast rather than on a price is still a game in the total,
+       and the column header says "if every betting favourite wins". */
+    if (line.model === true) modelled++;
     for (const sd of [g.home, g.away]) {
       if (!sd.manager) continue;
       if (sd.team === line.favorite) {
@@ -603,6 +615,7 @@ function project(table, upcoming, lines, val) {
     unprojected,
     unpriced,
     pickems,
+    modelled,
     managers,
   };
 }
@@ -662,7 +675,11 @@ function buildByWeek(doc, owners, games, PTS, lines) {
          one with a later fetch - which is as close as this repo gets to a
          record of what was projected for that week at the time. */
       const line = lines.games[g.id] ?? null;
-      if (!line) continue;
+      /* Market prices only, for the same reason luck takes market prices only:
+         this pair is published as what the closing lines expected. A modelled
+         price leaves the game in neither column, exactly as an unpriced game
+         does, and `priced` goes on reporting how many games the pair covers. */
+      if (!line || line.model === true) continue;
       for (const team of [winner, loser]) {
         const o = owners.get(team);
         if (!o) continue;

@@ -14,6 +14,14 @@
  * so this script throttles it to at most one every CFBD_MIN_INTERVAL_MS by
  * comparing against `cfbdFetchedAt` in the file it already wrote.
  *
+ * ESPN's FPI predictor is the last resort, and only for a rostered game that
+ * has not kicked off and that neither book source priced. It is one request
+ * per such game - unmetered, same host family as the odds - and there are one
+ * or two of them a week. The price it produces is marked `model: true` and is
+ * for the projection only; see lib/lines.mjs on why that mark matters. It is
+ * the one step --espn-fixture cannot replay, so the fixture flag disables it:
+ * a captured payload that then phones a live endpoint is not a capture.
+ *
  * That throttle replaces the old arrangement, where poll.yml gated the whole
  * step on a literal match against the baseline cron string. The budget is now
  * enforced by the thing that spends it rather than by two files agreeing about
@@ -37,19 +45,22 @@
  * Env: CFBD_API_KEY (optional; without it, ESPN only)
  * Usage: node scripts/build-lines.mjs [--dry] [--out path.json]
  *                                     [--no-espn] [--no-cfbd] [--force-cfbd]
- *                                     [--espn-fixture path.json]
+ *                                     [--no-fpi] [--espn-fixture path.json]
  */
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { cfbdObservation, espnObservation, espnDates, mergeLines } from "../lib/lines.mjs";
+import {
+  cfbdObservation, espnObservation, fpiObservation, espnDates, mergeLines,
+} from "../lib/lines.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ROSTERS = resolve(ROOT, "data/rosters.json");
 const CFBD_API = "https://api.collegefootballdata.com/lines";
 const ESPN_API = "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard";
+const ESPN_CORE = "https://sports.core.api.espn.com/v2/sports/football/leagues/college-football";
 
 /* groups=80 is FBS. Without it the scoreboard is every division and mostly
    games no roster can contain. */
@@ -69,6 +80,7 @@ const DRY = args.includes("--dry");
 const NO_ESPN = args.includes("--no-espn");
 const NO_CFBD = args.includes("--no-cfbd");
 const FORCE_CFBD = args.includes("--force-cfbd");
+const NO_FPI = args.includes("--no-fpi");
 
 const flagValue = (name) => {
   const i = args.indexOf(name);
@@ -128,7 +140,7 @@ const stored = loadStored();
    until GitHub's job timeout kills it, every ten minutes. */
 const TIMEOUT_MS = 15_000;
 
-async function fetchEspnDoc(url) {
+async function fetchEspnDoc(url, { events = true } = {}) {
   const res = await fetch(url, {
     headers: { accept: "application/json" },
     signal: AbortSignal.timeout(TIMEOUT_MS),
@@ -136,14 +148,18 @@ async function fetchEspnDoc(url) {
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
   const body = await res.json();
   /* A reshaped or error payload usually still parses - an HTML block does not,
-     but a JSON error object does. The events array is the contract. */
-  if (!Array.isArray(body?.events)) throw new Error("no events array in the response");
+     but a JSON error object does. The events array is the contract for the
+     scoreboard; the predictor has no array and is checked by its parser. */
+  if (events && !Array.isArray(body?.events)) {
+    throw new Error("no events array in the response");
+  }
   return body;
 }
 
 /** @returns {Promise<{observations: any[], ok: boolean, priced: number}>} */
 async function readEspn() {
   const observations = [];
+  const events = new Map();
   let ok = false;
   let priced = 0;
 
@@ -154,6 +170,11 @@ async function readEspn() {
       if (!o) continue;
       if (o.price) priced++;
       observations.push(o);
+      /* Kept so the FPI step can name a favourite and see whether the game has
+         kicked off, without asking the scoreboard for the same nine dates a
+         second time. Keyed by id, so a game appearing on two dates - the
+         window overlaps by design - is held once. */
+      events.set(o.id, ev);
     }
     console.log(`espn ${label}: ${body.events.length} event(s)`);
   };
@@ -166,7 +187,7 @@ async function readEspn() {
     } catch (e) {
       console.warn(`espn fixture unusable, skipped: ${e.message}`);
     }
-    return { observations, ok, priced };
+    return { observations, ok, priced, events };
   }
 
   /* Sequential rather than Promise.all: three requests to an unauthenticated
@@ -180,7 +201,7 @@ async function readEspn() {
       console.warn(`espn ${date} failed, skipped: ${e.message}`);
     }
   }
-  return { observations, ok, priced };
+  return { observations, ok, priced, events };
 }
 
 /* ------------------------------------------------------------------ */
@@ -227,10 +248,87 @@ async function readCfbd() {
 }
 
 /* ------------------------------------------------------------------ */
+/* ESPN FPI, the model of last resort                                  */
+/* ------------------------------------------------------------------ */
+
+/* Every school on a roster, as the CFBD string, which is also what ESPN's
+   competitor `location` is. Only these games can cost anyone points, and FPI
+   is a per-game request: asking about the other ~40 unrostered games a week
+   would be four times the traffic for nothing. */
+const ROSTERED = new Set(
+  Object.values(doc.managers).flat().map((t) => t.cfbd)
+);
+
+/* A ceiling on the requests one run may make, so a feed that stops pricing
+   games - or a bug that stops recognising prices - cannot turn a ten-minute
+   cron into sixty requests a run against someone else's server. Two a week is
+   the real number; ten is room for a bad Saturday and a hard stop after it. */
+const FPI_MAX = 10;
+
+const isRostered = (/** @type {any} */ ev) =>
+  (ev?.competitions?.[0]?.competitors ?? []).some((c) => ROSTERED.has(c?.team?.location));
+
+/**
+ * Predictors for the rostered games nothing else priced.
+ *
+ * `priced` is the ids that already have a price this run; `stored.games` the
+ * ones already in the file. Both are skipped, for two different reasons:
+ *
+ * - a game the books priced and have since pulled keeps that price under the
+ *   merge rule, so a request about it buys an answer that is then discarded
+ *   as a downgrade;
+ * - a game already holding a *model* price is not re-asked either. FPI moves
+ *   by a point or two on the sort of mismatch that reaches this function, and
+ *   refreshing it would be a request every ten minutes all week for a number
+ *   that will not change the projection. One per game per season is the trade.
+ */
+async function readFpi(events, priced) {
+  const observations = [];
+  const wanted = [...events.entries()].filter(([id, ev]) =>
+    !priced.has(id) && !stored.games[id] && isRostered(ev)
+    /* A game already under way or over is not one the projection is waiting
+       on, and a forecast of it is worth nothing. */
+    && ev?.competitions?.[0]?.status?.type?.completed !== true
+    && ev?.competitions?.[0]?.status?.type?.state === "pre")
+    /* Soonest first, so the cap below drops the games furthest out - they get
+       another nine days of runs to be asked about, and the ones about to
+       kick off do not. Insertion order here is the order nine scoreboard
+       responses happened to arrive, which is no order at all. */
+    .sort(([, a], [, b]) =>
+      String(a?.date ?? "").localeCompare(String(b?.date ?? "")));
+
+  if (!wanted.length) return observations;
+  if (wanted.length > FPI_MAX) {
+    console.warn(`fpi: ${wanted.length} unpriced rostered game(s), asking about the first ${FPI_MAX}`);
+  }
+
+  for (const [id, ev] of wanted.slice(0, FPI_MAX)) {
+    try {
+      const body = await fetchEspnDoc(
+        `${ESPN_CORE}/events/${id}/competitions/${id}/predictor`, { events: false });
+      const o = fpiObservation(body, ev.competitions[0], id, seenAt);
+      if (!o) {
+        console.warn(`fpi ${id}: no usable projection`);
+        continue;
+      }
+      observations.push(o);
+      console.log(`fpi ${id}: ${o.price.formatted}`);
+    } catch (e) {
+      /* Same rule as everywhere else in this file: a source that will not
+         answer leaves the stored file as it was. */
+      console.warn(`fpi ${id} failed, skipped: ${e.message}`);
+    }
+  }
+  return observations;
+}
+
+/* ------------------------------------------------------------------ */
 /* run                                                                 */
 /* ------------------------------------------------------------------ */
 
-const espn = NO_ESPN ? { observations: [], ok: false, priced: 0 } : await readEspn();
+const espn = NO_ESPN
+  ? { observations: [], ok: false, priced: 0, events: new Map() }
+  : await readEspn();
 
 const cfbdWanted = !NO_CFBD && cfbdIsDue();
 if (!NO_CFBD && !cfbdWanted) {
@@ -251,12 +349,26 @@ if (!espn.ok && !cfbd.ok) {
    would flip `provider` between "DraftKings" and "Draft Kings" on every
    baseline run, churning seenAt on a price that never moved. */
 const espnIds = new Set(espn.observations.filter((o) => o.price).map((o) => o.id));
-const observations = [
+const market = [
   ...espn.observations,
   ...cfbd.observations.filter((o) => !espnIds.has(o.id)),
 ];
 
-const games = mergeLines(stored.games, observations);
+/* Last, and only for what is left. Both book sources have had their turn by
+   here, so the set of games FPI is asked about is exactly the set no market
+   priced - which is the definition of last resort, enforced by when it runs
+   rather than by a rule it has to remember. */
+const pricedNow = new Set(market.filter((o) => o.price).map((o) => o.id));
+/* A captured scoreboard is a replay, and a replay that reaches out to a live
+   endpoint for the games its capture did not price is neither reproducible nor
+   offline - it would put a network call in the middle of a hermetic test suite
+   and make the file it writes depend on what ESPN thinks today. So the fixture
+   flag turns this step off, the same way it turns the scoreboard fetch off. */
+const fpiOff = NO_FPI || ESPN_FIXTURE || !espn.ok;
+if (ESPN_FIXTURE && !NO_FPI) console.log("fpi: skipped, replaying a fixture");
+const fpi = fpiOff ? [] : await readFpi(espn.events, pricedNow);
+
+const games = mergeLines(stored.games, [...market, ...fpi]);
 
 const payload = {
   /* When any source was last successfully read. The page renders this as
@@ -271,7 +383,9 @@ const payload = {
 
 const before = Object.keys(stored.games).length;
 const after = Object.keys(games).length;
-console.log(`espn priced ${espn.priced} game(s); stored games ${before} -> ${after}`);
+console.log(`espn priced ${espn.priced} game(s)` +
+  (fpi.length ? `; fpi projected ${fpi.length}` : "") +
+  `; stored games ${before} -> ${after}`);
 if (after < before) {
   /* mergeLines cannot do this. If it ever does, the closing lines are gone and
      the run should be looked at rather than committed. */

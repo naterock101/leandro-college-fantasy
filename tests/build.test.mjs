@@ -15,7 +15,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFileSync, mkdtempSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -38,9 +38,17 @@ const OWNED = new Set(Object.values(rosters.managers).flat().map((t) => t.cfbd))
    a side of it, so every count below has to be taken over the same subset. */
 const rostered = (games) => games.filter((g) => OWNED.has(home(g)) || OWNED.has(away(g)));
 
-/** @param {string} [now] ISO instant to build against, or the fixture's own pin */
-function runBuilder(now) {
-  const out = join(mkdtempSync(join(tmpdir(), "standings-")), "out.json");
+/** @param {string} [now] ISO instant to build against, or the fixture's own pin
+ *  @param {Record<string, any>} [lines] a lines file to use instead of the fixture's */
+function runBuilder(now, lines) {
+  const dir = mkdtempSync(join(tmpdir(), "standings-"));
+  const out = join(dir, "out.json");
+  let linesFlag = [];
+  if (lines) {
+    const path = join(dir, "lines.json");
+    writeFileSync(path, JSON.stringify(lines));
+    linesFlag = ["--lines", path];
+  }
   /* --union, because everything below asserts about the payload as a whole and
      the split is not what is under test here. The split's own guarantee - that
      the three files it writes recombine into exactly this object - is asserted
@@ -48,7 +56,7 @@ function runBuilder(now) {
      payload as one thing. */
   const r = spawnSync(process.execPath,
     [join(ROOT, "scripts/build-standings.mjs"), "--fixture", GAMES, "--out", out, "--union",
-      ...(now ? ["--now", now] : [])],
+      ...linesFlag, ...(now ? ["--now", now] : [])],
     { encoding: "utf8" });
   assert.equal(r.status, 0, `builder exited ${r.status}\n${r.stderr}`);
   return JSON.parse(readFileSync(out, "utf8"));
@@ -532,6 +540,63 @@ test("the expected record is the sum of the win probabilities, not the points", 
     assert.equal(last[manager].expectedWins, round1(wins), `${manager}'s expected wins`);
     assert.equal(last[manager].priced, priced[manager], `${manager}'s priced games`);
   }
+});
+
+test("a modelled price is invisible to everything the page calls a market", () => {
+  /* ESPN's FPI is a last resort for games no book will price, and it exists so
+     the projection can reach them. It may not reach anything else: luck, the
+     expected record, the expected points, upset tagging and a results row's
+     `line` are all published as statements about the closing lines.
+
+     The proof is an identity rather than a list of assertions. Game 20 is
+     settled and was never priced, so it is already excluded from every one of
+     those figures; giving it a modelled price must therefore change nothing at
+     all. Anything that started reading modelled prices would show up here as a
+     payload that stopped matching. */
+  const doctored = {
+    ...fixtureLines,
+    games: {
+      ...fixtureLines.games,
+      20: { spread: null, favorite: "Texas A&M", formatted: "Texas A&M FPI",
+            overUnder: null, provider: "ESPN FPI", probability: 0.94, model: true },
+    },
+  };
+  assert.equal(fixtureLines.games[20], undefined, "game 20 acquired a real line");
+  const withModel = runBuilder(built.generatedAt, doctored);
+  assert.deepEqual(withModel, built);
+});
+
+test("but the projection does use one, and says that it did", () => {
+  /* The other half, and the whole reason the source exists: a game nobody
+     priced is dropped from the naive projection, and dropped it takes its
+     owner's points with it. Game 23 is Nathan's Arizona State at his own Texas
+     A&M in the projected week; stripped to a modelled price it still has to
+     reach his end-of-week total. */
+  const projected = built.projection;
+  const id = 23;
+  const real = fixtureLines.games[id];
+  assert.ok(real && real.favorite, "the fixture stopped exercising this");
+
+  const doctored = {
+    ...fixtureLines,
+    games: {
+      ...fixtureLines.games,
+      [id]: { spread: null, favorite: real.favorite, formatted: `${real.favorite} FPI`,
+              overUnder: null, provider: "ESPN FPI", probability: 0.7, model: true },
+    },
+  };
+  const withModel = runBuilder(built.generatedAt, doctored);
+
+  assert.equal(withModel.projection.projected, projected.projected,
+    "the game must still be projected");
+  assert.equal(withModel.projection.unprojected, 0);
+  assert.equal(withModel.projection.modelled, 1, "and the caption has to be able to say so");
+  assert.equal(built.projection.modelled, 0, "a real line is not modelled");
+
+  /* And the market figures behind it are untouched, because the game it
+     replaced a line on has not been played. */
+  assert.deepEqual(withModel.luck, built.luck);
+  assert.deepEqual(withModel.byWeek, built.byWeek);
 });
 
 test("the season's luck and the last week's points expectation are the same sum", () => {

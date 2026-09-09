@@ -45,6 +45,11 @@ export type Spread = {
      only on a moneyline price, and read in preference to the spread - see
      favouriteChance in lib/winprob.mjs. */
   probability?: number;
+  /* True on a price that is a forecast rather than a market: ESPN's FPI, used
+     as a last resort so a game no book would price does not drop out of the
+     projection and take its owner's points with it. Everything the page calls
+     a market expectation excludes these. */
+  model?: true;
 };
 
 export type TeamRow = {
@@ -136,6 +141,9 @@ export type Data = {
        postdate it, and the caption falls back to the vaguer sentence when a
        payload has only the total. */
     unpriced?: number; pickems?: number;
+    /* How many of `projected` were projected off ESPN's model rather than a
+       market price, because no book would price them at all. */
+    modelled?: number;
     managers: Record<string, { wins: number; losses: number; points: number;
                                gained: number; rankDelta: number;
                                /* The line-weighted projection, added alongside

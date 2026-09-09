@@ -100,9 +100,15 @@ export function GamesOfWeek({ data }: { data: Data }) {
                of the row never disagree about who is being talked about. */
             <span
               className="mono wp"
-              title={g.spread.favorite
-                ? `${g.spread.favorite} wins ${percent(favouriteChance(g.spread))} of the time at this price`
-                : "A pick-em: even money either way"}
+              title={!g.spread.favorite
+                ? "A pick-em: even money either way"
+                : g.spread.model
+                /* "at this price" is a sentence about a market, and this row
+                   is not one. Naming the model is also the only place a reader
+                   is told which of the two kinds of number they are looking
+                   at, since the row itself just says FPI. */
+                ? `No book priced this game. ESPN's FPI gives ${g.spread.favorite} ${percent(favouriteChance(g.spread))}`
+                : `${g.spread.favorite} wins ${percent(favouriteChance(g.spread))} of the time at this price`}
             >
               {percent(favouriteChance(g.spread))}
             </span>
@@ -120,7 +126,15 @@ export function GamesOfWeek({ data }: { data: Data }) {
           outright, assuming results land about {SIGMA} points either side of
           the number - which is fitted to about 9,600 games rather than guessed,
           but is still a model and not a measurement of this game.
-          {games.some((g) => typeof g.spread?.probability === "number") && (
+          {games.some((g) => g.spread?.model) && (
+            <>
+              {" "}An FPI row is a game no book would price at all: the
+              percentage there is ESPN&rsquo;s model rather than a market, and
+              it is used to project the week and nothing else.
+            </>
+          )}
+          {games.some((g) => typeof g.spread?.probability === "number"
+                             && !g.spread.model) && (
             /* Only when one is on screen. A standing sentence about a case
                that arises on about one game a week would be a paragraph the
                league re-reads all season for nothing. */
