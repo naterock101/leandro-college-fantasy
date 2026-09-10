@@ -111,11 +111,19 @@ const settled = (c: Cume, r: { wins: number; losses: number; points: number }) =
  * counts by the naive rule and so may include pick-ems this projection did
  * use; that payload gets the vaguer sentence rather than a precise wrong one.
  */
-/** How many games the projection on screen could not reach. */
-const left = (p: Data["projection"] & object) =>
-  typeof p.unpriced === "number" ? p.unpriced : p.unprojected;
+/**
+ * How many games the projection *on screen* could not reach.
+ *
+ * Which count that is depends on which projection is being shown, and the two
+ * differ by the pick-ems: the weighted one uses them at half a win a side and
+ * so is only ever missing a game nothing would price, while the naive one
+ * skips them for having no favourite to hand. Reading `unpriced` under a naive
+ * fallback would under-report by exactly the pick-ems that fallback dropped.
+ */
+const left = (p: Data["projection"] & object, weighted: boolean) =>
+  weighted && typeof p.unpriced === "number" ? p.unpriced : p.unprojected;
 
-const leftOut = (p: Data["projection"] & object) => {
+const leftOut = (p: Data["projection"] & object, weighted: boolean) => {
   /* One game left out is a real week - it is the commonest case there is - so
      the verbs agree with the count rather than being written for the plural
      and left to read as broken English the first time it is 1. */
@@ -125,7 +133,7 @@ const leftOut = (p: Data["projection"] & object) => {
     has: count === 1 ? "has" : "have",
   });
 
-  if (typeof p.unpriced !== "number") {
+  if (!weighted || typeof p.unpriced !== "number") {
     const w = n(p.unprojected);
     return `${w.of} could not be projected and ${w.is} left out.`;
   }
@@ -144,15 +152,21 @@ const leftOut = (p: Data["projection"] & object) => {
  * here only when the weighted one is missing, which is a snapshot written
  * before it shipped.
  *
- * The points and the rank come from the same projection or neither does.
+ * Every figure comes from the same projection or none of them does. They were
+ * five separate checks for a while - the column, its arrow, its tooltip, the
+ * record in the dropdown and the note under it each deciding for themselves -
+ * and five checks over one payload is five chances to show half of each: a
+ * weighted record under a naive column is the exact split this replaced.
  */
 const proj = (pr: NonNullable<Data["projection"]>["managers"][string]) =>
   typeof pr.expectedPoints === "number" && typeof pr.expectedRankDelta === "number"
-    && typeof pr.expectedGained === "number"
+    && typeof pr.expectedGained === "number" && typeof pr.expectedWins === "number"
+    && typeof pr.expectedLosses === "number"
     ? { points: pr.expectedPoints, rankDelta: pr.expectedRankDelta,
-        gained: pr.expectedGained, weighted: true }
-    : { points: pr.points, rankDelta: pr.rankDelta,
-        gained: pr.gained, weighted: false };
+        gained: pr.expectedGained, wins: pr.expectedWins, losses: pr.expectedLosses,
+        weighted: true }
+    : { points: pr.points, rankDelta: pr.rankDelta, gained: pr.gained,
+        wins: pr.wins, losses: pr.losses, weighted: false };
 
 /** The tail of an expectation tooltip: what else, if anything, it left out. */
 const denominator = (missing: number, whole: string) =>
@@ -240,6 +254,13 @@ export function Leaderboard({ data }: { data: Data }) {
     (c) => c.wins + c.losses > (c.priced ?? 0)
   );
   const showProj = live && Boolean(data.projection);
+  /* Whether every row on screen is showing the weighted projection, which is
+     what the caption is describing. `every` rather than `some`: a payload that
+     somehow carried the weighted fields for only some managers would have rows
+     falling back individually, and the caption would then be right about some
+     of them. The conservative sentence is right about all of them. */
+  const weighted = showProj &&
+    Object.values(data.projection!.managers).every((p) => proj(p).weighted);
   /* One count, so the header row and every detail row cannot disagree about
      how wide the table is. Two optional columns is where that starts going
      wrong quietly, with a detail cell one short and the layout only slightly
@@ -446,21 +467,16 @@ export function Leaderboard({ data }: { data: Data }) {
                            in tenths for the reason Expected does: a game is
                            worth the chance it is won, and nobody is ever
                            expected to be exactly 13-8. */
-                        const weighted = typeof pr.expectedWins === "number"
-                          && typeof pr.expectedLosses === "number";
+                        const p = proj(pr);
                         return (
                           <span
                             className="rec"
-                            title={weighted
+                            title={p.weighted
                               ? `Their record at the end of ${data.projection!.label.toLowerCase()}, every game weighted by the chance its line gives it`
                               : `Their record at the end of ${data.projection!.label.toLowerCase()} if every betting favourite wins`}
                           >
                             <span className="rl">{data.projection!.label} proj</span>
-                            <span className="mono rv">
-                              {weighted
-                                ? `${pr.expectedWins}-${pr.expectedLosses}`
-                                : `${pr.wins}-${pr.losses}`}
-                            </span>
+                            <span className="mono rv">{p.wins}-{p.losses}</span>
                           </span>
                         );
                       })()}
@@ -477,8 +493,13 @@ export function Leaderboard({ data }: { data: Data }) {
                     {/* Zero is not "expected nothing", it is "has no priced game
                         this week", and a line reading "+0 points" says the
                         second thing in the words of the first. */}
-                    {showProj && (data.projection!.managers[r.manager]?.expectedGained ?? 0) > 0 && (() => {
+                    {showProj && (() => {
                       const pr = data.projection!.managers[r.manager];
+                      /* Read through the same decision as everything else, so
+                         a payload that fell back to the naive projection above
+                         cannot be explained here by a weighted sum. */
+                      const p = pr ? proj(pr) : null;
+                      if (!p || !p.weighted || p.gained <= 0) return null;
                       return (
                         /* What the column beside their name is made of, rather
                            than a second number to set against it. It used to
@@ -488,7 +509,7 @@ export function Leaderboard({ data }: { data: Data }) {
                            the column now, so this says where it came from. */
                         <div className="note">
                           {data.projection!.label} projection:{" "}
-                          <b>+{pr.expectedGained}</b> points on top of the{" "}
+                          <b>+{p.gained}</b> points on top of the{" "}
                           {r.points} banked, every game worth the chance{" "}
                           {/* Per manager, not per league. This sum only ever
                               contains what is on their own slate, and shown to
@@ -523,7 +544,8 @@ export function Leaderboard({ data }: { data: Data }) {
             - so a coin-flip is worth half its points and an underdog is worth
             something. The arrow is where that would move you in the table, and
             the record behind it is in your own row.
-            {left(data.projection!) > 0 && ` ${leftOut(data.projection!)}`}
+            {left(data.projection!, weighted) > 0 &&
+              ` ${leftOut(data.projection!, weighted)}`}
             {(data.projection!.modelled ?? 0) > 0 &&
               /* Said whenever it happens, unlike the games that were left out
                  - this is a number in the column rather than one missing from

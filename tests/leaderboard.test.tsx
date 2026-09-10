@@ -179,6 +179,33 @@ describe("the two points columns", () => {
     expect(row(root, "Adam")["EoW Proj"]).toBe(`${pr.expectedPoints}–`);
   });
 
+  test("the dropdown and the note fall back with the column, not apart from it", () => {
+    /* Five figures used to decide for themselves whether the payload was
+       weighted - the column, its arrow, its tooltip, the record and the note -
+       and five checks over one payload is five chances to show half of each. A
+       weighted record under a naive column is the exact split this replaced. */
+    const partial = {
+      ...data,
+      projection: {
+        ...data.projection!,
+        managers: Object.fromEntries(Object.entries(data.projection!.managers)
+          .map(([m, p]) => {
+            const { expectedRankDelta, ...rest } = p as any;
+            return [m, rest];
+          })),
+      },
+    } as unknown as Data;
+    const root = board(partial).container as unknown as HTMLElement;
+    const pr = data.projection!.managers["adam"];
+
+    expect(row(root, "Adam")["EoW Proj"]).toBe(`${pr.points}–`);
+    const detail = open(root, "Adam");
+    expect(detail.querySelector(".rec:last-child .rv")!.textContent)
+      .toBe(`${pr.wins}-${pr.losses}`);
+    expect(detail.querySelector(".note"), "a weighted note under a naive column")
+      .toBeNull();
+  });
+
   test("a payload with only some weighted fields falls back whole", () => {
     /* All of them or none. A cell reading the weighted points beside a tooltip
        reading the naive gain would describe one projection while showing the
@@ -432,6 +459,30 @@ describe("the games the projection could not reach", () => {
   test("nothing is said when nothing was left out", () => {
     expect(caption(withProjection({ games: 60, unprojected: 0, unpriced: 0, pickems: 0 })))
       .not.toMatch(/left out/);
+  });
+
+  test("a naive fallback reports by the naive rule, not this one", () => {
+    /* The counts differ by the pick-ems: this projection uses them, the naive
+       one skips them. A page that has fallen back to the naive projection and
+       goes on reporting `unpriced` under-reports by exactly the games that
+       fallback dropped - "nothing was left out" over a column that left two
+       games out. */
+    const naive = {
+      ...data,
+      projection: {
+        ...data.projection!,
+        games: 60, unprojected: 2, unpriced: 0, pickems: 2,
+        managers: Object.fromEntries(Object.entries(data.projection!.managers)
+          .map(([m, p]) => {
+            const { expectedRankDelta, ...rest } = p as any;
+            return [m, rest];
+          })),
+      },
+    } as unknown as Data;
+    const text = caption(board(naive).container as unknown as HTMLElement);
+    expect(text).toContain("2 of 60 games could not be projected and are left out");
+    expect(text, "it reported the weighted count under a naive column")
+      .not.toMatch(/no line at all and (is|are) left out/);
   });
 
   test("a payload predating the split keeps the vaguer sentence", () => {
