@@ -178,8 +178,14 @@ function Trophy({ award }: { award: Award }) {
   const held = award.holders.length > 0;
   return (
     <div className="trophy">
+      {/* "New" beside a name is not a sentence, and `title` on a bare span is a
+          mouse affordance a screen reader is not obliged to read. The sentence
+          is in the markup, hidden with the same `.vh` the race chart already
+          uses for its own table caption. */}
       {award.changed && (
-        <span className="flag" title="This trophy changed hands this week">New</span>
+        <span className="flag" title="This trophy changed hands this week">
+          New<span className="vh"> holder &ndash; this trophy changed hands this week</span>
+        </span>
       )}
       <div className="stand">
         {/* Decoration. The plate names the award in text directly underneath,

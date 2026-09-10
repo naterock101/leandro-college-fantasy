@@ -161,7 +161,8 @@ describe("the badge, which is the point of the feature", () => {
     await renderPage();
     await openCase();
     const flag = card(awards[0].label).querySelector(".flag")!;
-    expect(flag.getAttribute("title")).toMatch(/changed hands/i);
+    expect(flag.textContent).toMatch(/changed hands/i);
+    expect(flag.querySelector(".vh"), "the sentence is on screen, not hidden").not.toBeNull();
   });
 });
 

@@ -146,6 +146,26 @@ test("the blowout is beaten by covering, not by winning big", () => {
   assert.equal(a.blowout.runnerUp.value, 4);
 });
 
+test("nobody wins the blowout for failing to cover by the least", () => {
+  /* The bug this closes. Once the award is measured against the number rather
+     than against nought, a week in which no rostered favourite covers has
+     nothing but negative candidates - and with no floor the trophy went to
+     whoever missed by least, printing "Blowout: -7 on the line" on a card.
+     Reachable on the first Saturday of a real season, where three or four
+     priced rostered wins is the whole sample.
+
+     A cover of exactly nought is a push, and pushing is not beating the
+     number, so the floor is strict. */
+  const results = [
+    game({ win: "ann", lose: null, chance: 0.83, score: "24-21", exp: 14 }),
+    game({ win: "bob", lose: null, chance: 0.79, score: "20-17", exp: 10 }),
+    game({ win: "cat", lose: null, chance: 0.72, score: "27-20", exp: 7 }),
+  ];
+  const a = byId(buildAwards({ results, byWeek: [week("0|01", "Week 1", {})] }));
+  assert.deepEqual(a.blowout.holders, [], "a negative cover took the blowout");
+  assert.equal(a.blowout.runnerUp, null);
+});
+
 test("a pick-em blowout is the margin itself, because nought was the number", () => {
   const results = [game({ win: "ann", lose: null, chance: 0.5, score: "31-10", exp: 0 })];
   const a = byId(buildAwards({ results, byWeek: [week("0|01", "Week 1", {})] }));
@@ -167,7 +187,9 @@ test("nobody's trophy is won by a team nobody drafted", () => {
      side, and an award is a thing a manager holds. */
   const results = [
     game({ win: null, lose: "ann", chance: 0.10, score: "60-0", pts: 0, exp: -20 }),
-    game({ win: "bob", lose: null, chance: 0.80, score: "24-21", pts: 3, exp: 6 }),
+    /* Wins by 24 as a six-point favourite, so it clears the blowout's floor.
+       A 24-21 win at that price would not, which is the floor working. */
+    game({ win: "bob", lose: null, chance: 0.80, score: "45-21", pts: 3, exp: 6 }),
   ];
   const a = byId(buildAwards({ results, byWeek: [week("0|01", "Week 1", {})] }));
   /* The 10% winner is undrafted, so the biggest upset is bob's 80% win - not
