@@ -146,13 +146,25 @@ export type Data = {
     modelled?: number;
     managers: Record<string, { wins: number; losses: number; points: number;
                                gained: number; rankDelta: number;
-                               /* The line-weighted projection, added alongside
-                                  the naive one rather than replacing it. Absent
-                                  from every snapshot written before it shipped,
-                                  which is a window a cached page still has to
-                                  render. */
+                               /* The line-weighted projection, which is what
+                                  the page shows: each game worth the chance
+                                  its line gives it rather than handed whole to
+                                  the favourite. The naive fields above are
+                                  still published and nothing reads them, so a
+                                  browser holding cached JS renders as it did.
+                                  All of these are absent from a snapshot
+                                  written before they shipped, and every read
+                                  of them falls back to the naive one. */
                                expectedGained?: number;
-                               expectedPoints?: number }>;
+                               expectedPoints?: number;
+                               expectedWins?: number;
+                               expectedLosses?: number;
+                               expectedRankDelta?: number;
+                               /* This manager's games in the coming week that
+                                  only a model would price - so the note under
+                                  their squad names ESPN only where ESPN
+                                  actually contributed to their number. */
+                               modelled?: number }>;
   } | null;
   /* Points banked against points the closing lines expected, over settled games
      that had a line. `unpriced` is the count that had none and were left out of

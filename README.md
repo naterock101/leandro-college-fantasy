@@ -470,7 +470,7 @@ ESPN's FPI predictor has an opinion on it (Arkansas State 91.4%), so
 are money at risk. The page says "the closing lines expected" about its
 expectation columns, and that sentence has to stay true, so a modelled price:
 
-- **projects** a game - it has a favourite, so `EoW Proj` hands over the points;
+- **projects** a game - it carries a probability, so `EoW Proj` counts it;
 - and appears in **nothing** the page calls a market figure: not luck, not the
   expected record, not the expected points, not `upset` tagging, not a results
   row's `line`, not the head-to-head `spread`. `tests/build.test.mjs` asserts
@@ -615,16 +615,18 @@ together on arrival.
   final with no score in the feed) or `"tied"`. None of them count toward
   points, `remaining` or `ceiling`, and none of them appear in `gamesOfWeek`,
   `results` or `headToHead`
-- `projection` - the next scheduled week if every betting favourite wins, plus
-  `expectedGained` and `expectedPoints` per manager, which is the same week
-  weighted by win probability instead. Both are kept: the naive one is what the
-  **EoW Proj** column and its arrow both mean, and a browser holding cached JS
-  must not break on the new fields. `unprojected` is the games it could not
-  hand to anyone, and `unpriced` and `pickems` are its two halves - a game the
-  books never priced, and one they priced and called even. They are different
-  sentences and the caption says which: a pick-em *has* a line, and the
-  weighted expectation uses it at half a win a side, so calling it unpriced was
-  the page contradicting itself one tooltip away
+- `projection` - the next scheduled week, twice. The naive fields (`points`,
+  `wins`, `losses`, `gained`, `rankDelta`) hand every game to the betting
+  favourite. The weighted ones (`expectedPoints`, `expectedGained`,
+  `expectedWins`, `expectedLosses`, `expectedRankDelta`) give each game the
+  chance its line gives it, and **that is the pair the page shows** - see "One
+  projection" below. The naive fields stay published and unread so a browser
+  holding cached JS renders as it did. `modelled` is per manager as well as per
+  league: how many of *their* games only a model would price, so the note under
+  a squad names ESPN only where ESPN contributed to that squad's number.
+  `unprojected` counts by the naive rule and `unpriced`/`pickems` are its two
+  halves; only `unpriced` is missing from what the page shows, because a
+  weighted projection uses a pick-em at half a win a side
 - `luck[]` - points banked against points expected, over settled rostered games
   with a stored line. Carries `games` (how many counted) and `unpriced` (how
   many were excluded for having no line). **Nothing on the page reads this**:
@@ -1017,6 +1019,38 @@ summed per manager over the coming week, which is a better projection than
 **Luck**: points banked minus points expected over settled games, so positive
 means running hot - still computed and published, no longer on screen. And the
 **season's expectation**, both halves of which are.
+
+### One projection
+
+The board used to carry two of them. **EoW Proj** showed the naive projection -
+every betting favourite wins - while a manager's own dropdown showed the
+weighted one, and on the live week that read 33 in the column and 29.7 an inch
+below it, with nothing on the page connecting the two. The question it produced
+was the obvious one.
+
+There is one now, and it is the weighted one, because it is the better answer:
+a 54% favourite is worth all of its points to the naive projection and just
+over half to this one, and an underdog is worth nothing to the naive
+projection and something to this one. Nathan's live week is the whole argument
+in one row - nine favourites out of ten, 19 naive points against 15.7 weighted,
+most of the gap being two coin-flips at -1.5 and -3, less the 0.47 the naive
+one throws away on his Arizona State, which wins 16% of the time because his
+own Texas A&M is why it is an underdog.
+
+Two things follow, and both are load-bearing:
+
+- **The arrow comes from the same projection the number does.** `rankDelta` is
+  the naive table's ranking; `expectedRankDelta` is the weighted table's. An
+  arrow from one under a number from the other is two answers to one question,
+  usually agreeing and never explicably when it does not.
+- **A pick-em is no longer left out.** The naive projection skips it for having
+  no favourite to hand the game to; this one gives each side half its value. So
+  the caption reports `unpriced` alone, and the only game missing from the
+  column is one nothing would price - which since the FPI fallback is usually
+  none at all.
+
+The projected record in the dropdown follows the column, so it comes out in
+tenths: 1.6-2.4 rather than 2-2, for the same reason **Exp W-L** does.
 
 ### Exp Pts, and the records behind it
 

@@ -98,18 +98,23 @@ const settled = (c: Cume, r: { wins: number; losses: number; points: number }) =
 };
 
 /**
- * Why the naive projection could not project some of the coming week.
+ * The games the projection could not reach, and how many there are.
  *
- * "Have no line" was the whole sentence, and it is only true of one of the two
- * reasons a game gets left out. A pick-em *has* a line - the books priced it
- * and called it even - and it is skipped because there is no favourite to hand
- * the points to, which is a different fact about a different kind of game. The
- * weighted expectation in the tooltip does use it, at half a win a side, so
- * the page was calling a game unpriced in one place and pricing it in another.
+ * Only one kind of game is missing from a weighted projection: one nothing
+ * would price. A pick-em is not - the books priced it and called it even, and
+ * a game worth half its points to each side is a game in the total. That was
+ * not true of the naive projection, which skipped a pick-em for having no
+ * favourite to hand, and the sentence here used to have to say which of the
+ * two had happened.
  *
- * The counts are optional, so a payload that predates them keeps the old
- * wording rather than guessing which half its total was.
+ * `unpriced` is optional. A payload without it has only `unprojected`, which
+ * counts by the naive rule and so may include pick-ems this projection did
+ * use; that payload gets the vaguer sentence rather than a precise wrong one.
  */
+/** How many games the projection on screen could not reach. */
+const left = (p: Data["projection"] & object) =>
+  typeof p.unpriced === "number" ? p.unpriced : p.unprojected;
+
 const leftOut = (p: Data["projection"] & object) => {
   /* One game left out is a real week - it is the commonest case there is - so
      the verbs agree with the count rather than being written for the plural
@@ -120,28 +125,34 @@ const leftOut = (p: Data["projection"] & object) => {
     has: count === 1 ? "has" : "have",
   });
 
-  /* The halves have to add back to the total they are halves of. They are
-     written together and always will be, but the sentence below reads them as
-     a complete account of `unprojected` - and a payload where they are not one
-     would print "0 of 60 games have no line" while the column beside it left
-     one out. Same fallback as a payload that has no halves at all. */
-  if (typeof p.unpriced !== "number" || typeof p.pickems !== "number"
-      || p.unpriced + p.pickems !== p.unprojected) {
+  if (typeof p.unpriced !== "number") {
     const w = n(p.unprojected);
     return `${w.of} could not be projected and ${w.is} left out.`;
   }
-  if (p.pickems === 0) {
-    const w = n(p.unpriced);
-    return `${w.of} ${w.has} no line and ${w.is} left out.`;
-  }
-  if (p.unpriced === 0) {
-    const w = n(p.pickems);
-    return `${w.of} ${p.pickems === 1 ? "is a pick-em" : "are pick-ems"} with no ` +
-      `favourite, and ${w.is} left out.`;
-  }
-  return `${n(p.unprojected).of} are left out: ${p.unpriced} with no line, and ` +
-    `${p.pickems} ${p.pickems === 1 ? "that is a pick-em" : "that are pick-ems"}.`;
+  const w = n(p.unpriced);
+  return `${w.of} ${w.has} no line at all and ${w.is} left out.`;
 };
+
+/**
+ * The projection the page shows, and the rank that belongs to it.
+ *
+ * The weighted one - every game worth the chance its line gives it - because
+ * it is the better answer and because showing both invited the obvious
+ * question: a manager favoured in nine games of ten saw 33 in the column and
+ * 29.7 in his own dropdown, with nothing on the page linking them. The naive
+ * projection stays in the payload for a browser holding cached JS and is read
+ * here only when the weighted one is missing, which is a snapshot written
+ * before it shipped.
+ *
+ * The points and the rank come from the same projection or neither does.
+ */
+const proj = (pr: NonNullable<Data["projection"]>["managers"][string]) =>
+  typeof pr.expectedPoints === "number" && typeof pr.expectedRankDelta === "number"
+    && typeof pr.expectedGained === "number"
+    ? { points: pr.expectedPoints, rankDelta: pr.expectedRankDelta,
+        gained: pr.expectedGained, weighted: true }
+    : { points: pr.points, rankDelta: pr.rankDelta,
+        gained: pr.gained, weighted: false };
 
 /** The tail of an expectation tooltip: what else, if anything, it left out. */
 const denominator = (missing: number, whole: string) =>
@@ -345,30 +356,30 @@ export function Leaderboard({ data }: { data: Data }) {
                 {showProj && (() => {
                   const pr = data.projection!.managers[r.manager];
                   if (!pr) return <td className="num mono muted">-</td>;
-                  const dir = pr.rankDelta > 0 ? "up" : pr.rankDelta < 0 ? "down" : "flat";
+                  /* The weighted projection, and the rank that goes with it.
+                     They are read as a pair or not at all: an arrow taken from
+                     one projection under a number taken from the other is two
+                     answers to one question, usually agreeing and never
+                     explicably. A payload predating either falls back to the
+                     naive pair, which is what it has. */
+                  const p = proj(pr);
+                  const dir = p.rankDelta > 0 ? "up" : p.rankDelta < 0 ? "down" : "flat";
                   const move = dir === "flat"
                     ? "Projected to hold this position"
-                    : `Projected to move ${Math.abs(pr.rankDelta)} ${dir}`;
+                    : `Projected to move ${Math.abs(p.rankDelta)} ${dir}`;
                   return (
                     <td
                       className="num mono proj"
-                      /* Points rather than the W-L it used to show, because
-                         points are what the arrow beside it is computed from:
-                         the projected table is sorted on this number, so the
-                         cell and the arrow now say the same thing in two ways
-                         instead of two things that only usually agree. The
-                         projected record is in the dropdown.
-
-                         The line-weighted expectation rides in the tooltip
-                         rather than taking a column of its own. It is the same
-                         week this column is about, so it belongs on this cell,
-                         and the table is already as wide as a phone will
-                         take. */
-                      title={typeof pr.expectedGained === "number"
-                        ? `${move}. Weighted by the lines rather than handing every game to the favourite: ${pr.expectedGained} points, for ${pr.expectedPoints} in all.`
-                        : move}
+                      /* `gained` comes out of the same branch the points do,
+                         so the tooltip cannot describe one projection while
+                         the cell shows the other - and cannot print
+                         "undefined points" off a payload carrying some of the
+                         weighted fields and not others. */
+                      title={p.weighted
+                        ? `${move}. Every game in the week is worth the chance its line gives it, rather than handed whole to the favourite: ${p.gained} points on top of the ${r.points} banked.`
+                        : `${move}. Every betting favourite winning puts ${p.gained} points on top of the ${r.points} banked.`}
                     >
-                      {pr.points}
+                      {p.points}
                       <span className={`arrow ${dir}`} title={move}>
                         {dir === "up" ? "▲" : dir === "down" ? "▼" : "–"}
                       </span>
@@ -430,13 +441,26 @@ export function Leaderboard({ data }: { data: Data }) {
                       {showProj && (() => {
                         const pr = data.projection!.managers[r.manager];
                         if (!pr) return null;
+                        /* The same projection the column shows, in the same
+                           unit the two records beside it are in. It comes out
+                           in tenths for the reason Expected does: a game is
+                           worth the chance it is won, and nobody is ever
+                           expected to be exactly 13-8. */
+                        const weighted = typeof pr.expectedWins === "number"
+                          && typeof pr.expectedLosses === "number";
                         return (
                           <span
                             className="rec"
-                            title={`Their record at the end of ${data.projection!.label.toLowerCase()} if every betting favourite wins`}
+                            title={weighted
+                              ? `Their record at the end of ${data.projection!.label.toLowerCase()}, every game weighted by the chance its line gives it`
+                              : `Their record at the end of ${data.projection!.label.toLowerCase()} if every betting favourite wins`}
                           >
                             <span className="rl">{data.projection!.label} proj</span>
-                            <span className="mono rv">{pr.wins}-{pr.losses}</span>
+                            <span className="mono rv">
+                              {weighted
+                                ? `${pr.expectedWins}-${pr.expectedLosses}`
+                                : `${pr.wins}-${pr.losses}`}
+                            </span>
                           </span>
                         );
                       })()}
@@ -451,30 +475,32 @@ export function Leaderboard({ data }: { data: Data }) {
                       </div>
                     ))}
                     {/* Zero is not "expected nothing", it is "has no priced game
-                        this week", and a line reading "+0 points, for 10 in all"
-                        says the second thing in the words of the first. */}
-                    {showProj && (data.projection!.managers[r.manager]?.expectedGained ?? 0) > 0 && (
-                      /* Expected points, spelled out where there is room for a
-                         sentence. The naive projection above hands every game
-                         to the favourite; this weights each by the chance the
-                         line gives it, which is most of what the line actually
-                         says. */
-                      <div className="note">
-                        {data.projection!.label} expectation:{" "}
-                        <b>+{data.projection!.managers[r.manager].expectedGained}</b>{" "}
-                        points from the current lines
-                        {/* This sum weights every game in the week by its own
-                            chance, so it picks up a modelled game the same way
-                            the naive projection does - and "from the current
-                            lines" would then be describing a game no book put
-                            a line on. Said at league level because that is the
-                            level the count is published at. */}
-                        {(data.projection!.modelled ?? 0) > 0 &&
-                          ", and ESPN's model where no book priced a game"}
-                        , for{" "}
-                        {data.projection!.managers[r.manager].expectedPoints} in all.
-                      </div>
-                    )}
+                        this week", and a line reading "+0 points" says the
+                        second thing in the words of the first. */}
+                    {showProj && (data.projection!.managers[r.manager]?.expectedGained ?? 0) > 0 && (() => {
+                      const pr = data.projection!.managers[r.manager];
+                      return (
+                        /* What the column beside their name is made of, rather
+                           than a second number to set against it. It used to
+                           end "for 29.7 in all" under a column reading 33, and
+                           the two were the naive projection and this one with
+                           nothing on the page connecting them. The total is
+                           the column now, so this says where it came from. */
+                        <div className="note">
+                          {data.projection!.label} projection:{" "}
+                          <b>+{pr.expectedGained}</b> points on top of the{" "}
+                          {r.points} banked, every game worth the chance{" "}
+                          {/* Per manager, not per league. This sum only ever
+                              contains what is on their own slate, and shown to
+                              a manager whose ten games all carry lines it named
+                              a source that contributed nothing to their
+                              figure. */}
+                          {(pr.modelled ?? 0) > 0
+                            ? `its line gives it - and for ${pr.modelled === 1 ? "one game" : `${pr.modelled} games`} no book would price, the chance ESPN's model gives it.`
+                            : "its line gives it."}
+                        </div>
+                      );
+                    })()}
                     {r.collisionLoss > 0 && (
                       <div className="note">
                         Ceiling docked {r.collisionLoss} for upcoming games between two of your own teams.
@@ -492,10 +518,12 @@ export function Leaderboard({ data }: { data: Data }) {
         {showProj && (
           <>
             EoW Proj is your points at the end of{" "}
-            {data.projection!.label.toLowerCase()} if every betting favourite
-            wins, and the arrow is where that would move you in the table. The
-            record behind it is in your own row.
-            {data.projection!.unprojected > 0 && ` ${leftOut(data.projection!)}`}
+            {data.projection!.label.toLowerCase()}, with every game worth the
+            chance its line gives it rather than handed whole to the favourite
+            - so a coin-flip is worth half its points and an underdog is worth
+            something. The arrow is where that would move you in the table, and
+            the record behind it is in your own row.
+            {left(data.projection!) > 0 && ` ${leftOut(data.projection!)}`}
             {(data.projection!.modelled ?? 0) > 0 &&
               /* Said whenever it happens, unlike the games that were left out
                  - this is a number in the column rather than one missing from

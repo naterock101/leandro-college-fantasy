@@ -512,13 +512,21 @@ function build(doc, owners, games, lines) {
    favourite holds", not a forecast. Pick-ems and unpriced games are counted as
    unprojected rather than guessed at.
 
-   The second weights each game by the chance the model gives it, which is
+   The second weights each game by the chance the line gives it, which is
    strictly more of the information in the line - a one-point favourite and a
    four-touchdown favourite are the same certainty to the first and are not to
-   the second. It is published *alongside* the naive one rather than instead of
-   it: the existing fields keep their names and their meaning, because a
-   browser holding cached JS reads them and must not break on the new payload.
-   Same optional-field discipline as results, unscored and byWeek[].scheduled. */
+   the second. **This is the one the page shows.** The naive fields are still
+   published beside it, unchanged, because a browser holding cached JS reads
+   them and must not break on this payload; nothing on the site reads them any
+   more. Same optional-field discipline as results, unscored and
+   byWeek[].scheduled.
+
+   The two disagree by more than rounding and are meant to. A manager favoured
+   in nine games of ten is handed every one of them by the naive projection and
+   a share of each by this one: 33 against 29.7 on the live week this was
+   written, most of the gap being two coin-flips - a 54% favourite is worth all
+   of its points to the first and just over half to the second - less what the
+   naive one throws away on the underdogs it gives nothing to at all. */
 function project(table, upcoming, lines, val) {
   const keys = [...new Set(upcoming.map((u) => u.key))].sort();
   if (!keys.length) return null;
@@ -529,17 +537,23 @@ function project(table, upcoming, lines, val) {
   const expected = {};
   for (const row of table) {
     delta[row.manager] = { wins: 0, losses: 0, points: 0 };
-    expected[row.manager] = 0;
+    /* points, wins and the games those wins are out of, all weighted by the
+       chance the line gives each game. `games` is the denominator and is
+       counted here rather than derived from the week's length, because a game
+       nothing could price is in neither half of the record - the same rule the
+       season's expected record follows. */
+    expected[row.manager] = { points: 0, wins: 0, games: 0, modelled: 0 };
   }
 
-  /* Two ways a game reaches the end of this loop unprojected, and they are
-     different sentences: the books never priced it, or they priced it and
-     called it even. `unprojected` stays as their sum because a browser holding
-     cached JS reads it, and the two halves ride alongside so the caption can
-     say which happened rather than asserting the commoner one. */
+  /* Counted for the naive projection, which skips a pick-em for having no
+     favourite to hand the game to. The weighted one does not skip it - each
+     side is worth half its value - so the only game missing from what the page
+     shows is one nothing could price at all, which is `unpriced`. The rest are
+     published for the naive fields they belong to. */
   let projected = 0, unprojected = 0, unpriced = 0, pickems = 0, modelled = 0;
   for (const g of week) {
     const line = g.spread;
+    const modelledHere = new Set();
 
     /* Expected points run over every priced game including the pick-ems the
        naive projection skips: a pick-em tells the naive one nothing, because it
@@ -549,8 +563,19 @@ function project(table, upcoming, lines, val) {
       if (!sd.manager) continue;
       const p = winProbability(line, sd.team);
       if (p === null) continue;
-      expected[sd.manager] += p * val(sd.tier);
+      const e = expected[sd.manager];
+      e.points += p * val(sd.tier);
+      e.wins += p;
+      e.games += 1;
+      if (line && line.model === true) modelledHere.add(sd.manager);
     }
+    /* Counted per manager, and in games rather than in sides: a manager who
+       owns both teams in a modelled game has one game nobody would price, not
+       two. The note under a squad says where that manager's own number came
+       from - shown to a manager whose ten games all carry lines it would name
+       a source that contributed nothing to it, and shown to one who owns both
+       sides it would say "2 games" of a single fixture. */
+    for (const m of modelledHere) expected[m].modelled += 1;
 
     if (!line || !line.favorite) {
       unprojected++;
@@ -558,9 +583,6 @@ function project(table, upcoming, lines, val) {
       continue;
     }
     projected++;
-    /* Projected, and worth saying how. A game reaching the end of the week
-       on ESPN's forecast rather than on a price is still a game in the total,
-       and the column header says "if every betting favourite wins". */
     if (line.model === true) modelled++;
     for (const sd of [g.home, g.away]) {
       if (!sd.manager) continue;
@@ -585,24 +607,56 @@ function project(table, upcoming, lines, val) {
   const rankProj = new Map(proj.map((r, i) => [r.manager, i]));
 
   const pointsNow = new Map(table.map((r) => [r.manager, r.points]));
+  const recordNow = new Map(table.map((r) => [r.manager, r]));
+
+  /* The weighted table, ranked its own way. The arrow on the board is read
+     against the number beside it, so a rank taken from the naive projection
+     under a column showing this one would be two answers to one question -
+     usually agreeing, occasionally not, and never explicably. Ordered on the
+     same keys the naive sort uses, so the two differ in their inputs and not
+     in how they break a tie. */
+  const weighted = table.map((r) => ({
+    manager: r.manager,
+    points: round1((pointsNow.get(r.manager) ?? 0) + round1(expected[r.manager].points)),
+    wins: r.wins + expected[r.manager].wins,
+  }));
+  weighted.sort((x, y) => y.points - x.points || y.wins - x.wins || x.manager.localeCompare(y.manager));
+  const rankWeighted = new Map(weighted.map((r, i) => [r.manager, i]));
 
   const managers = {};
   for (const r of proj) {
-    const gain = round1(expected[r.manager]);
+    const e = expected[r.manager];
+    const gain = round1(e.points);
+    const now = recordNow.get(r.manager);
+    /* Derived from the published wins so the pair adds back to its own
+       denominator exactly, which is the rule the season's expected record
+       follows and the reason a twelve-week column is not twelve roundings
+       deep. `games` excludes anything nothing could price, so this record
+       covers what it covers and says so by adding up. */
+    const played = now.wins + now.losses + e.games;
+    const expWins = round1(now.wins + e.wins);
     managers[r.manager] = {
       wins: r.wins, losses: r.losses, points: r.points,
       gained: delta[r.manager].points,
       /* positive means climbing the table, i.e. a smaller index */
       rankDelta: rankNow.get(r.manager) - rankProj.get(r.manager),
-      /* The two new fields. Both are added rather than substituted, and both
-         are read through a fallback on the page, so the payload a browser is
-         still holding from before this shipped renders exactly as it did.
+      /* The weighted projection, which is what the page shows. The naive
+         fields above keep their names and their meaning because a browser
+         holding cached JS reads them and must not break on this payload -
+         same optional-field discipline as everything else here.
 
          expectedPoints is derived from the *published* expectedGained rather
          than the full-precision sum, so the two numbers on screen add up to
          the digit they are printed to. */
       expectedGained: gain,
       expectedPoints: round1((pointsNow.get(r.manager) ?? 0) + gain),
+      expectedWins: expWins,
+      expectedLosses: round1(played - expWins),
+      expectedRankDelta: rankNow.get(r.manager) - rankWeighted.get(r.manager),
+      /* How many of this manager's games in the week nothing but a model would
+         price. Zero for almost everyone, which is the point: the note under a
+         squad may only name ESPN where ESPN actually contributed. */
+      modelled: e.modelled,
     };
   }
 

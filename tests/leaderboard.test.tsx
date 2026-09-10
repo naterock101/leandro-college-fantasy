@@ -39,6 +39,7 @@ import { expStep, Leaderboard, PER_WIN } from "../app/components/Leaderboard";
 import { GamesOfWeek } from "../app/components/GamesOfWeek";
 import { ViewState } from "../app/hooks/useViewState";
 import type { Data } from "../app/types";
+import { cap } from "../lib/format.mjs";
 import { payload, renderPage, stubFetch } from "./helpers";
 import { render } from "@testing-library/react";
 
@@ -165,13 +166,66 @@ describe("the two points columns", () => {
       .toBeLessThan(standings.wins + standings.losses);
   });
 
-  test("EoW Proj is points, which is what its arrow is computed from", () => {
-    /* It showed W-L beside an arrow taken from the projected *points* table.
-       The two usually agree and are not the same sentence, and the column that
-       has to match the arrow is the one the sort is on. */
+  test("EoW Proj is the weighted projection, not the naive one", () => {
+    /* Adam is the manager the two disagree about: every favourite winning puts
+       him on 4, and weighting each game by the chance its line gives it puts
+       him on 3.1. Showing both was the confusion this replaced - the column
+       said one and his own dropdown said the other, with nothing on the page
+       connecting them. */
     const root = board(data).container as unknown as HTMLElement;
-    const pr = data.projection!.managers["nathan"];
-    expect(row(root, "Nathan")["EoW Proj"]).toBe(`${pr.points}–`);
+    const pr = data.projection!.managers["adam"];
+    expect(pr.expectedPoints, "the fixture stopped exercising this")
+      .not.toBe(pr.points);
+    expect(row(root, "Adam")["EoW Proj"]).toBe(`${pr.expectedPoints}–`);
+  });
+
+  test("a payload with only some weighted fields falls back whole", () => {
+    /* All of them or none. A cell reading the weighted points beside a tooltip
+       reading the naive gain would describe one projection while showing the
+       other, and a payload carrying expectedPoints without expectedGained -
+       which is only reachable by a builder half-deployed - printed "undefined
+       points" into the tooltip. */
+    const partial = {
+      ...data,
+      projection: {
+        ...data.projection!,
+        managers: Object.fromEntries(Object.entries(data.projection!.managers)
+          .map(([m, p]) => {
+            const { expectedGained, ...rest } = p as any;
+            return [m, rest];
+          })),
+      },
+    } as unknown as Data;
+    const root = board(partial).container as unknown as HTMLElement;
+    const pr = data.projection!.managers["adam"];
+    expect(row(root, "Adam")["EoW Proj"], "it took half of each projection")
+      .toBe(`${pr.points}–`);
+    expect(root.textContent).not.toMatch(/undefined/);
+  });
+
+  test("and its arrow comes from the same projection the number does", () => {
+    /* An arrow taken from the naive ranking under a weighted number is two
+       answers to one question: they usually agree, and when they do not there
+       is nothing a reader can do about it. */
+    const moved = data.standings.map((s) => s.manager);
+    const root = board({
+      ...data,
+      projection: {
+        ...data.projection!,
+        managers: Object.fromEntries(Object.entries(data.projection!.managers)
+          .map(([m, p]) => [m, {
+            ...p,
+            /* the two rankings pointed opposite ways */
+            rankDelta: 2,
+            expectedRankDelta: m === moved[0] ? -3 : 0,
+          }])),
+      },
+    } as unknown as Data).container as unknown as HTMLElement;
+
+    const table = within(root).getAllByRole("table")[0];
+    const first = within(table).getByText(cap(moved[0])).closest("tr")!;
+    expect(first.querySelector(".arrow")!.className).toMatch(/\bdown\b/);
+    expect(first.querySelector(".arrow")!.getAttribute("title")).toMatch(/move 3 down/);
   });
 
   test("the live board reads the last week, which is the season to date", () => {
@@ -334,12 +388,12 @@ describe("the two points columns", () => {
   });
 });
 
-describe("the games the projection could not project", () => {
-  /* "Have no line" was the whole sentence, and it is true of only one of the
-     two reasons a game is left out. A pick-em has a line - the books priced it
-     and called it even - and the weighted expectation in the row's own tooltip
-     uses it, at half a win a side. So the page was calling a game unpriced in
-     one place and pricing it in another. */
+describe("the games the projection could not reach", () => {
+  /* Only one kind of game is missing from a weighted projection: one nothing
+     would price. A pick-em is not - the books priced it and called it even,
+     and a game worth half its points to each side is a game in the total. The
+     caption used to have to say which of the two had happened, because the
+     naive projection skipped both. */
   const withProjection = (over: Record<string, number>) => board({
     ...data,
     projection: { ...data.projection!, ...over },
@@ -348,46 +402,58 @@ describe("the games the projection could not project", () => {
   const caption = (root: HTMLElement) =>
     root.querySelector(".caption")!.textContent!;
 
-  test("an unpriced game is called unpriced", () => {
+  test("an unpriced game is reported", () => {
     expect(caption(withProjection({ games: 60, unprojected: 2, unpriced: 2, pickems: 0 })))
-      .toContain("2 of 60 games have no line and are left out");
+      .toContain("2 of 60 games have no line at all and are left out");
   });
 
-  test("a pick-em is not", () => {
-    const text = caption(withProjection({ games: 60, unprojected: 1, unpriced: 0, pickems: 1 }));
-    expect(text).toContain("1 of 60 games is a pick-em with no favourite, and is left out");
-    expect(text, "a priced game must not be reported as unpriced")
-      .not.toMatch(/ha(s|ve) no line/);
+  test("a pick-em is not, because this projection uses it", () => {
+    /* Half a win each side. Calling it left out would be the page describing
+       a game it had just counted. */
+    const text = caption(withProjection({ games: 60, unprojected: 3, unpriced: 0, pickems: 3 }));
+    expect(text, "a game the projection used was reported as missing")
+      .not.toMatch(/left out/);
+    expect(text).not.toMatch(/pick-em/);
   });
 
-  test("and the verbs agree with the count", () => {
+  test("and a week with both counts only the unpriced ones", () => {
+    expect(caption(withProjection({ games: 60, unprojected: 3, unpriced: 1, pickems: 2 })))
+      .toContain("1 of 60 games has no line at all and is left out");
+  });
+
+  test("the verbs agree with the count", () => {
     /* One game is the commonest case there is, and "1 of 60 games have no line
        and are left out" is the sentence a plural-only template writes. */
-    expect(caption(withProjection({ games: 60, unprojected: 1, unpriced: 1, pickems: 0 })))
-      .toContain("1 of 60 games has no line and is left out");
-    for (const over of [{ unprojected: 1, unpriced: 1, pickems: 0 },
-                        { unprojected: 1, unpriced: 0, pickems: 1 },
-                        /* halves that do not add back to their total, which
-                           is a payload from a version this page cannot read */
-                        { unprojected: 1, unpriced: 0, pickems: 0 }]) {
-      const text = caption(withProjection({ games: 60, ...over }));
-      expect(text, JSON.stringify(over)).not.toMatch(/\b1 of 60 games (have|are)\b/);
-    }
+    const one = caption(withProjection({ games: 60, unprojected: 1, unpriced: 1, pickems: 0 }));
+    expect(one).toContain("1 of 60 games has no line at all and is left out");
+    expect(one).not.toMatch(/\b1 of 60 games (have|are)\b/);
   });
 
-  test("and a week with both says which is which", () => {
-    expect(caption(withProjection({ games: 60, unprojected: 3, unpriced: 2, pickems: 1 })))
-      .toContain("3 of 60 games are left out: 2 with no line, and 1 that is a pick-em");
+  test("nothing is said when nothing was left out", () => {
+    expect(caption(withProjection({ games: 60, unprojected: 0, unpriced: 0, pickems: 0 })))
+      .not.toMatch(/left out/);
+  });
+
+  test("a payload predating the split keeps the vaguer sentence", () => {
+    /* Its `unprojected` counts by the naive rule, so it may include pick-ems
+       this projection did use. It may not be reported as a precise figure it
+       is not, and it may not be silently dropped either. */
+    const legacy = { ...data.projection!, games: 60, unprojected: 2 } as Record<string, unknown>;
+    delete legacy.unpriced;
+    delete legacy.pickems;
+    const text = caption(board({ ...data, projection: legacy } as unknown as Data)
+      .container as unknown as HTMLElement);
+    expect(text).toContain("2 of 60 games could not be projected and are left out");
+    expect(text).not.toMatch(/undefined/);
   });
 
   test("a game carried by the model is named, whenever it happens", () => {
     /* Unlike the games left out, this is a number *in* the column rather than
        one missing from it, and a reader comparing two managers is entitled to
-       know that one of them is being carried by a forecast rather than by a
-       price anybody offered. */
-    const text = caption(withProjection({ games: 60, unprojected: 0, unpriced: 0,
-                                          pickems: 0, modelled: 1 }));
-    expect(text).toContain("1 game had no line at all and is projected from ESPN's model instead");
+       know that one of them is being carried by a forecast. */
+    expect(caption(withProjection({ games: 60, unprojected: 0, unpriced: 0,
+                                    pickems: 0, modelled: 1 })))
+      .toContain("1 game had no line at all and is projected from ESPN's model instead");
     expect(caption(withProjection({ games: 60, unprojected: 0, unpriced: 0,
                                     pickems: 0, modelled: 2 })))
       .toContain("2 games had no line at all and are projected from ESPN's model instead");
@@ -396,45 +462,6 @@ describe("the games the projection could not project", () => {
   test("and a payload with no such game says nothing about the model", () => {
     expect(caption(withProjection({ games: 60, unprojected: 0, unpriced: 0, pickems: 0 })))
       .not.toMatch(/FPI|ESPN's model/);
-  });
-
-  test("the weighted expectation says so too, since it counts the same game", () => {
-    /* That sum weights every game in the week by its own chance, so it picks
-       up a modelled game exactly as the naive projection does - and the note
-       under a manager's squad claimed all of it came "from the current
-       lines". */
-    const root = board({
-      ...data,
-      projection: { ...data.projection!, modelled: 1 },
-    } as unknown as Data).container as unknown as HTMLElement;
-    const note = open(root, "Nathan").querySelector(".note")!.textContent!;
-    expect(note).toMatch(/from the current lines, and ESPN's model where no book priced a game, for/);
-  });
-
-  test("nothing is said when nothing was left out", () => {
-    expect(caption(withProjection({ games: 60, unprojected: 0, unpriced: 0, pickems: 0 })))
-      .not.toMatch(/left out/);
-  });
-
-  test("halves that do not add up fall back rather than under-report", () => {
-    /* The sentence reads the two counts as a complete account of the total, so
-       a payload where they are not one would say "0 of 60 games have no line"
-       while a game really was left out. */
-    expect(caption(withProjection({ games: 60, unprojected: 2, unpriced: 0, pickems: 0 })))
-      .toContain("2 of 60 games could not be projected and are left out");
-  });
-
-  test("a payload predating the split keeps the vaguer sentence", () => {
-    /* It may not guess which half its total was, and it may not go on claiming
-       the commoner one. */
-    const legacy = { ...data.projection!, games: 60, unprojected: 2 } as Record<string, unknown>;
-    delete legacy.unpriced;
-    delete legacy.pickems;
-    const root = board({ ...data, projection: legacy } as unknown as Data)
-      .container as unknown as HTMLElement;
-    const text = caption(root);
-    expect(text).toContain("2 of 60 games could not be projected and are left out");
-    expect(text).not.toMatch(/undefined/);
   });
 });
 
@@ -453,8 +480,38 @@ describe("the records in the dropdown", () => {
     expect(records(root, "Devish")).toEqual({
       "Record": `${s.wins}-${s.losses}`,
       "Expected": `${c.expectedWins}-${c.expectedLosses}`,
-      [`${data.projection!.label} proj`]: `${pr.wins}-${pr.losses}`,
+      [`${data.projection!.label} proj`]: `${pr.expectedWins}-${pr.expectedLosses}`,
     });
+  });
+
+  test("the projected record is the weighted one, like the column", () => {
+    /* Adam again: 2-2 if every favourite holds, 1.6-2.4 weighted. A dropdown
+       showing the naive record beside a column showing the weighted points is
+       the same split this change closed, one tap further down. */
+    const root = board(data).container as unknown as HTMLElement;
+    const pr = data.projection!.managers["adam"];
+    expect(`${pr.expectedWins}-${pr.expectedLosses}`,
+      "the fixture stopped exercising this").not.toBe(`${pr.wins}-${pr.losses}`);
+    expect(records(root, "Adam")[`${data.projection!.label} proj`])
+      .toBe(`${pr.expectedWins}-${pr.expectedLosses}`);
+  });
+
+  test("and it falls back to the naive record on a payload without one", () => {
+    const legacy = {
+      ...data,
+      projection: {
+        ...data.projection!,
+        managers: Object.fromEntries(Object.entries(data.projection!.managers)
+          .map(([m, p]) => {
+            const { expectedWins, expectedLosses, ...rest } = p as any;
+            return [m, rest];
+          })),
+      },
+    } as unknown as Data;
+    const root = board(legacy).container as unknown as HTMLElement;
+    const pr = data.projection!.managers["adam"];
+    expect(records(root, "Adam")[`${data.projection!.label} proj`])
+      .toBe(`${pr.wins}-${pr.losses}`);
   });
 
   test("the expected record keeps its own comparison, in wins", () => {
@@ -487,6 +544,38 @@ describe("the records in the dropdown", () => {
   test("a manager with no priced game reads as a dash there too", () => {
     const root = board(data).container as unknown as HTMLElement;
     expect(records(root, "Leandro")["Expected"]).toBe("-");
+  });
+
+  test("the note says where the projection came from, per manager", () => {
+    /* It used to end "for 29.7 in all" under a column reading 33 - two
+       projections, inches apart, with nothing on the page connecting them. The
+       column is that number now, so the note is its provenance rather than a
+       rival to it. */
+    const root = board(data).container as unknown as HTMLElement;
+    const pr = data.projection!.managers["nathan"];
+    const note = open(root, "Nathan").querySelector(".note")!.textContent!;
+    expect(note).toContain(`+${pr.expectedGained} points on top of the`);
+    expect(note).toContain("every game worth the chance its line gives it");
+  });
+
+  test("and it names ESPN's model only for a manager whose week has one", () => {
+    /* The clause was league-level: shown to a manager whose ten games all
+       carry lines, it named a source that contributed nothing to their number.
+       The modelled game belongs to one manager, so the sentence does too. */
+    const withModel = (per: Record<string, number>) => ({
+      ...data,
+      projection: {
+        ...data.projection!,
+        managers: Object.fromEntries(Object.entries(data.projection!.managers)
+          .map(([m, p]) => [m, { ...p, modelled: per[m] ?? 0 }])),
+      },
+    } as unknown as Data);
+
+    const root = board(withModel({ clint: 1 })).container as unknown as HTMLElement;
+    expect(open(root, "Clint").querySelector(".note")!.textContent)
+      .toMatch(/for one game no book would price, the chance ESPN's model gives it/);
+    expect(open(root, "Nathan").querySelector(".note")!.textContent,
+      "a manager with no modelled game was told about one").not.toMatch(/ESPN/);
   });
 
   test("and the squad's points are still the last thing in each row", () => {

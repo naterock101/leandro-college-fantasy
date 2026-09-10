@@ -593,10 +593,71 @@ test("but the projection does use one, and says that it did", () => {
   assert.equal(withModel.projection.modelled, 1, "and the caption has to be able to say so");
   assert.equal(built.projection.modelled, 0, "a real line is not modelled");
 
+  /* And per manager, because the note under a squad is a sentence about that
+     manager's own week: game 23 is Nathan's Arizona State at his own Texas
+     A&M, so he is the only one it may name ESPN to. */
+  /* One, not two: game 23 is Nathan's Arizona State at his own Texas A&M, so
+     he owns both sides of it. A count of sides would tell him two games of his
+     went unpriced when one fixture did. */
+  assert.equal(withModel.projection.managers.nathan.modelled, 1);
+  for (const [m, p] of Object.entries(withModel.projection.managers)) {
+    if (m === "nathan") continue;
+    assert.equal(p.modelled, 0, `${m} was told about a game that is not theirs`);
+  }
+
   /* And the market figures behind it are untouched, because the game it
      replaced a line on has not been played. */
   assert.deepEqual(withModel.luck, built.luck);
   assert.deepEqual(withModel.byWeek, built.byWeek);
+});
+
+test("the weighted projection is the sum of the chances, and ranks itself", () => {
+  /* The one the page shows. Recomputed from the roster and the lines file
+     rather than read back out of the payload, so this checks the builder
+     against its inputs - and separately that its rank is taken from its own
+     table, because an arrow from the naive ranking under a weighted number is
+     two answers to one question. */
+  const p = built.projection;
+  const week = fixtureGames.filter((g) => sortKey(g) === p.key);
+  assert.ok(week.length, "no game in the projected week");
+
+  const gain = Object.fromEntries(Object.keys(rosters.managers).map((m) => [m, 0]));
+  const wins = Object.fromEntries(Object.keys(rosters.managers).map((m) => [m, 0]));
+  const games = Object.fromEntries(Object.keys(rosters.managers).map((m) => [m, 0]));
+  for (const g of week) {
+    const line = fixtureLines.games[g.id] ?? null;
+    for (const team of [home(g), away(g)]) {
+      const o = OWNER.get(team);
+      if (!o) continue;
+      const wp = winProbability(line, team);
+      if (wp === null) continue;
+      gain[o.manager] += wp * rosters.scoring[o.tier];
+      wins[o.manager] += wp;
+      games[o.manager] += 1;
+    }
+  }
+
+  for (const [m, row] of Object.entries(p.managers)) {
+    const standing = built.standings.find((s) => s.manager === m);
+    assert.equal(row.expectedGained, round1(gain[m]), `${m}'s expected gain`);
+    assert.equal(row.expectedPoints, round1(standing.points + round1(gain[m])),
+      `${m}'s expected points`);
+    assert.equal(row.expectedWins, round1(standing.wins + wins[m]), `${m}'s expected wins`);
+    /* The pair adds back to its own denominator, which is what makes it a
+       record of something rather than two numbers that look like one. */
+    assert.equal(round1(row.expectedWins + row.expectedLosses),
+      standing.wins + standing.losses + games[m], `${m}'s projected record`);
+  }
+
+  /* The rank is this table's, not the naive one's: sorted on expectedPoints,
+     and a manager at the top of it cannot be projected to fall. */
+  const order = Object.entries(p.managers)
+    .sort(([am, a], [bm, b]) => b.expectedPoints - a.expectedPoints
+      || b.expectedWins - a.expectedWins || am.localeCompare(bm));
+  order.forEach(([m, row], i) => {
+    const now = built.standings.findIndex((s) => s.manager === m);
+    assert.equal(row.expectedRankDelta, now - i, `${m}'s projected move`);
+  });
 });
 
 test("the season's luck and the last week's points expectation are the same sum", () => {
