@@ -405,6 +405,16 @@ function build(doc, owners, games, lines) {
         /* The market's line or nothing. A results row reading "Arkansas State
            FPI" would present a forecast as the price that was on offer. */
         line: market ? market.formatted : null,
+        /* The same line as a number: what the market gave the side that
+           actually won. `line` is prose and cannot be sorted, and the trophy
+           case is a sort - the biggest upset of the season is the smallest
+           number in this column, and the heartbreaker is the largest one on a
+           loser, which is 1 - this.
+
+           `market` rather than `line`, so a game priced only by FPI is null
+           here for the same reason it is untagged as an upset above: every
+           figure on this row is a statement about the closing lines. */
+        chance: market ? winProbability(market, winner) : null,
       });
     }
 

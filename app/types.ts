@@ -94,6 +94,12 @@ export type Result = {
   key: string; week: number; seasonType: string; date: string;
   score: string; points: number; h2h: boolean; sameManager: boolean;
   upset: boolean; line: string | null;
+  /* What the closing line gave the winner. `line` is the same price as prose,
+     which cannot be sorted, and the awards are sorts. null on a game the books
+     never priced and on one priced only by a model, exactly like `line`, and
+     absent from any payload written before it shipped - so a read of it has to
+     survive both `null` and `undefined`. */
+  chance?: number | null;
   winner: ScoredSide; loser: ScoredSide;
 };
 

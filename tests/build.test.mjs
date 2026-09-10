@@ -224,6 +224,70 @@ test("a pick-em has no favourite and so can never be an upset", () => {
   }
 });
 
+test("a priced result carries the winner's chance, and it is the model's", () => {
+  /* `line` is a formatted string - "TCU -3.5" - and a string cannot be sorted.
+     The trophy case sorts on exactly this: the biggest upset is the smallest
+     winner's chance in the season, and the heartbreaker is the largest loser's.
+     Publishing the number the builder already computed for luck is what makes
+     those two a sort rather than a parse of prose.
+
+     Asserted against winProbability on the stored line rather than a literal,
+     so this cannot pass by a chance frozen at build time drifting away from
+     the model the rest of the payload uses. */
+  const lineOf = new Map();
+  for (const g of fixtureGames) {
+    const line = fixtureLines.games[g.id];
+    if (line) lineOf.set(`${home(g)}|${away(g)}`, line);
+  }
+
+  let priced = 0;
+  for (const r of built.results) {
+    if (r.line === null) continue;
+    priced++;
+    const line = lineOf.get(`${r.winner.team}|${r.loser.team}`)
+              ?? lineOf.get(`${r.loser.team}|${r.winner.team}`);
+    assert.ok(line, `no fixture line found for ${r.winner.team} v ${r.loser.team}`);
+    assert.equal(r.chance, winProbability(line, r.winner.team),
+      `${r.winner.team} ${r.score}`);
+    assert.ok(r.chance > 0 && r.chance < 1, `${r.winner.team} chance ${r.chance}`);
+  }
+  assert.ok(priced > 0, "the fixture priced no settled game, so this proved nothing");
+});
+
+test("the chance and the upset flag are two readings of one number", () => {
+  /* An upset is the favourite losing, and the favourite is the side the model
+     puts above a half, so the flag is recoverable from the number. They are
+     published separately because the page has read `upset` since the first
+     deploy, and this is the assertion that keeps the pair from drifting - a
+     future edit to either one that does not touch the other lands here.
+
+     A pick-em sits exactly on the half and is not an upset, which the strict
+     `<` gives for free. */
+  for (const r of built.results) {
+    if (r.chance === null) continue;
+    assert.equal(r.upset, r.chance < 0.5, `${r.winner.team} ${r.score} at ${r.chance}`);
+  }
+});
+
+test("a game the books never priced has no chance, and not a half", () => {
+  /* The same rule winProbability itself states: an unpriced game is not a coin
+     flip this model happens to know nothing about, and a half published here
+     would put every unpriced win in contention for a trophy that is meant to
+     be about what the market said.
+
+     The modelled-price half of this rule needs no test of its own. Giving game
+     20 an FPI price must leave the whole payload unchanged, which is asserted
+     as an identity further down; a `chance` that started reading modelled
+     prices would break it there. */
+  let unpriced = 0;
+  for (const r of built.results) {
+    if (r.line !== null) continue;
+    unpriced++;
+    assert.equal(r.chance, null, `${r.winner.team} v ${r.loser.team}`);
+  }
+  assert.ok(unpriced > 0, "every settled game in the fixture was priced");
+});
+
 test("games of the week all share one week, and the label names it", () => {
   const games = built.gamesOfWeek.games;
   if (!games.length) {
