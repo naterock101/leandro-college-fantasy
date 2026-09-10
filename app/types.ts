@@ -16,7 +16,7 @@
 
 import { LAZY } from "../lib/payload.mjs";
 
-export type Tab = "league" | "teams" | "h2h" | "trends";
+export type Tab = "league" | "teams" | "h2h" | "trends" | "trophies";
 
 /* The names of the files that are fetched only once a tab asks for them, taken
    from the module that defines the split rather than written out again here.

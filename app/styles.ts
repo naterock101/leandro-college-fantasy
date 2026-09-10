@@ -35,8 +35,13 @@ export const base = `
        So the dimming is a second token instead. --dim is the old --muted
        exactly, and --muted moves up to make room above it: 7.28:1 and 5.54:1
        on --ink, 6.59:1 and 5.02:1 on --panel. Everything a reader sees passes,
-       and the hierarchy the opacity was for is still there. */
-    :root{--ink:#0D1520;--panel:#141F2E;--rule:#2A3D53;--chalk:#E9EEF4;--muted:#94A5B8;--dim:#7E8FA3;--amber:#F0A83C;--teal:#49B49E;--red:#D9697F}
+       and the hierarchy the opacity was for is still there.
+       --brass and --brass-lo are the two darker shades of --amber that the
+       trophy case's metalwork is shaded with. They are deliberately not in the
+       contrast sweep below: no text is ever painted in them - they are the
+       cabinet frame, the shelf lips and the plinths, which are drawings. Any
+       text on that cabinet sits on a --panel nameplate in an audited colour. */
+    :root{--ink:#0D1520;--panel:#141F2E;--rule:#2A3D53;--chalk:#E9EEF4;--muted:#94A5B8;--dim:#7E8FA3;--amber:#F0A83C;--teal:#49B49E;--red:#D9697F;--brass:#C8873A;--brass-lo:#7A4F1C}
     body{margin:0;background:var(--ink);color:var(--chalk);
       font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
     .wrap{max-width:760px;margin:0 auto;padding:20px 14px 70px}
