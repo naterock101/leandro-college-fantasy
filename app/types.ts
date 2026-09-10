@@ -103,6 +103,24 @@ export type Result = {
   winner: ScoredSide; loser: ScoredSide;
 };
 
+/* One trophy. `holders` is a list rather than a manager because ties are real
+   and a tie broken by array order is a lie somebody eventually notices; it is
+   empty when nobody has won the award yet, which the card renders as its own
+   sentence rather than as a zero. `runnerUp` always belongs to somebody who is
+   not holding it - the holder says who is winning, the runner-up says how safe
+   they are. `unit` says how to format `value`: a probability, a points total,
+   or a margin. */
+export type Award = {
+  id: string; label: string; blurb: string;
+  unit: "chance" | "points" | "margin";
+  holders: { manager: string; value: number; detail: string }[];
+  runnerUp: { manager: string; value: number; detail: string } | null;
+  /* Whether the holders differ from the same award computed over every week
+     but the last. False, not absent, on the first week of a season, where
+     there is no earlier view to compare against. */
+  changed: boolean;
+};
+
 export type Data = {
   generatedAt: string;
   season: number;
@@ -187,6 +205,10 @@ export type Data = {
     managers: Record<string, { games: number; actual: number;
                                expected: number; delta: number }>;
   } | null;
+  /* Absent from any payload the bot wrote before the trophy case shipped, so
+     the tab renders its own empty state rather than assuming the bot has
+     caught up. */
+  awards?: Award[];
   gamesOfWeek: { label: string | null; games: Game[] };
   byConference: Record<string, {
     team: string; tier: Tier; wins: number; losses: number;

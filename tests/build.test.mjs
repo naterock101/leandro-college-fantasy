@@ -22,6 +22,7 @@ import { fileURLToPath } from "node:url";
 
 import { classify, home, away, isDone, sortKey } from "../lib/games.mjs";
 import { round1, winProbability } from "../lib/winprob.mjs";
+import { buildAwards, markChanges } from "../lib/awards.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const GAMES = join(ROOT, "fixtures/sample-games.json");
@@ -286,6 +287,42 @@ test("a game the books never priced has no chance, and not a half", () => {
     assert.equal(r.chance, null, `${r.winner.team} v ${r.loser.team}`);
   }
   assert.ok(unpriced > 0, "every settled game in the fixture was priced");
+});
+
+test("the payload's awards are what the library builds from the payload", () => {
+  /* The builder's only job here is to call buildAwards twice - once over the
+     whole season and once over everything before the last week - and diff the
+     holders. Stating that as an identity rather than re-asserting six holders
+     means this test cannot drift from lib/awards.mjs, and it fails the moment
+     the builder starts massaging the inputs or the through-week on its way in.
+     Which awards pick which holder is settled in tests/awards.test.mjs. */
+  assert.deepEqual(
+    built.awards,
+    markChanges(buildAwards(built),
+                built.byWeek.length > 1
+                  ? buildAwards({ ...built, through: built.byWeek.length - 1 })
+                  : null));
+  assert.equal(built.awards.length, 6);
+});
+
+test("no trophy is held by somebody who is not in the league", () => {
+  /* A holder is a manager, and the two sources of a name here are the results
+     rows and byWeek's own keys. Either can carry a string the standings do not,
+     and a card naming a manager the leaderboard has never heard of is the way
+     that would first be noticed - in production, by a reader. */
+  const league = new Set(built.standings.map((s) => s.manager));
+  for (const a of built.awards) {
+    for (const h of [...a.holders, ...(a.runnerUp ? [a.runnerUp] : [])]) {
+      assert.ok(league.has(h.manager), `${a.id} is held by ${h.manager}, who is not a manager`);
+      assert.ok(h.detail, `${a.id} has a holder with no detail line`);
+      assert.equal(typeof h.value, "number", `${a.id} has a holder with no value`);
+    }
+    /* A runner-up who is also a holder is the bug the rule exists to prevent. */
+    if (a.runnerUp) {
+      assert.equal(a.holders.some((h) => h.manager === a.runnerUp.manager), false,
+        `${a.id}'s runner-up is also its holder`);
+    }
+  }
 });
 
 test("games of the week all share one week, and the label names it", () => {
