@@ -97,7 +97,7 @@ entries a week, so roughly 1,000 and 275KB raw by the time the playoff is over.
 
 | File | Holds | Fetched |
 |---|---|---|
-| `standings.json` | standings, projection, byWeek, gamesOfWeek, unscored, and the meta fields | always |
+| `standings.json` | standings, projection, byWeek, awards, gamesOfWeek, unscored, and the meta fields | always |
 | `results.json` | results, headToHead | first time the Activity tab is opened |
 | `teams.json` | byConference | first time the All teams tab is opened |
 | `lines.json` | every spread the books have shown | never by the page; `build-standings.mjs` reads it |
@@ -645,6 +645,24 @@ together on arrival.
   games. One `priced` serves both, because both run over exactly the same games.
   This is what the leaderboard's **Exp Pts** column and the expected record in
   each manager's dropdown read
+- `results[]` - every settled game a rostered team played, in timeline order,
+  with `score`, `points` (what the win was worth to the winner's owner, 0 when
+  an undrafted team won), `h2h`, `sameManager`, `upset`, and the closing price
+  three ways: `line` as prose ("TCU -3.5"), `chance` as the winner's
+  probability, and `expectedMargin` as the margin the line expected *of the
+  winner* - positive when they were favoured, negative when they were not, zero
+  on a pick-em. All three are null on a game the books never priced and on one
+  priced only by a model. The two numbers exist because the trophies sort on
+  them and a formatted string cannot be sorted
+- `awards[]` - the trophy case: six records, each with `label`, `blurb`, `unit`,
+  a `holders[]` list (empty when nobody has won it, more than one on a tie), a
+  `runnerUp` who always belongs to somebody not holding it, and `changed` -
+  whether the holders differ from the same award computed over every week but
+  the last. Derived from `results` and `byWeek` by `lib/awards.mjs`, and
+  published in the **core** file rather than beside the rows it came from: it is
+  their reduction, six records under a kilobyte and constant in size for the
+  season, so shipping the answer costs a rounding error on every poll where
+  fetching the array behind it would put a spinner on a tab that draws six lines
 - `byConference` - every FBS team ranked by points within its conference, with drafter or null
 - `headToHead[]` - completed games where both teams are drafted. The league
   tiebreaker. Each entry carries `spread` (the closing line, or null if the
@@ -744,6 +762,7 @@ thing one person can change without touching another.
 | `app/components/AllTeams.tsx` | the flat FBS table and its filters |
 | `app/components/Activity.tsx` | head to head, and the timeline |
 | `app/components/Trends.tsx` | the Trends tab, and its lazy fetch |
+| `app/components/Trophies.tsx` | the trophy case, its cabinet and its six icons |
 | `app/components/TrendsChart.tsx` | the points race |
 | `app/components/Karts.tsx` | one driver per manager, and their colours |
 | `app/components/TrendsMatrix.tsx` | the head-to-head grid |
@@ -775,6 +794,50 @@ puts focus back on the trigger. `useViewState` is `useState` that outlives its
 own component: sections unmount when you switch tab, and without it the week
 you had selected, the row you had expanded and the team you had typed would all
 reset on the way back.
+
+### Trophies
+
+Six season superlatives, one holder each, in a cabinet: **Biggest Upset**
+(won at the longest odds the market gave anyone), **Heartbreaker** (lost at the
+shortest), **Blowout** (beat the closing spread by the most), **Civil War**
+(most points lost to their own two teams playing each other), **Best Week**
+(most points banked in one) and **Luckiest** (furthest above what the lines
+expected to pay them).
+
+The point of the feature is the changing hands, so nothing about it is
+incremental. There is no stored holder to go stale when the 8-hourly baseline
+picks up a correction to an old week: `lib/awards.mjs` derives the whole case
+from the whole season on every run, and the builder derives it *twice* - once
+over everything and once with the last week withheld - and diffs the holders.
+That diff is the `New` badge. A season with one week or none has no earlier
+view and every trophy reads as having stayed put, rather than opening the
+season with a badge on all six.
+
+Three rules the six share, each with a test that fails without it:
+
+- **A game the books never priced wins no trophy that is about a price.** It
+  carries `chance` and `expectedMargin` as null rather than a half and a nought,
+  so it competes for nothing here. Measuring the blowout against the spread
+  rather than against zero costs it those games knowingly - the alternative
+  ranks a cover against a raw margin, two quantities under one heading.
+- **No trophy is held by a team nobody drafted.** `results` carries every game a
+  rostered team played, including the ones it lost to a school nobody took.
+- **Zero is a score for a margin and an absence for a count.** Eight managers on
+  nought points are not an eight-way tie for Best Week; that award has no holder
+  yet, and the card says so rather than printing a nought.
+
+The civil war is a subtraction rather than a count of games, and what is gone is
+the *loser's* value - that team would have won those points against anybody else.
+`collisionLoss` in `standings[]` is the same idea on the other side of the clock
+and is deliberately not reused: it counts only *scheduled* games and takes the
+lesser of the two tiers, because a ceiling has to assume the better outcome.
+
+Unlike All teams and Activity this tab declares `needs: null` - the awards ride
+in the core file - so it has no lazy fetch and never opens on a loading note.
+The cabinet is CSS (brass is a gradient, the glass is a second gradient with
+`pointer-events` off, a shelf lip is a border on the row) and the six icons are
+inline SVG on one 64x64 grid, for the reason there is no charting dependency:
+six PNGs would be six requests, and an `<img>` cannot read the tokens.
 
 ### Trends
 
