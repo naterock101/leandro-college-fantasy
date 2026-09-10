@@ -59,7 +59,7 @@ Six, not fourteen. A wall of trophies is a wall, and nobody reads a wall.
 | **Heartbreaker** | Their team lost when the market gave it the most chance | win chance | `results[].chance` |
 | **Blowout** | Their team's biggest margin of victory | margin | `results[].score` |
 | **Best Week** | Most points banked in a single week | points | `byWeek[].delta` |
-| **Luckiest** | Points banked furthest above what the closing lines expected | points | `luck.managers[].delta` |
+| **Luckiest** | Points banked furthest above what the closing lines expected | points | `byWeek[].cumulative` |
 | **Civil War** | Most games where two of their own teams played each other | count | `results[].sameManager` |
 
 Every one of these is a number that can be beaten by a single Saturday. That
@@ -185,11 +185,21 @@ so the builder and any future consumer import one file and cannot disagree
 about what an award is.
 
 ```js
-export function buildAwards({ results, byWeek, luck, throughWeek })
+export function buildAwards({ results, byWeek, through })
+export function markChanges(now, before)
 ```
 
-`throughWeek` is what lets the caller ask for last week's answer, which is how
-`changed` is computed. Default is every week.
+`through` is a count of weeks off the front of `byWeek`, and it is what lets
+the caller ask for last week's answer, which is how `changed` is computed.
+Left off, it means the whole season.
+
+**`luck` is not an input, though the payload has one.** The season figure
+cannot be truncated to "as of last week", so an award built on it could not be
+asked for its own history and could not carry the badge. `byWeek[].cumulative`
+already carries the same subtraction week by week - `pricedPoints` against
+`expectedPoints` - and `tests/build.test.mjs` already asserts that its last
+entry and the season `luck` are the same sum. Reading the weekly block gets
+truncation for free and adds no new obligation to the builder.
 
 New file `tests/awards.test.mjs`, hand-built inputs, no golden:
 
