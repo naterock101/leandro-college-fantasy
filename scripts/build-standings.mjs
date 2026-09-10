@@ -416,6 +416,28 @@ function build(doc, owners, games, lines) {
            here for the same reason it is untagged as an upset above: every
            figure on this row is a statement about the closing lines. */
         chance: market ? winProbability(market, winner) : null,
+        /* The margin the closing line expected of the side that won: positive
+           when they were favoured, negative when they were not, zero on a
+           pick-em. The blowout is measured against this rather than against
+           nought - a 21-point favourite winning by 35 and a 21-point underdog
+           winning by 35 are not the same Saturday.
+
+           The sign comes from `favorite` and never from the sign of the stored
+           spread, which the feeds disagree about: this repo's own fixture has
+           TCU at +3.5 and Virginia at -10.5 with each named as its own game's
+           favourite. That has never mattered because every other reader of a
+           spread here takes its absolute value. This is the first field where
+           getting it backwards would be quietly plausible instead of obviously
+           broken, which is why it is asserted rather than assumed.
+
+           null on a price with no spread at all - a moneyline the books put up
+           on a game they would not hang a number on. There is no number to
+           have beaten, so that game is not a blowout candidate. */
+        expectedMargin: market && typeof market.spread === "number"
+          ? (market.favorite
+              ? Math.abs(market.spread) * (market.favorite === winner ? 1 : -1)
+              : 0)
+          : null,
       });
     }
 

@@ -100,6 +100,11 @@ export type Result = {
      absent from any payload written before it shipped - so a read of it has to
      survive both `null` and `undefined`. */
   chance?: number | null;
+  /* The margin the closing line expected of the winner, signed: positive when
+     they were the favourite, negative when they were the underdog, zero on a
+     pick-em. What the blowout is measured against. null and undefined for the
+     same two reasons as `chance`. */
+  expectedMargin?: number | null;
   winner: ScoredSide; loser: ScoredSide;
 };
 

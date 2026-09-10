@@ -1628,19 +1628,19 @@
     {
       "id": "blowout",
       "label": "Blowout",
-      "blurb": "Their biggest margin of victory",
+      "blurb": "Beat the closing spread by the most",
       "unit": "margin",
       "holders": [
         {
-          "manager": "nathan",
-          "value": 35,
-          "detail": "Texas A&M 45-10 over Missouri State, Week 2"
+          "manager": "tconn",
+          "value": 15.5,
+          "detail": "Virginia 34-8 over NC State · Virginia -10.5, Week 1"
         }
       ],
       "runnerUp": {
-        "manager": "adam",
-        "value": 26,
-        "detail": "North Dakota State 33-7 over Jacksonville State, Week 1"
+        "manager": "devish",
+        "value": 8.5,
+        "detail": "Memphis 27-21 over UNLV · UNLV -2.5, Week 1"
       },
       "changed": false
     },
@@ -2376,7 +2376,8 @@
       "sameManager": false,
       "upset": true,
       "line": "TCU -3.5",
-      "chance": 0.40398123198594715
+      "chance": 0.40398123198594715,
+      "expectedMargin": -3.5
     },
     {
       "key": "0|01",
@@ -2397,7 +2398,8 @@
       "sameManager": false,
       "upset": false,
       "line": null,
-      "chance": null
+      "chance": null,
+      "expectedMargin": null
     },
     {
       "key": "0|01",
@@ -2418,7 +2420,8 @@
       "sameManager": false,
       "upset": false,
       "line": "Virginia -10.5",
-      "chance": 0.7670502099672739
+      "chance": 0.7670502099672739,
+      "expectedMargin": 10.5
     },
     {
       "key": "0|01",
@@ -2439,7 +2442,8 @@
       "sameManager": true,
       "upset": false,
       "line": null,
-      "chance": null
+      "chance": null,
+      "expectedMargin": null
     },
     {
       "key": "0|01",
@@ -2460,7 +2464,8 @@
       "sameManager": false,
       "upset": false,
       "line": null,
-      "chance": null
+      "chance": null,
+      "expectedMargin": null
     },
     {
       "key": "0|01",
@@ -2481,7 +2486,8 @@
       "sameManager": false,
       "upset": false,
       "line": null,
-      "chance": null
+      "chance": null,
+      "expectedMargin": null
     },
     {
       "key": "0|01",
@@ -2502,7 +2508,8 @@
       "sameManager": false,
       "upset": false,
       "line": null,
-      "chance": null
+      "chance": null,
+      "expectedMargin": null
     },
     {
       "key": "0|01",
@@ -2523,7 +2530,8 @@
       "sameManager": false,
       "upset": true,
       "line": "UNLV -2.5",
-      "chance": 0.4310855530810578
+      "chance": 0.4310855530810578,
+      "expectedMargin": -2.5
     },
     {
       "key": "0|02",
@@ -2544,7 +2552,8 @@
       "sameManager": false,
       "upset": false,
       "line": null,
-      "chance": null
+      "chance": null,
+      "expectedMargin": null
     },
     {
       "key": "0|02",
@@ -2565,7 +2574,8 @@
       "sameManager": false,
       "upset": true,
       "line": "Pittsburgh -3.5",
-      "chance": 0.40398123198594715
+      "chance": 0.40398123198594715,
+      "expectedMargin": -3.5
     },
     {
       "key": "0|02",
@@ -2586,7 +2596,8 @@
       "sameManager": false,
       "upset": false,
       "line": null,
-      "chance": null
+      "chance": null,
+      "expectedMargin": null
     },
     {
       "key": "0|02",
@@ -2607,7 +2618,8 @@
       "sameManager": false,
       "upset": false,
       "line": "PK",
-      "chance": 0.5
+      "chance": 0.5,
+      "expectedMargin": 0
     },
     {
       "key": "1|01",
@@ -2628,7 +2640,8 @@
       "sameManager": false,
       "upset": false,
       "line": null,
-      "chance": null
+      "chance": null,
+      "expectedMargin": null
     },
     {
       "key": "1|02",
@@ -2649,7 +2662,8 @@
       "sameManager": false,
       "upset": true,
       "line": "Ole Miss -2.5",
-      "chance": 0.4310855530810578
+      "chance": 0.4310855530810578,
+      "expectedMargin": -2.5
     }
   ]
 }

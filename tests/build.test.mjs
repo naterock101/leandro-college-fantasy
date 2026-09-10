@@ -255,6 +255,46 @@ test("a priced result carries the winner's chance, and it is the model's", () =>
   assert.ok(priced > 0, "the fixture priced no settled game, so this proved nothing");
 });
 
+test("a priced result carries the margin its line expected of the winner", () => {
+  /* The blowout is measured against the number, not against zero, so the row
+     has to carry what the number was - and carry it from the winner's side,
+     signed, because a 21-point favourite winning by 35 and a 21-point underdog
+     winning by 35 are not the same Saturday.
+
+     Taken from `favorite` and never from the sign of the stored spread. The
+     feeds disagree about that sign - this very fixture has TCU at +3.5 and
+     Virginia at -10.5 with each named as its own game's favourite - and it has
+     never mattered before because every reader of a spread in this repo takes
+     its absolute value. This is the first field where being wrong about the
+     sign would be silently, plausibly wrong rather than obviously so. */
+  const lineOf = new Map();
+  for (const g of fixtureGames) {
+    const line = fixtureLines.games[g.id];
+    if (line) lineOf.set(`${home(g)}|${away(g)}`, line);
+  }
+
+  let signed = 0, pickems = 0;
+  for (const r of built.results) {
+    if (r.line === null) continue;
+    const line = lineOf.get(`${r.winner.team}|${r.loser.team}`)
+              ?? lineOf.get(`${r.loser.team}|${r.winner.team}`);
+    if (typeof line.spread !== "number") { assert.equal(r.expectedMargin, null); continue; }
+    if (!line.favorite) {
+      /* Nobody was favoured, so the line expected the game to be even. */
+      assert.equal(r.expectedMargin, 0, `${r.score} pick-em`);
+      pickems++;
+      continue;
+    }
+    signed++;
+    assert.equal(Math.abs(r.expectedMargin), Math.abs(line.spread),
+      `${r.winner.team}: expectedMargin does not match the stored spread`);
+    assert.equal(r.expectedMargin > 0, line.favorite === r.winner.team,
+      `${r.winner.team}: the sign does not follow the favourite`);
+  }
+  assert.ok(signed > 0, "no priced favourite in the fixture, so this proved nothing");
+  assert.ok(pickems > 0, "no pick-em in the fixture, so the zero case is untested");
+});
+
 test("the chance and the upset flag are two readings of one number", () => {
   /* An upset is the favourite losing, and the favourite is the side the model
      puts above a half, so the flag is recoverable from the number. They are

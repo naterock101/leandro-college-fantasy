@@ -20,14 +20,14 @@ import { buildAwards, markChanges } from "../lib/awards.mjs";
 let seq = 0;
 /** A results row, with only the fields the awards read spelled out. */
 const game = ({ w = "0|01", win, lose, score = "20-17", pts = 3,
-                chance = 0.6, same = false }) => ({
+                chance = 0.6, same = false, exp = 0 }) => ({
   key: w, week: Number(w.slice(2)), seasonType: w[0] === "1" ? "postseason" : "regular",
   date: `2026-09-0${(seq++ % 9) + 1}T16:00:00.000Z`,
   winner: { team: `${win ?? "Nobody"}-W`, manager: win ?? null },
   loser: { team: `${lose ?? "Nobody"}-L`, manager: lose ?? null },
   score, points: pts, h2h: Boolean(win && lose), sameManager: same,
   upset: chance !== null && chance < 0.5, line: chance === null ? null : "X -3.5",
-  chance,
+  chance, expectedMargin: chance === null ? null : exp,
 });
 
 /** A byWeek entry carrying only the two blocks the awards read. */
@@ -61,9 +61,9 @@ const names = (award) => award.holders.map((h) => h.manager);
 
 test("each award picks the holder its own rule names", () => {
   const results = [
-    game({ win: "ann", lose: "bob", chance: 0.20, score: "21-20", pts: 3 }),
-    game({ win: "bob", lose: "ann", chance: 0.90, score: "45-3", pts: 2 }),
-    game({ win: "cat", lose: "cat", chance: 0.55, score: "10-7", pts: 3, same: true }),
+    game({ win: "ann", lose: "bob", chance: 0.20, score: "21-20", pts: 3, exp: -13 }),
+    game({ win: "bob", lose: "ann", chance: 0.90, score: "45-3", pts: 2, exp: 40 }),
+    game({ win: "cat", lose: "cat", chance: 0.55, score: "10-7", pts: 3, same: true, exp: 1 }),
   ];
   const byWeek = [luckWeek("0|01", "Week 1", { ann: [3, 1.5], bob: [2, 4], cat: [3, 2.9] })];
   byWeek[0].delta = { ann: 3, bob: 2, cat: 3 };
@@ -76,9 +76,11 @@ test("each award picks the holder its own rule names", () => {
      which is the largest chance any losing rostered team was given. */
   assert.deepEqual(names(a.heartbreaker), ["bob"]);
   assert.equal(a.heartbreaker.holders[0].value, 0.8);
-  /* 45-3 is 42, and the only other margins are 1 and 3. */
-  assert.deepEqual(names(a.blowout), ["bob"]);
-  assert.equal(a.blowout.holders[0].value, 42);
+  /* Against the number, not against nought. bob won by 42 as a 40-point
+     favourite, which is two points of cover; ann won by one as a 13-point
+     underdog, which is fourteen. The raw margins say bob by a mile. */
+  assert.deepEqual(names(a.blowout), ["ann"]);
+  assert.equal(a.blowout.holders[0].value, 14);
   /* ann and cat both banked 3 in week 1, so both hold it. */
   assert.deepEqual(names(a.bestWeek), ["ann", "cat"]);
   /* ann banked 3 where the lines expected 1.5; bob is 2 points under his. */
@@ -107,17 +109,56 @@ test("an empty season awards six trophies to nobody", () => {
 /* ------------------------------------------------------------------ */
 
 test("a game the books never priced wins no trophy that is about a price", () => {
-  /* An unpriced game carries chance null - not a half - so it has nothing to
-     say about what the market expected. It is still a game somebody won by
-     five touchdowns, and the blowout does not consult a line. */
+  /* An unpriced game carries chance null and expectedMargin null - not a half
+     and not a nought - so it has nothing to say about what the market thought.
+     All three of these awards are statements about the closing lines, so a
+     56-0 win nobody put a number on beats no number and wins nothing.
+
+     That is the cost of measuring the blowout against the spread, and it is
+     paid knowingly: a sixth of the live season carries no line, and one of
+     those games being the season's biggest hiding is a real possibility. The
+     alternative is a trophy that compares a cover with a raw margin, which is
+     two different quantities under one heading. */
   const results = [
     game({ win: "ann", lose: "bob", chance: null, score: "56-0", pts: 3 }),
-    game({ win: "bob", lose: "ann", chance: 0.30, score: "20-17", pts: 3 }),
+    game({ win: "bob", lose: "ann", chance: 0.30, score: "20-17", pts: 3, exp: -7 }),
   ];
   const a = byId(buildAwards({ results, byWeek: [week("0|01", "Week 1", {})] }));
-  assert.deepEqual(names(a.blowout), ["ann"]);
+  assert.deepEqual(names(a.blowout), ["bob"], "an unpriced game reached the blowout");
   assert.deepEqual(names(a.upset), ["bob"], "an unpriced game reached the upset");
   assert.deepEqual(names(a.heartbreaker), ["ann"], "an unpriced game reached the heartbreaker");
+});
+
+test("the blowout is beaten by covering, not by winning big", () => {
+  /* The whole point of the change. A 40-point favourite scraping home is a
+     bad Saturday however large the scoreboard says the margin was, and a
+     touchdown underdog winning by three touchdowns is the best result of the
+     week even though the margin is half the other one's. */
+  const results = [
+    game({ win: "ann", lose: null, chance: 0.97, score: "52-7", exp: 41 }),
+    game({ win: "bob", lose: null, chance: 0.30, score: "28-7", exp: -7 }),
+  ];
+  const a = byId(buildAwards({ results, byWeek: [week("0|01", "Week 1", {})] }));
+  /* ann won by 45 and was meant to win by 41: four points. bob won by 21 and
+     was meant to lose by seven: twenty-eight. */
+  assert.deepEqual(names(a.blowout), ["bob"]);
+  assert.equal(a.blowout.holders[0].value, 28);
+  assert.equal(a.blowout.runnerUp.value, 4);
+});
+
+test("a pick-em blowout is the margin itself, because nought was the number", () => {
+  const results = [game({ win: "ann", lose: null, chance: 0.5, score: "31-10", exp: 0 })];
+  const a = byId(buildAwards({ results, byWeek: [week("0|01", "Week 1", {})] }));
+  assert.equal(a.blowout.holders[0].value, 21);
+});
+
+test("the blowout names the line it beat, not only the score", () => {
+  /* A cover is a subtraction, and a card showing only one of the two numbers
+     asks the reader to take the other on trust. */
+  const results = [game({ win: "ann", lose: "bob", chance: 0.30, score: "28-7", exp: -7 })];
+  const a = byId(buildAwards({ results, byWeek: [week("0|01", "Week 1", {})] }));
+  assert.match(a.blowout.holders[0].detail, /28-7/);
+  assert.match(a.blowout.holders[0].detail, /X -3\.5/, "the line is not on the card");
 });
 
 test("nobody's trophy is won by a team nobody drafted", () => {
@@ -125,8 +166,8 @@ test("nobody's trophy is won by a team nobody drafted", () => {
      lost to a school nobody took. Those rows have no manager on the winning
      side, and an award is a thing a manager holds. */
   const results = [
-    game({ win: null, lose: "ann", chance: 0.10, score: "60-0", pts: 0 }),
-    game({ win: "bob", lose: null, chance: 0.80, score: "24-21", pts: 3 }),
+    game({ win: null, lose: "ann", chance: 0.10, score: "60-0", pts: 0, exp: -20 }),
+    game({ win: "bob", lose: null, chance: 0.80, score: "24-21", pts: 3, exp: 6 }),
   ];
   const a = byId(buildAwards({ results, byWeek: [week("0|01", "Week 1", {})] }));
   /* The 10% winner is undrafted, so the biggest upset is bob's 80% win - not

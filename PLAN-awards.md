@@ -57,7 +57,7 @@ Six, not fourteen. A wall of trophies is a wall, and nobody reads a wall.
 |---|---|---|---|
 | **Biggest Upset** | Their team won when the market gave it the least chance | win chance | `results[].chance` |
 | **Heartbreaker** | Their team lost when the market gave it the most chance | win chance | `results[].chance` |
-| **Blowout** | Their team's biggest margin of victory | margin | `results[].score` |
+| **Blowout** | Beat the closing spread by the most | margin | `results[].score`, `results[].expectedMargin` |
 | **Best Week** | Most points banked in a single week | points | `byWeek[].delta` |
 | **Luckiest** | Points banked furthest above what the closing lines expected | points | `byWeek[].cumulative` |
 | **Civil War** | Most points lost to their own teams playing each other | points | `results[].sameManager` |
@@ -80,6 +80,17 @@ ESPN's FPI is excluded, because calling it "what the closing lines expected"
 would be false on exactly the games nobody can check. Biggest Upset and
 Heartbreaker inherit that rule for free by reading a field derived from
 `market`, which is already `null` on a modelled price.
+
+**The blowout is measured against the number, not against nought.** A 40-point
+favourite scraping home is a bad Saturday however large the scoreboard says the
+margin was, and a touchdown underdog winning by three touchdowns is the best
+result of the week on half the margin. That needs a second field on the results
+row - `expectedMargin`, what the closing line expected of the side that won,
+signed - and its sign has to come from `favorite` rather than from the sign of
+the stored spread, which the feeds disagree about. It costs the award every
+unpriced game, which is knowing and deliberate: the alternative is a trophy
+that ranks a cover against a raw margin, two quantities under one heading, with
+no way for a reader to tell which one they are looking at.
 
 **An unpriced game is not a coin flip.** A game no book touched has no chance
 attached and is simply not a candidate for the two chance-based awards. It

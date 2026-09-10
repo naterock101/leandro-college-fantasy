@@ -57,24 +57,37 @@ describe("the case as the fixture builds it", () => {
     }
   });
 
-  test("a chance reads as a percentage and a margin does not", async () => {
+  test("a chance reads as a percentage and a cover does not", async () => {
     /* The same number formatted by its own unit. 0.431 is a probability and
-       must never appear as "0.431"; 35 is points and must never appear as
-       "35%". */
+       must never appear as "0.431"; a cover is points and must never appear
+       as a percentage. */
+    const blowout = payload.awards.find((a: any) => a.id === "blowout");
     stubFetch();
     await renderPage();
     await openCase();
     expect(within(card("Biggest Upset")).getByText(/43%/)).toBeTruthy();
-    expect(within(card("Blowout")).getByText(/35/)).toBeTruthy();
-    expect(card("Blowout").textContent).not.toMatch(/35%/);
+    const text = card("Blowout").textContent!;
+    expect(text).toContain(`${blowout.holders[0].value} on the line`);
+    expect(text).not.toMatch(new RegExp(`${blowout.holders[0].value}%`));
   });
 
-  test("the game behind the number is named on the card", async () => {
+  test("the blowout card carries both numbers a cover is made of", async () => {
+    /* The score and the line it beat. One without the other asks the reader
+       to take the subtraction on trust.
+
+       Read off the payload rather than written out, because this holder is
+       exactly the one that moves when the definition changes - naming the
+       fixture's current winner here is how a test comes to assert last
+       month's rule. */
+    const blowout = payload.awards.find((a: any) => a.id === "blowout");
+    const [score] = blowout.holders[0].detail.match(/\d+-\d+/)!;
+    const [line] = blowout.holders[0].detail.match(/· ([^,]+),/)!.slice(1);
     stubFetch();
     await renderPage();
     await openCase();
-    expect(card("Blowout").textContent)
-      .toMatch(/Texas A&M 45-10 over Missouri State, Week 2/);
+    const text = card("Blowout").textContent!;
+    expect(text, "the score is not on the card").toContain(score);
+    expect(text, "the line it beat is not on the card").toContain(line.trim());
   });
 });
 

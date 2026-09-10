@@ -149,7 +149,9 @@ const say = (a: Award, value: number) => {
   switch (a.id) {
     case "upset":
     case "heartbreaker": return `${percent(value)} to win`;
-    case "blowout": return `${value}-point margin`;
+    /* A cover, so it needs its preposition: "21 on the line" and not "21", and
+       a negative one has to read as one rather than as a smaller win. */
+    case "blowout": return `${value > 0 ? "+" : ""}${value} on the line`;
     case "civilWar": return `−${value} points`;
     case "bestWeek": return `${value} point${value === 1 ? "" : "s"}`;
     case "luckiest": return `+${value} vs the lines`;
