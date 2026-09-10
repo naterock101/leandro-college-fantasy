@@ -41,6 +41,17 @@ const luckWeek = (key, label, perManager) =>
     ([m, [pricedPoints, expectedPoints]]) => [m, { points: 0, wins: 0, losses: 0,
                                                    pricedPoints, expectedPoints }])));
 
+/* The two static inputs: what a team is worth is a draft property and a league
+   rule, so neither is affected by how much of the season is in view. */
+const SCORING = { p4: 3, g5: 2 };
+/** @param {Record<string, Record<string, "p4"|"g5">>} squads manager -> team -> tier */
+const standingsOf = (squads) => Object.entries(squads).map(([manager, teams]) => ({
+  manager, points: 0, wins: 0, losses: 0, remaining: 0, ceiling: 0, collisionLoss: 0,
+  teams: Object.fromEntries(Object.entries(teams).map(([team, tier]) =>
+    [team, { team, draft: team, conf: "X", tier,
+             wins: 0, losses: 0, points: 0, remaining: 0, ceiling: 0 }])),
+}));
+
 const byId = (awards) => Object.fromEntries(awards.map((a) => [a.id, a]));
 const names = (award) => award.holders.map((h) => h.manager);
 
@@ -56,7 +67,8 @@ test("each award picks the holder its own rule names", () => {
   ];
   const byWeek = [luckWeek("0|01", "Week 1", { ann: [3, 1.5], bob: [2, 4], cat: [3, 2.9] })];
   byWeek[0].delta = { ann: 3, bob: 2, cat: 3 };
-  const a = byId(buildAwards({ results, byWeek }));
+  const standings = standingsOf({ cat: { "cat-W": "p4", "cat-L": "g5" } });
+  const a = byId(buildAwards({ results, byWeek, standings, scoring: SCORING }));
 
   /* ann won a game the market gave her 20%; nobody won a longer one. */
   assert.deepEqual(names(a.upset), ["ann"]);
@@ -72,9 +84,10 @@ test("each award picks the holder its own rule names", () => {
   /* ann banked 3 where the lines expected 1.5; bob is 2 points under his. */
   assert.deepEqual(names(a.luckiest), ["ann"]);
   assert.equal(a.luckiest.holders[0].value, 1.5);
-  /* cat is the only manager who owned both sides of a game. */
+  /* cat owned both sides of a game, and the side that lost was a g5 team, so
+     the two points it would have banked against anyone else are gone. */
   assert.deepEqual(names(a.civilWar), ["cat"]);
-  assert.equal(a.civilWar.holders[0].value, 1);
+  assert.equal(a.civilWar.holders[0].value, 2);
 });
 
 test("an empty season awards six trophies to nobody", () => {
@@ -167,6 +180,83 @@ test("a trophy nobody is above the line for is held by nobody", () => {
   const a = byId(buildAwards({ results: [], byWeek }));
   assert.deepEqual(a.luckiest.holders, []);
   assert.equal(a.luckiest.runnerUp, null);
+});
+
+/* ------------------------------------------------------------------ */
+/* the civil war, which is a subtraction and not a count               */
+/* ------------------------------------------------------------------ */
+
+test("the civil war counts the points the losing side would have banked", () => {
+  /* A manager who owns both teams in a game banks one team's points and loses
+     the other's. What is gone is the *loser's* value, because that is the team
+     that would have won those points against anybody else. Valuing the winner
+     instead would report a manager as unluckiest when their better team won,
+     which is the opposite of what happened. */
+  const results = [
+    /* ann's p4 team lost to her own g5 team: three points gone, not two. */
+    game({ win: "ann", lose: "ann", same: true, score: "20-17" }),
+  ];
+  const standings = standingsOf({ ann: { "ann-W": "g5", "ann-L": "p4" } });
+  const a = byId(buildAwards({ results, byWeek: [week("0|01", "Week 1", {})],
+                               standings, scoring: SCORING }));
+  assert.deepEqual(names(a.civilWar), ["ann"]);
+  assert.equal(a.civilWar.holders[0].value, 3);
+  assert.equal(a.civilWar.unit, "points");
+});
+
+test("the civil war accumulates over the season", () => {
+  const results = [
+    game({ w: "0|01", win: "ann", lose: "ann", same: true }),
+    game({ w: "0|02", win: "ann", lose: "ann", same: true }),
+    game({ w: "0|02", win: "bob", lose: "bob", same: true }),
+  ];
+  const standings = standingsOf({
+    ann: { "ann-W": "p4", "ann-L": "g5" },
+    bob: { "bob-W": "p4", "bob-L": "p4" },
+  });
+  const byWeek = [week("0|01", "Week 1", {}), week("0|02", "Week 2", {})];
+  const a = byId(buildAwards({ results, byWeek, standings, scoring: SCORING }));
+  /* ann has lost two g5 teams' worth, bob one p4 team's worth. Four beats three. */
+  assert.deepEqual(names(a.civilWar), ["ann"]);
+  assert.equal(a.civilWar.holders[0].value, 4);
+  assert.equal(a.civilWar.runnerUp.manager, "bob");
+  assert.equal(a.civilWar.runnerUp.value, 3);
+});
+
+test("the civil war says how many games are behind the number", () => {
+  /* A points total with one fixture named under it reads as that fixture's
+     score. Two games have to say two. */
+  const results = [
+    game({ w: "0|01", win: "ann", lose: "ann", same: true }),
+    game({ w: "0|02", win: "ann", lose: "ann", same: true, score: "31-3" }),
+  ];
+  const standings = standingsOf({ ann: { "ann-W": "p4", "ann-L": "g5" } });
+  const byWeek = [week("0|01", "Week 1", {}), week("0|02", "Week 2", {})];
+  const one = byId(buildAwards({ results: results.slice(0, 1), byWeek: byWeek.slice(0, 1),
+                                 standings, scoring: SCORING }));
+  const two = byId(buildAwards({ results, byWeek, standings, scoring: SCORING }));
+  assert.doesNotMatch(one.civilWar.holders[0].detail, /games/);
+  assert.match(two.civilWar.holders[0].detail, /^2 games/);
+  assert.match(two.civilWar.holders[0].detail, /Week 2/, "the latest game is not the one named");
+});
+
+test("a civil war the payload cannot value is left out rather than guessed", () => {
+  /* Without a tier for the losing team there is no number, and inventing one -
+     a count, or the winner's value - would publish a figure nobody could check
+     against a roster. The award simply has no candidate. */
+  const results = [game({ win: "ann", lose: "ann", same: true })];
+  const a = byId(buildAwards({ results, byWeek: [week("0|01", "Week 1", {})],
+                               standings: [], scoring: SCORING }));
+  assert.deepEqual(a.civilWar.holders, []);
+});
+
+test("a manager whose teams never met holds no civil war trophy", () => {
+  const results = [game({ win: "ann", lose: "bob", same: false })];
+  const standings = standingsOf({ ann: { "ann-W": "p4" }, bob: { "bob-L": "p4" } });
+  const a = byId(buildAwards({ results, byWeek: [week("0|01", "Week 1", {})],
+                               standings, scoring: SCORING }));
+  assert.deepEqual(a.civilWar.holders, []);
+  assert.equal(a.civilWar.runnerUp, null);
 });
 
 /* ------------------------------------------------------------------ */

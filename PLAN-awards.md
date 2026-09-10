@@ -60,7 +60,7 @@ Six, not fourteen. A wall of trophies is a wall, and nobody reads a wall.
 | **Blowout** | Their team's biggest margin of victory | margin | `results[].score` |
 | **Best Week** | Most points banked in a single week | points | `byWeek[].delta` |
 | **Luckiest** | Points banked furthest above what the closing lines expected | points | `byWeek[].cumulative` |
-| **Civil War** | Most games where two of their own teams played each other | count | `results[].sameManager` |
+| **Civil War** | Most points lost to their own teams playing each other | points | `results[].sameManager` |
 
 Every one of these is a number that can be beaten by a single Saturday. That
 was the selection rule, and it is why "Best Pick" and "Steady Eddie" are not on
@@ -86,6 +86,17 @@ attached and is simply not a candidate for the two chance-based awards. It
 still counts for Blowout, Best Week and Civil War, which do not consult a line.
 The award record does not need to publish the excluded count the way `luck`
 does - a trophy is one game, and one game either had a price or it did not.
+
+**The civil war is a subtraction, not a count.** A manager who owns both teams
+in a game banks one side's value and loses the other's, and what is gone is the
+*loser's* - that is the team that would have won those points against anybody
+else. `collisionLoss` in the standings is the same idea on the other side of
+the clock and is deliberately not reused: it counts only *scheduled* games and
+takes the lesser of the two tiers, because a ceiling has to assume the better
+outcome. Here the game has been played and the result names the team that lost,
+so there is nothing to assume. Pricing it needs `standings` and `scoring`, both
+already in the core payload, and neither moves with how much of the season is
+in view.
 
 **An undrafted team's win is nobody's trophy.** `results` carries every game a
 rostered team played, including the ones it lost to a team nobody drafted.
@@ -185,7 +196,7 @@ so the builder and any future consumer import one file and cannot disagree
 about what an award is.
 
 ```js
-export function buildAwards({ results, byWeek, through })
+export function buildAwards({ results, byWeek, standings, scoring, through })
 export function markChanges(now, before)
 ```
 
