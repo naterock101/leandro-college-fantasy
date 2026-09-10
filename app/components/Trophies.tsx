@@ -41,21 +41,32 @@ import type { Award, Data } from "../types";
 const O = "#0A111A";   /* the outline every icon shares */
 
 const ICONS: Record<string, ReactNode> = {
-  /* A slingshot, loaded: the longest-odds win of the season is David's
-     weapon, not a trophy about somebody losing. */
+  /* A boxing glove, thrown upward: punching above your weight, which is what
+     winning at the longest price the market offered anyone actually is.
+
+     The third drawing for this award and the first that reads. A slingshot is
+     the obvious symbol and does not survive 68 pixels: upright, it is a stick
+     figure with its arms up and a head; tilted with the bands in front, it is
+     four crossing strokes and a dot. Both were looked at in a browser and
+     both failed the same way - too many thin lines in too little space.
+
+     This is three filled primitives and no line work at all: an oval, a
+     circle, a rounded rectangle. A silhouette holds at any size a stroke
+     lattice does not.
+
+     Teal rather than the classic red, because the heart and the dynamite are
+     already red and a shelf of six wants more than two colours on it. */
   upset: (
-    <>
-      <g fill="none" stroke={O} strokeWidth="11" strokeLinecap="round">
-        <path d="M32 57V40" /><path d="M32 40 19 19" /><path d="M32 40 45 19" />
-      </g>
-      <g fill="none" stroke="var(--brass)" strokeWidth="7" strokeLinecap="round">
-        <path d="M32 57V40" /><path d="M32 40 19 19" /><path d="M32 40 45 19" />
-      </g>
-      <path d="M19 19C24 30 40 30 45 19" fill="none" stroke={O} strokeWidth="8" strokeLinecap="round" />
-      <path d="M19 19C24 30 40 30 45 19" fill="none" stroke="var(--teal)" strokeWidth="4.5" strokeLinecap="round" />
-      <circle cx="32" cy="27" r="7.5" fill={O} />
-      <circle cx="32" cy="27" r="5.5" fill="var(--chalk)" />
-    </>
+    <g transform="rotate(-18 32 34)">
+      <rect x="20" y="36" width="26" height="19" rx="6"
+            fill="var(--brass)" stroke={O} strokeWidth="3.4" />
+      <ellipse cx="33" cy="26" rx="16" ry="14" fill="var(--teal)" stroke={O} strokeWidth="3.4" />
+      <circle cx="17" cy="32" r="8" fill="var(--teal)" stroke={O} strokeWidth="3.4" />
+      {/* the knuckle seam, and the lace on the cuff */}
+      <path d="M25 20c3 4 3 9 0 13" fill="none" stroke={O}
+            strokeWidth="3" strokeLinecap="round" />
+      <path d="M27 45h12" stroke="var(--chalk)" strokeWidth="3" strokeLinecap="round" />
+    </g>
   ),
   /* A heart with a jagged split down it. Their team was the favourite. */
   heartbreaker: (
