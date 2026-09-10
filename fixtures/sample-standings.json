@@ -1581,6 +1581,119 @@
       }
     }
   ],
+  "awards": [
+    {
+      "id": "upset",
+      "label": "Biggest Upset",
+      "blurb": "Won when the market gave them the least chance",
+      "unit": "chance",
+      "holders": [
+        {
+          "manager": "devish",
+          "value": 0.431,
+          "detail": "Memphis 27-21 over UNLV, Week 1"
+        }
+      ],
+      "runnerUp": {
+        "manager": "nathan",
+        "value": 0.5,
+        "detail": "UNLV 24-17 over Hawai'i, Week 2"
+      },
+      "changed": false
+    },
+    {
+      "id": "heartbreaker",
+      "label": "Heartbreaker",
+      "blurb": "Lost when the market gave them the most chance",
+      "unit": "chance",
+      "holders": [
+        {
+          "manager": "charlie",
+          "value": 0.596,
+          "detail": "Pittsburgh lost 24-17 to Notre Dame, Week 2"
+        },
+        {
+          "manager": "devish",
+          "value": 0.596,
+          "detail": "TCU lost 15-10 to North Carolina, Week 1"
+        }
+      ],
+      "runnerUp": {
+        "manager": "adam",
+        "value": 0.569,
+        "detail": "Ole Miss lost 30-27 to Texas, Postseason 2"
+      },
+      "changed": false
+    },
+    {
+      "id": "blowout",
+      "label": "Blowout",
+      "blurb": "Beat the closing spread by the most",
+      "unit": "margin",
+      "holders": [
+        {
+          "manager": "tconn",
+          "value": 15.5,
+          "detail": "Virginia 34-8 over NC State · Virginia -10.5, Week 1"
+        }
+      ],
+      "runnerUp": {
+        "manager": "devish",
+        "value": 8.5,
+        "detail": "Memphis 27-21 over UNLV · UNLV -2.5, Week 1"
+      },
+      "changed": false
+    },
+    {
+      "id": "civilWar",
+      "label": "Civil War",
+      "blurb": "Most points lost to their own teams playing each other",
+      "unit": "points",
+      "holders": [
+        {
+          "manager": "adam",
+          "value": 2,
+          "detail": "North Dakota State v Jacksonville State, Week 1"
+        }
+      ],
+      "runnerUp": null,
+      "changed": false
+    },
+    {
+      "id": "bestWeek",
+      "label": "Best Week",
+      "blurb": "Most points banked in a single week",
+      "unit": "points",
+      "holders": [
+        {
+          "manager": "devish",
+          "value": 7,
+          "detail": "Week 1"
+        }
+      ],
+      "runnerUp": {
+        "manager": "nathan",
+        "value": 5,
+        "detail": "Week 2"
+      },
+      "changed": false
+    },
+    {
+      "id": "luckiest",
+      "label": "Luckiest",
+      "blurb": "Furthest above what the closing lines expected to pay them",
+      "unit": "points",
+      "holders": [
+        {
+          "manager": "devish",
+          "value": 1.1,
+          "detail": "Through postseason 2"
+        }
+      ],
+      "runnerUp": null,
+      "changed": true
+    }
+  ],
   "gamesOfWeek": {
     "label": "Week 3",
     "games": [
@@ -2262,7 +2375,9 @@
       "h2h": false,
       "sameManager": false,
       "upset": true,
-      "line": "TCU -3.5"
+      "line": "TCU -3.5",
+      "chance": 0.40398123198594715,
+      "expectedMargin": -3.5
     },
     {
       "key": "0|01",
@@ -2282,7 +2397,9 @@
       "h2h": true,
       "sameManager": false,
       "upset": false,
-      "line": null
+      "line": null,
+      "chance": null,
+      "expectedMargin": null
     },
     {
       "key": "0|01",
@@ -2302,7 +2419,9 @@
       "h2h": true,
       "sameManager": false,
       "upset": false,
-      "line": "Virginia -10.5"
+      "line": "Virginia -10.5",
+      "chance": 0.7670502099672739,
+      "expectedMargin": 10.5
     },
     {
       "key": "0|01",
@@ -2322,7 +2441,9 @@
       "h2h": true,
       "sameManager": true,
       "upset": false,
-      "line": null
+      "line": null,
+      "chance": null,
+      "expectedMargin": null
     },
     {
       "key": "0|01",
@@ -2342,7 +2463,9 @@
       "h2h": false,
       "sameManager": false,
       "upset": false,
-      "line": null
+      "line": null,
+      "chance": null,
+      "expectedMargin": null
     },
     {
       "key": "0|01",
@@ -2362,7 +2485,9 @@
       "h2h": false,
       "sameManager": false,
       "upset": false,
-      "line": null
+      "line": null,
+      "chance": null,
+      "expectedMargin": null
     },
     {
       "key": "0|01",
@@ -2382,7 +2507,9 @@
       "h2h": false,
       "sameManager": false,
       "upset": false,
-      "line": null
+      "line": null,
+      "chance": null,
+      "expectedMargin": null
     },
     {
       "key": "0|01",
@@ -2402,7 +2529,9 @@
       "h2h": true,
       "sameManager": false,
       "upset": true,
-      "line": "UNLV -2.5"
+      "line": "UNLV -2.5",
+      "chance": 0.4310855530810578,
+      "expectedMargin": -2.5
     },
     {
       "key": "0|02",
@@ -2422,7 +2551,9 @@
       "h2h": false,
       "sameManager": false,
       "upset": false,
-      "line": null
+      "line": null,
+      "chance": null,
+      "expectedMargin": null
     },
     {
       "key": "0|02",
@@ -2442,7 +2573,9 @@
       "h2h": false,
       "sameManager": false,
       "upset": true,
-      "line": "Pittsburgh -3.5"
+      "line": "Pittsburgh -3.5",
+      "chance": 0.40398123198594715,
+      "expectedMargin": -3.5
     },
     {
       "key": "0|02",
@@ -2462,7 +2595,9 @@
       "h2h": true,
       "sameManager": false,
       "upset": false,
-      "line": null
+      "line": null,
+      "chance": null,
+      "expectedMargin": null
     },
     {
       "key": "0|02",
@@ -2482,7 +2617,9 @@
       "h2h": true,
       "sameManager": false,
       "upset": false,
-      "line": "PK"
+      "line": "PK",
+      "chance": 0.5,
+      "expectedMargin": 0
     },
     {
       "key": "1|01",
@@ -2502,7 +2639,9 @@
       "h2h": true,
       "sameManager": false,
       "upset": false,
-      "line": null
+      "line": null,
+      "chance": null,
+      "expectedMargin": null
     },
     {
       "key": "1|02",
@@ -2522,7 +2661,9 @@
       "h2h": true,
       "sameManager": false,
       "upset": true,
-      "line": "Ole Miss -2.5"
+      "line": "Ole Miss -2.5",
+      "chance": 0.4310855530810578,
+      "expectedMargin": -2.5
     }
   ]
 }

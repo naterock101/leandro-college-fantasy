@@ -89,8 +89,14 @@ test("the core carries the first paint and nothing that only a tab needs", () =>
   for (const k of Object.values(LAZY).flat()) {
     assert.equal(k in core, false, `${k} is still in the core payload`);
   }
+  /* `awards` is in this list and not in the lazy one, which looks backwards
+     and is not. It is the *reduction* of `results` - six records under a
+     kilobyte, constant in size for the rest of the season - so shipping the
+     answer in the core costs a rounding error on every poll, where making the
+     Trophies tab fetch the 60KB array it came from would put a spinner on a
+     tab that renders six lines. */
   for (const k of ["standings", "projection", "byWeek", "gamesOfWeek", "unscored",
-                   "generatedAt", "season", "scoring", "postseasonScheduled",
+                   "awards", "generatedAt", "season", "scoring", "postseasonScheduled",
                    "linesFetchedAt"]) {
     assert.ok(k in core, `${k} is missing from the core payload`);
   }

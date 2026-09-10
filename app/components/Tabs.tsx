@@ -17,6 +17,9 @@ export const TABS: { id: Tab; label: string; needs: Lazy | null }[] = [
   { id: "teams", label: "All teams", needs: "teams" },
   { id: "h2h", label: "Activity", needs: "results" },
   { id: "trends", label: "Trends", needs: "results" },
+  /* `needs: null` because the awards travel in the always-fetched core rather
+     than with the results rows they are derived from - see lib/payload.mjs. */
+  { id: "trophies", label: "Trophies", needs: null },
 ];
 
 /* The two halves of the tab/panel relationship have to agree on these, and

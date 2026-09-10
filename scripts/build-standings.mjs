@@ -43,6 +43,7 @@ import {
 } from "../lib/games.mjs";
 import { splitPayload } from "../lib/payload.mjs";
 import { winProbability, luckOf, round1 } from "../lib/winprob.mjs";
+import { buildAwards, markChanges } from "../lib/awards.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ROSTERS = resolve(ROOT, "data/rosters.json");
@@ -405,6 +406,38 @@ function build(doc, owners, games, lines) {
         /* The market's line or nothing. A results row reading "Arkansas State
            FPI" would present a forecast as the price that was on offer. */
         line: market ? market.formatted : null,
+        /* The same line as a number: what the market gave the side that
+           actually won. `line` is prose and cannot be sorted, and the trophy
+           case is a sort - the biggest upset of the season is the smallest
+           number in this column, and the heartbreaker is the largest one on a
+           loser, which is 1 - this.
+
+           `market` rather than `line`, so a game priced only by FPI is null
+           here for the same reason it is untagged as an upset above: every
+           figure on this row is a statement about the closing lines. */
+        chance: market ? winProbability(market, winner) : null,
+        /* The margin the closing line expected of the side that won: positive
+           when they were favoured, negative when they were not, zero on a
+           pick-em. The blowout is measured against this rather than against
+           nought - a 21-point favourite winning by 35 and a 21-point underdog
+           winning by 35 are not the same Saturday.
+
+           The sign comes from `favorite` and never from the sign of the stored
+           spread, which the feeds disagree about: this repo's own fixture has
+           TCU at +3.5 and Virginia at -10.5 with each named as its own game's
+           favourite. That has never mattered because every other reader of a
+           spread here takes its absolute value. This is the first field where
+           getting it backwards would be quietly plausible instead of obviously
+           broken, which is why it is asserted rather than assumed.
+
+           null on a price with no spread at all - a moneyline the books put up
+           on a game they would not hang a number on. There is no number to
+           have beaten, so that game is not a blowout candidate. */
+        expectedMargin: market && typeof market.spread === "number"
+          ? (market.favorite
+              ? Math.abs(market.spread) * (market.favorite === winner ? 1 : -1)
+              : 0)
+          : null,
       });
     }
 
@@ -461,6 +494,25 @@ function build(doc, owners, games, lines) {
     byConference[c].sort((x, y) => y.points - x.points || y.wins - x.wins || x.team.localeCompare(y.team));
   }
 
+  const byWeek = buildByWeek(doc, owners, games, PTS, lines);
+  results.sort((a, b) => a.key.localeCompare(b.key) ||
+                         String(a.date).localeCompare(String(b.date)));
+
+  /* The trophy case, derived twice. Nothing about it is incremental: there is
+     no stored holder to go stale when the 8-hourly baseline picks up a
+     correction to an old week, so the second call - the same season with its
+     last week withheld - is the only thing that knows what moved. See the
+     header of lib/awards.mjs for why standings and scoring go in whole while
+     the results and the weeks are truncated.
+
+     A season with one week or none has no earlier view to be compared against,
+     and `null` means every trophy reads as having stayed put. The alternative
+     is week one opening with a NEW badge on all six, which is true and useless. */
+  const awardInputs = { results, byWeek, standings: table, scoring: PTS };
+  const awards = markChanges(
+    buildAwards(awardInputs),
+    byWeek.length > 1 ? buildAwards({ ...awardInputs, through: byWeek.length - 1 }) : null);
+
   upcoming.sort((x, y) => x.key.localeCompare(y.key) || String(x.date).localeCompare(String(y.date)));
   const nextKey = upcoming.length ? upcoming[0].key : null;
   const gow = upcoming.filter((u) => u.key === nextKey)
@@ -489,7 +541,8 @@ function build(doc, owners, games, lines) {
       managers: Object.fromEntries(
         table.map((r) => [r.manager, luckOf(luckLedger[r.manager])])),
     },
-    byWeek: buildByWeek(doc, owners, games, PTS, lines),
+    byWeek,
+    awards,
     gamesOfWeek: {
       label: gow.length ? (gow[0].seasonType === "postseason" ? `Postseason ${gow[0].week}` : `Week ${gow[0].week}`) : null,
       games: gow,
@@ -500,8 +553,7 @@ function build(doc, owners, games, lines) {
                                       String(x.date).localeCompare(String(y.date))),
     byConference,
     headToHead: headToHead.sort((a, b) => String(a.date).localeCompare(String(b.date))),
-    results: results.sort((a, b) => a.key.localeCompare(b.key) ||
-                                    String(a.date).localeCompare(String(b.date))),
+    results,
   };
 }
 
@@ -834,6 +886,21 @@ if (out.projection) {
     if (!m.games) continue;
     console.log(`  ${s.manager.padEnd(10)} ${String(m.actual).padStart(3)} banked, ` +
       `${String(m.expected).padStart(5)} expected  ${m.delta >= 0 ? "+" : ""}${m.delta}`);
+  }
+}
+/* The trophy case, one line each, with a marker on the ones that changed
+   hands this run. The run log is the only place a holder that flipped is
+   visible without opening the site, and it is what makes a bad award
+   definition obvious - a trophy that moves on every single run, or one that
+   never moves at all, both read wrong here long before anyone complains. */
+{
+  const moved = out.awards.filter((a) => a.changed).length;
+  console.log(`trophies: ${out.awards.length}` + (moved ? `, ${moved} changed hands` : ""));
+  for (const a of out.awards) {
+    const who = a.holders.length
+      ? `${a.holders.map((h) => h.manager).join(" & ")} ${a.holders[0].value} ${a.unit}`
+      : "not awarded yet";
+    console.log(`  ${a.changed ? "*" : " "} ${a.label.padEnd(14)} ${who}`);
   }
 }
 /* Printed even when it is zero: this is the count that used to be silent, and

@@ -22,6 +22,7 @@ import { fileURLToPath } from "node:url";
 
 import { classify, home, away, isDone, sortKey } from "../lib/games.mjs";
 import { round1, winProbability } from "../lib/winprob.mjs";
+import { buildAwards, markChanges } from "../lib/awards.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const GAMES = join(ROOT, "fixtures/sample-games.json");
@@ -221,6 +222,146 @@ test("a pick-em has no favourite and so can never be an upset", () => {
   for (const h of built.headToHead) {
     if (h.spread && h.spread.favorite === null) assert.equal(h.upset, false, `${h.score} pick-em`);
     if (!h.spread) assert.equal(h.upset, false, `${h.score} was never priced`);
+  }
+});
+
+test("a priced result carries the winner's chance, and it is the model's", () => {
+  /* `line` is a formatted string - "TCU -3.5" - and a string cannot be sorted.
+     The trophy case sorts on exactly this: the biggest upset is the smallest
+     winner's chance in the season, and the heartbreaker is the largest loser's.
+     Publishing the number the builder already computed for luck is what makes
+     those two a sort rather than a parse of prose.
+
+     Asserted against winProbability on the stored line rather than a literal,
+     so this cannot pass by a chance frozen at build time drifting away from
+     the model the rest of the payload uses. */
+  const lineOf = new Map();
+  for (const g of fixtureGames) {
+    const line = fixtureLines.games[g.id];
+    if (line) lineOf.set(`${home(g)}|${away(g)}`, line);
+  }
+
+  let priced = 0;
+  for (const r of built.results) {
+    if (r.line === null) continue;
+    priced++;
+    const line = lineOf.get(`${r.winner.team}|${r.loser.team}`)
+              ?? lineOf.get(`${r.loser.team}|${r.winner.team}`);
+    assert.ok(line, `no fixture line found for ${r.winner.team} v ${r.loser.team}`);
+    assert.equal(r.chance, winProbability(line, r.winner.team),
+      `${r.winner.team} ${r.score}`);
+    assert.ok(r.chance > 0 && r.chance < 1, `${r.winner.team} chance ${r.chance}`);
+  }
+  assert.ok(priced > 0, "the fixture priced no settled game, so this proved nothing");
+});
+
+test("a priced result carries the margin its line expected of the winner", () => {
+  /* The blowout is measured against the number, not against zero, so the row
+     has to carry what the number was - and carry it from the winner's side,
+     signed, because a 21-point favourite winning by 35 and a 21-point underdog
+     winning by 35 are not the same Saturday.
+
+     Taken from `favorite` and never from the sign of the stored spread. The
+     feeds disagree about that sign - this very fixture has TCU at +3.5 and
+     Virginia at -10.5 with each named as its own game's favourite - and it has
+     never mattered before because every reader of a spread in this repo takes
+     its absolute value. This is the first field where being wrong about the
+     sign would be silently, plausibly wrong rather than obviously so. */
+  const lineOf = new Map();
+  for (const g of fixtureGames) {
+    const line = fixtureLines.games[g.id];
+    if (line) lineOf.set(`${home(g)}|${away(g)}`, line);
+  }
+
+  let signed = 0, pickems = 0;
+  for (const r of built.results) {
+    if (r.line === null) continue;
+    const line = lineOf.get(`${r.winner.team}|${r.loser.team}`)
+              ?? lineOf.get(`${r.loser.team}|${r.winner.team}`);
+    if (typeof line.spread !== "number") { assert.equal(r.expectedMargin, null); continue; }
+    if (!line.favorite) {
+      /* Nobody was favoured, so the line expected the game to be even. */
+      assert.equal(r.expectedMargin, 0, `${r.score} pick-em`);
+      pickems++;
+      continue;
+    }
+    signed++;
+    assert.equal(Math.abs(r.expectedMargin), Math.abs(line.spread),
+      `${r.winner.team}: expectedMargin does not match the stored spread`);
+    assert.equal(r.expectedMargin > 0, line.favorite === r.winner.team,
+      `${r.winner.team}: the sign does not follow the favourite`);
+  }
+  assert.ok(signed > 0, "no priced favourite in the fixture, so this proved nothing");
+  assert.ok(pickems > 0, "no pick-em in the fixture, so the zero case is untested");
+});
+
+test("the chance and the upset flag are two readings of one number", () => {
+  /* An upset is the favourite losing, and the favourite is the side the model
+     puts above a half, so the flag is recoverable from the number. They are
+     published separately because the page has read `upset` since the first
+     deploy, and this is the assertion that keeps the pair from drifting - a
+     future edit to either one that does not touch the other lands here.
+
+     A pick-em sits exactly on the half and is not an upset, which the strict
+     `<` gives for free. */
+  for (const r of built.results) {
+    if (r.chance === null) continue;
+    assert.equal(r.upset, r.chance < 0.5, `${r.winner.team} ${r.score} at ${r.chance}`);
+  }
+});
+
+test("a game the books never priced has no chance, and not a half", () => {
+  /* The same rule winProbability itself states: an unpriced game is not a coin
+     flip this model happens to know nothing about, and a half published here
+     would put every unpriced win in contention for a trophy that is meant to
+     be about what the market said.
+
+     The modelled-price half of this rule needs no test of its own. Giving game
+     20 an FPI price must leave the whole payload unchanged, which is asserted
+     as an identity further down; a `chance` that started reading modelled
+     prices would break it there. */
+  let unpriced = 0;
+  for (const r of built.results) {
+    if (r.line !== null) continue;
+    unpriced++;
+    assert.equal(r.chance, null, `${r.winner.team} v ${r.loser.team}`);
+  }
+  assert.ok(unpriced > 0, "every settled game in the fixture was priced");
+});
+
+test("the payload's awards are what the library builds from the payload", () => {
+  /* The builder's only job here is to call buildAwards twice - once over the
+     whole season and once over everything before the last week - and diff the
+     holders. Stating that as an identity rather than re-asserting six holders
+     means this test cannot drift from lib/awards.mjs, and it fails the moment
+     the builder starts massaging the inputs or the through-week on its way in.
+     Which awards pick which holder is settled in tests/awards.test.mjs. */
+  assert.deepEqual(
+    built.awards,
+    markChanges(buildAwards(built),
+                built.byWeek.length > 1
+                  ? buildAwards({ ...built, through: built.byWeek.length - 1 })
+                  : null));
+  assert.equal(built.awards.length, 6);
+});
+
+test("no trophy is held by somebody who is not in the league", () => {
+  /* A holder is a manager, and the two sources of a name here are the results
+     rows and byWeek's own keys. Either can carry a string the standings do not,
+     and a card naming a manager the leaderboard has never heard of is the way
+     that would first be noticed - in production, by a reader. */
+  const league = new Set(built.standings.map((s) => s.manager));
+  for (const a of built.awards) {
+    for (const h of [...a.holders, ...(a.runnerUp ? [a.runnerUp] : [])]) {
+      assert.ok(league.has(h.manager), `${a.id} is held by ${h.manager}, who is not a manager`);
+      assert.ok(h.detail, `${a.id} has a holder with no detail line`);
+      assert.equal(typeof h.value, "number", `${a.id} has a holder with no value`);
+    }
+    /* A runner-up who is also a holder is the bug the rule exists to prevent. */
+    if (a.runnerUp) {
+      assert.equal(a.holders.some((h) => h.manager === a.runnerUp.manager), false,
+        `${a.id}'s runner-up is also its holder`);
+    }
   }
 });
 

@@ -16,7 +16,7 @@
 
 import { LAZY } from "../lib/payload.mjs";
 
-export type Tab = "league" | "teams" | "h2h" | "trends";
+export type Tab = "league" | "teams" | "h2h" | "trends" | "trophies";
 
 /* The names of the files that are fetched only once a tab asks for them, taken
    from the module that defines the split rather than written out again here.
@@ -94,7 +94,36 @@ export type Result = {
   key: string; week: number; seasonType: string; date: string;
   score: string; points: number; h2h: boolean; sameManager: boolean;
   upset: boolean; line: string | null;
+  /* What the closing line gave the winner. `line` is the same price as prose,
+     which cannot be sorted, and the awards are sorts. null on a game the books
+     never priced and on one priced only by a model, exactly like `line`, and
+     absent from any payload written before it shipped - so a read of it has to
+     survive both `null` and `undefined`. */
+  chance?: number | null;
+  /* The margin the closing line expected of the winner, signed: positive when
+     they were the favourite, negative when they were the underdog, zero on a
+     pick-em. What the blowout is measured against. null and undefined for the
+     same two reasons as `chance`. */
+  expectedMargin?: number | null;
   winner: ScoredSide; loser: ScoredSide;
+};
+
+/* One trophy. `holders` is a list rather than a manager because ties are real
+   and a tie broken by array order is a lie somebody eventually notices; it is
+   empty when nobody has won the award yet, which the card renders as its own
+   sentence rather than as a zero. `runnerUp` always belongs to somebody who is
+   not holding it - the holder says who is winning, the runner-up says how safe
+   they are. `unit` says how to format `value`: a probability, a points total,
+   or a margin. */
+export type Award = {
+  id: string; label: string; blurb: string;
+  unit: "chance" | "points" | "margin";
+  holders: { manager: string; value: number; detail: string }[];
+  runnerUp: { manager: string; value: number; detail: string } | null;
+  /* Whether the holders differ from the same award computed over every week
+     but the last. False, not absent, on the first week of a season, where
+     there is no earlier view to compare against. */
+  changed: boolean;
 };
 
 export type Data = {
@@ -181,6 +210,10 @@ export type Data = {
     managers: Record<string, { games: number; actual: number;
                                expected: number; delta: number }>;
   } | null;
+  /* Absent from any payload the bot wrote before the trophy case shipped, so
+     the tab renders its own empty state rather than assuming the bot has
+     caught up. */
+  awards?: Award[];
   gamesOfWeek: { label: string | null; games: Game[] };
   byConference: Record<string, {
     team: string; tier: Tier; wins: number; losses: number;
