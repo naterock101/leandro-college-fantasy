@@ -609,7 +609,8 @@ together on arrival.
 - `byWeek[]` - one entry per week, regular then postseason, carrying the same
   figures twice. `cumulative` is the running snapshot after that week, which is
   what the live board and every other section reads. `weekly` is the week and
-  nothing else - points, record, expectation, games still to play in it,
+  nothing else - points, record, expectation over the games it settled, the
+  same over its whole slate (`slate*`), games still to play in it,
   `collisionLoss` and a `ceiling` of its own - and it is what the week view of
   the leaderboard shows. Both are published because neither can be recovered
   from the other: subtracting one `cumulative` from the next loses a rounding
@@ -757,6 +758,21 @@ still to be played, and a ceiling built out of those. It used to be the season
 cut short at that week - running totals down every column with the season
 ceiling beside them - so a manager with one game played in week 2 read 24
 points next to a ceiling of 282, and neither number was about week 2.
+
+Exp Pts in a week view is the whole week, not the played part of it. A week in
+flight is mostly games that have not happened, so an expectation over the
+settled ones alone answers a question nobody asked: week 2 with one of sixty
+games scored showed a 3 for the manager who played it and a dash for the other
+seven, beside ceilings of 24. The slate figure prices every game of yours in
+the week - settled ones at their closing line, upcoming ones at the line up
+now - which is what can sit beside a week ceiling and mean something.
+
+It is uncoloured until the week is done. The colour on that column is a
+comparison against the points banked, and 0 banked against 17.9 expected of a
+week that has barely started is not a manager running cold, it is Thursday. A
+week with nothing left to play has the two definitions meet - every game the
+expectation covers has been played - so one column carries both with no second
+definition to explain, and the colour comes back on its own.
 
 The same two adjustments apply, scoped to the week: a manager on a bye has no
 game in it and tops out at what they already scored, and two of one manager's

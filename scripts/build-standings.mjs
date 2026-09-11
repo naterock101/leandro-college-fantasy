@@ -741,7 +741,10 @@ function buildByWeek(doc, owners, games, PTS, lines) {
      carries totals, never a schedule. */
   const ahead = new Map();
   const aheadOf = (k) => {
-    if (!ahead.has(k)) ahead.set(k, { left: {}, upside: {}, collision: {} });
+    if (!ahead.has(k)) {
+      ahead.set(k, { left: {}, upside: {}, collision: {},
+                     priced: {}, expWins: {}, expPoints: {} });
+    }
     return ahead.get(k);
   };
   for (const g of games) {
@@ -766,6 +769,28 @@ function buildByWeek(doc, owners, games, PTS, lines) {
       if (oh && oa && oh.manager === oa.manager) {
         const lesser = Math.min(PTS[oh.tier], PTS[oa.tier]);
         a.collision[oh.manager] = (a.collision[oh.manager] ?? 0) + lesser;
+      }
+      /* And what the lines say the rest of the week is worth. A week in
+         flight is mostly games that have not been played, so an expectation
+         over the settled ones alone answers a question nobody asked: week 2
+         with one game scored showed 3 in the column for the manager who
+         played it and a dash for the other seven, beside ceilings of 24.
+
+         Same rule as the settled side, so the two ends add up: market prices
+         only, both sides of a game counted, a game nothing would price left
+         out of the expectation and out of its denominator. The price here is
+         the line as it stands rather than a closing one, which is the only
+         line a game that has not kicked off has. */
+      const ahead_ = lines.games[g.id] ?? null;
+      if (ahead_ && ahead_.model !== true) {
+        for (const [team, o] of [[home(g), oh], [away(g), oa]]) {
+          if (!o) continue;
+          const p = winProbability(ahead_, team);
+          if (typeof p !== "number") continue;
+          a.priced[o.manager] = (a.priced[o.manager] ?? 0) + 1;
+          a.expWins[o.manager] = (a.expWins[o.manager] ?? 0) + p;
+          a.expPoints[o.manager] = (a.expPoints[o.manager] ?? 0) + p * PTS[o.tier];
+        }
       }
     }
     if (!isDone(g)) continue;
@@ -860,7 +885,8 @@ function buildByWeek(doc, owners, games, PTS, lines) {
         }
       }
     }
-    const upcoming = ahead.get(k) ?? { left: {}, upside: {}, collision: {} };
+    const upcoming = ahead.get(k)
+      ?? { left: {}, upside: {}, collision: {}, priced: {}, expWins: {}, expPoints: {} };
     out.push({
       key: k,
       label: ord === "1" ? `Postseason ${Number(wk)}` : `Week ${Number(wk)}`,
@@ -898,6 +924,8 @@ function buildByWeek(doc, owners, games, PTS, lines) {
       weekly: Object.fromEntries(names.map((n) => {
         const w = round1(own[n].expWins);
         const dock = upcoming.collision[n] ?? 0;
+        const slateP = own[n].priced + (upcoming.priced[n] ?? 0);
+        const slateW = round1(own[n].expWins + (upcoming.expWins[n] ?? 0));
         return [n, {
           points: delta[n],
           wins: own[n].wins,
@@ -911,6 +939,26 @@ function buildByWeek(doc, owners, games, PTS, lines) {
           remaining: upcoming.left[n] ?? 0,
           collisionLoss: dock,
           ceiling: delta[n] + (upcoming.upside[n] ?? 0) - dock,
+          /* The same expectation over the whole week rather than the part of
+             it that has been played: every game of theirs in the week that
+             carries a line, settled at its closing price and upcoming at the
+             one up now. This is what the column shows, because it is the
+             question a week view is asked - what is this week worth to me -
+             and the settled-only figure cannot answer it until the week is
+             over.
+
+             When the week *is* over the two are the same number: a week with
+             nothing upcoming has nothing to add, and the stalled games that
+             are in neither are in neither here too. Which is what lets the
+             page shade a finished week against the points banked and leave a
+             week in flight unshaded, with no second definition to explain. */
+          slatePriced: slateP,
+          slateExpectedWins: slateW,
+          slateExpectedLosses: round1(slateP - slateW),
+          slateExpectedPoints: round1(own[n].expPoints + (upcoming.expPoints[n] ?? 0)),
+          /* Their games in the week, so the page can say how many of them the
+             expectation covers without knowing the schedule. */
+          slateGames: own[n].wins + own[n].losses + (upcoming.left[n] ?? 0),
         }];
       })),
     });

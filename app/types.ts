@@ -178,7 +178,29 @@ export type Data = {
                                       priced: number; pricedWins: number;
                                       expectedPoints: number; pricedPoints: number;
                                       remaining: number; collisionLoss: number;
-                                      ceiling: number }> }[];
+                                      ceiling: number;
+                                      /* The same expectation over the whole
+                                         week rather than the played part of
+                                         it: every game of theirs in the week
+                                         that carries a line, settled ones at
+                                         their closing price and upcoming ones
+                                         at the price up now. `slateGames` is
+                                         how many games of theirs the week
+                                         holds, so the page can say what share
+                                         of them the expectation covers.
+
+                                         A week with nothing left to play has
+                                         these equal to the settled pair above
+                                         - which is what lets one column carry
+                                         both without a second definition to
+                                         explain. Optional because they
+                                         postdate the rest of the block by a
+                                         deploy. */
+                                      slateExpectedWins?: number;
+                                      slateExpectedLosses?: number;
+                                      slateExpectedPoints?: number;
+                                      slatePriced?: number;
+                                      slateGames?: number }> }[];
   linesFetchedAt: string | null;
   projection: {
     label: string; games: number; projected: number; unprojected: number;

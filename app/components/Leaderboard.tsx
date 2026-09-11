@@ -74,6 +74,34 @@ const shadeOf = (over: number | null, per = 1) => {
 /** One manager's running totals at the end of the week on screen. */
 type Cume = Data["byWeek"][number]["cumulative"][string];
 
+/** The same, plus the whole-week figures a week entry also carries. */
+type Exp = Cume & Partial<NonNullable<Data["byWeek"][number]["weekly"]>[string]>;
+
+/**
+ * The expectation this view is showing, in one shape.
+ *
+ * Two of them exist and the difference is which games they cover. The settled
+ * one covers the games that have been played, which is what the points beside
+ * it can honestly be set against - that is the comparison the colour is about.
+ * The slate one covers every game of theirs in the week, played or not, which
+ * is the only one that can answer what a week in flight is worth: week 2 with
+ * one game scored had a 3 in this column for the manager who played it and a
+ * dash for the other seven, beside ceilings of 24.
+ *
+ * A finished week and the live board read the settled one, because there every
+ * game the expectation covers has been played and the two are the same number
+ * anyway. A week still being played reads the slate, and `compare` is false
+ * there: setting 0 points banked against 17.9 expected of a week that has not
+ * happened would paint every row in the league deep red.
+ */
+const shownExp = (c: Exp, slate: boolean) =>
+  slate
+    ? { points: c.slateExpectedPoints, wins: c.slateExpectedWins,
+        losses: c.slateExpectedLosses, priced: c.slatePriced ?? 0,
+        games: c.slateGames ?? 0, compare: false }
+    : { points: c.expectedPoints, wins: c.expectedWins, losses: c.expectedLosses,
+        priced: c.priced ?? 0, games: c.wins + c.losses, compare: true };
+
 /**
  * What a manager actually took from the games their expectation covers.
  *
@@ -265,7 +293,26 @@ export function Leaderboard({ data }: { data: Data }) {
   /* The live board accumulates, so it reads the running expectation out of
      the last week there is. A week view reads that week's own, so the
      expectation covers exactly the games the points beside it do. */
-  const expected = (live ? expWeek?.cumulative : weekly ?? expWeek?.cumulative) ?? {};
+  const expected: Record<string, Exp> =
+    (live ? expWeek?.cumulative : weekly ?? expWeek?.cumulative) ?? {};
+
+  /* A week with nothing left to play has no headroom to report: every ceiling
+     in it is the points beside it and every "games left" is 0, which is two
+     columns saying nothing in the words of something. They go, the same way
+     the expectation goes when no game in view was priced. The live board and
+     the fallback week view keep theirs - neither is ever finished. */
+  const weekOver = Boolean(weekly) && Object.values(weekly!).every((k) => k.remaining === 0);
+  /* Whether this view shows the whole week's expectation rather than the part
+     of it that has been played. Only a week still being played does, and only
+     when the payload carries the figures for every manager in it - the same
+     all-or-nothing rule `weekly` itself follows, and for the same reason: half
+     a column on one definition and half on another is a column nobody can
+     read. A finished week does not need them; there the two are one number. */
+  const slate = Boolean(weekly) && !weekOver &&
+    Object.values(weekly!).every((k) => typeof k.slateExpectedPoints === "number");
+  /** The expectation on screen for one manager: settled, or the whole week. */
+  const expOf = (c: Exp) => shownExp(c, slate);
+
   /* `expectedWins` is checked rather than assumed: it postdates the rest of
      byWeek, so a cached page can meet a week that has cumulative totals and
      none of the expectation, and one manager's undefined would print
@@ -273,20 +320,22 @@ export function Leaderboard({ data }: { data: Data }) {
      was priced, because a column of 0-0 reads as eight managers who have not
      played rather than as a column with nothing to say. */
   const showExp = Object.values(expected).some(
-    (c) => typeof c.expectedWins === "number" && (c.priced ?? 0) > 0
+    (c) => typeof expOf(c).wins === "number" && expOf(c).priced > 0
   );
   /* Checked separately from the record, and against its own field, because the
      two pairs shipped one after the other: a cached page can meet a week that
      carries the expected record and none of the expected points. */
   const showExpPts = Object.values(expected).some(
-    (c) => typeof c.expectedPoints === "number" && (c.priced ?? 0) > 0
+    (c) => typeof expOf(c).points === "number" && expOf(c).priced > 0
   );
-  /* Whether the two records are over the same games, which decides what the
-     footnote is allowed to claim. Derived from the rows on screen rather than
-     from a season-level count, so it stays true in a week view. */
-  const someUnpriced = Object.values(expected).some(
-    (c) => c.wins + c.losses > (c.priced ?? 0)
-  );
+  /* Whether the expectation covers every game it could have, which decides
+     what the footnote is allowed to claim. Derived from the rows on screen
+     rather than from a season-level count so it stays true in a week view, and
+     against the slate's own denominator when the slate is what is drawn. */
+  const someUnpriced = Object.values(expected).some((c) => {
+    const e = expOf(c);
+    return e.games > e.priced;
+  });
   const showProj = live && Boolean(data.projection);
   /* Whether every row on screen is showing the weighted projection, which is
      what the caption is describing. `every` rather than `some`: a payload that
@@ -299,12 +348,6 @@ export function Leaderboard({ data }: { data: Data }) {
      how wide the table is. Two optional columns is where that starts going
      wrong quietly, with a detail cell one short and the layout only slightly
      off. */
-  /* A week with nothing left to play has no headroom to report: every ceiling
-     in it is the points beside it and every "games left" is 0, which is two
-     columns saying nothing in the words of something. They go, the same way
-     the expectation goes when no game in view was priced. The live board and
-     the fallback week view keep theirs - neither is ever finished. */
-  const weekOver = Boolean(weekly) && Object.values(weekly!).every((k) => k.remaining === 0);
   const cols = 3 + (showProj ? 1 : 0) + (showExpPts ? 1 : 0) + (weekOver ? 0 : 2);
 
   return (
@@ -390,34 +433,45 @@ export function Leaderboard({ data }: { data: Data }) {
                 <td className="num pts">{r.points}</td>
                 {showExpPts && (() => {
                   const c = expected[r.manager];
-                  /* Nothing settled and priced for this manager is a dash, not
-                     a 0: "we cannot say" and "expected to have scored nothing"
-                     are different sentences and must not print the same. A
-                     manager who is not in this week's snapshot at all lands
-                     here too, as does a week that carries the expected record
-                     and not yet the expected points. */
-                  if (!c || (c.priced ?? 0) === 0 || typeof c.expectedPoints !== "number") {
+                  const e = c && expOf(c);
+                  /* Nothing priced for this manager is a dash, not a 0: "we
+                     cannot say" and "expected to score nothing" are different
+                     sentences and must not print the same. A manager who is
+                     not in this week's snapshot at all lands here too, as does
+                     a week that carries the expected record and not yet the
+                     expected points. */
+                  if (!e || e.priced === 0 || typeof e.points !== "number") {
                     return (
-                      <td className="num mono dim" title="No settled game of theirs carried a line">-</td>
+                      <td className="num mono dim" title={slate
+                        ? "No game of theirs this week carries a line"
+                        : "No settled game of theirs carried a line"}>-</td>
                     );
                   }
-                  const exp = c.expectedPoints;
+                  const exp = e.points;
                   /* Set against the points banked over the *priced* games,
                      never against the season total: the two would be a
                      comparison of different slates, and the manager whose
                      unpriced game was a win would be flattered by exactly what
-                     the model never saw. */
+                     the model never saw.
+
+                     And not set against anything at all while the week is
+                     still being played - `compare` is false there. Most of
+                     what that expectation covers has not happened, so the gap
+                     is not luck, it is the calendar, and colouring it would
+                     paint the whole league red every Thursday. */
                   const { missing, points } = settled(c, r);
-                  const over = points === null ? null : points - exp;
+                  const over = !e.compare || points === null ? null : points - exp;
                   return (
                     <td
                       className={`num mono exp ${shadeOf(over, PER_WIN)}`}
-                      title={
-                        `The closing lines expected ${exp} points from the ` +
-                        `${c.priced} settled ${c.priced === 1 ? "game" : "games"} of theirs that carried one` +
-                        (points === null ? "" : `, and they banked ${points}`) +
-                        denominator(missing, `${r.points} points`)
-                      }
+                      title={e.compare
+                        ? `The closing lines expected ${exp} points from the ` +
+                          `${e.priced} settled ${e.priced === 1 ? "game" : "games"} of theirs that carried one` +
+                          (points === null ? "" : `, and they banked ${points}`) +
+                          denominator(missing, `${r.points} points`)
+                        : `The lines expect ${exp} points from ${e.priced === e.games ? "all " : ""}${e.priced} of their ${e.games} games this week` +
+                          (e.priced === e.games ? "" : ` - the rest carry no line and are left out`) +
+                          `. ${r.points} of it ${r.points === 1 ? "is" : "are"} already banked.`}
                     >
                       {exp}
                     </td>
@@ -479,35 +533,42 @@ export function Leaderboard({ data }: { data: Data }) {
                       </span>
                       {showExp && (() => {
                         const c = expected[r.manager];
+                        const e = c && expOf(c);
                         /* Both halves together, not just the one that gets
                            printed: they ship as a set, so a week carrying one
                            and not the other is a bug rather than a version,
                            and the dash is the right answer to both. */
-                        if (!c || (c.priced ?? 0) === 0 ||
-                            typeof c.expectedWins !== "number" ||
-                            typeof c.expectedLosses !== "number") {
+                        if (!e || e.priced === 0 ||
+                            typeof e.wins !== "number" ||
+                            typeof e.losses !== "number") {
                           return (
-                            <span className="rec" title="No settled game of theirs carried a line">
+                            <span className="rec" title={slate
+                              ? "No game of theirs this week carries a line"
+                              : "No settled game of theirs carried a line"}>
                               <span className="rl">Expected</span>
                               <span className="mono rv dim">-</span>
                             </span>
                           );
                         }
                         const { missing, wins } = settled(c, r);
-                        const over = wins === null ? null : wins - c.expectedWins;
+                        /* Uncoloured while the week is still being played, for
+                           the reason the points column is: a record over games
+                           that have not happened has nothing to be above or
+                           below yet. */
+                        const over = !e.compare || wins === null ? null : wins - e.wins;
                         return (
                           <span
                             className="rec"
-                            title={
-                              `The closing lines expected ${c.expectedWins}-${c.expectedLosses} from the ` +
-                              `${c.priced} settled ${c.priced === 1 ? "game" : "games"} of theirs that carried one` +
-                              (wins === null ? "" : `, and they went ${wins}-${c.priced! - wins} in those`) +
-                              denominator(missing, `${r.wins}-${r.losses}`)
-                            }
+                            title={e.compare
+                              ? `The closing lines expected ${e.wins}-${e.losses} from the ` +
+                                `${e.priced} settled ${e.priced === 1 ? "game" : "games"} of theirs that carried one` +
+                                (wins === null ? "" : `, and they went ${wins}-${e.priced - wins} in those`) +
+                                denominator(missing, `${r.wins}-${r.losses}`)
+                              : `The lines expect ${e.wins}-${e.losses} from ${e.priced === e.games ? "all " : ""}${e.priced} of their ${e.games} games this week.`}
                           >
                             <span className="rl">Expected</span>
                             <span className={`mono rv exp ${shadeOf(over)}`}>
-                              {c.expectedWins}-{c.expectedLosses}
+                              {e.wins}-{e.losses}
                             </span>
                           </span>
                         );
@@ -668,13 +729,34 @@ export function Leaderboard({ data }: { data: Data }) {
                 on to week 1" is what the general sentence says on the first
                 week, which is the week this column is most likely to be read
                 on for the first time. */}
-            *Exp Pts is the points the closing lines expected
-            {weekly || expIdx === 0
-              ? ` of ${expWeek!.label.toLowerCase()}${weekly && expIdx > 0 ? " alone" : ""}.`
-              : `, accumulated: what they expected of ${data.byWeek[0].label.toLowerCase()}, plus every week since, up to ${expWeek!.label.toLowerCase()}.`}{" "}
-            {someUnpriced
-              ? "A settled game the books never priced is in neither column, so the two do not always count the same games - hover a row for its own denominators."
-              : `Every settled game ${weekly ? "in the week" : "so far"} carried a line, so it is over exactly the games Pts is.`}
+            {/* Three sentences, one per thing this column can be. A week
+                still being played is the one that is not a comparison: it is
+                a forecast of the whole week, most of which has not happened,
+                and it says so rather than being set beside Pts as though the
+                two counted the same games. */}
+            {slate ? (
+              <>
+                *Exp Pts is the points the closing lines expect of{" "}
+                {expWeek!.label.toLowerCase()} - every game of yours in it,
+                played or not, so it is what the week is worth rather than what
+                is banked so far. Pts is the part of it already won, which is
+                why the two are not coloured against each other until the week
+                is done.{" "}
+                {someUnpriced
+                  ? "Some games of the week carry no line at all and are left out - hover a row for its own denominator."
+                  : "Every game of the week carries a line, so none of it is left out."}
+              </>
+            ) : (
+              <>
+                *Exp Pts is the points the closing lines expected
+                {weekly || expIdx === 0
+                  ? ` of ${expWeek!.label.toLowerCase()}${weekly && expIdx > 0 ? " alone" : ""}.`
+                  : `, accumulated: what they expected of ${data.byWeek[0].label.toLowerCase()}, plus every week since, up to ${expWeek!.label.toLowerCase()}.`}{" "}
+                {someUnpriced
+                  ? "A settled game the books never priced is in neither column, so the two do not always count the same games - hover a row for its own denominators."
+                  : `Every settled game ${weekly ? "in the week" : "so far"} carried a line, so it is over exactly the games Pts is.`}
+              </>
+            )}
           </summary>
           <p>
             Every closing line becomes a win probability - roughly, how often a

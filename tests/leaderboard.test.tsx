@@ -860,6 +860,96 @@ describe("the week strip", () => {
       .toMatch(/Squad records below are the season’s, not this week’s/);
   });
 
+  /** The Exp Pts cell for a manager, as an element, so its shade can be read. */
+  const expCell = (root: HTMLElement, manager: string) => {
+    const cols = headers(root);
+    const table = within(root).getAllByRole("table")[0];
+    const tr = within(table).getByText(manager).closest("tr")!;
+    return [...tr.querySelectorAll("td")][cols.indexOf("Exp Pts*")];
+  };
+
+  test("a week still being played expects the whole week, not the played part", () => {
+    /* The bug this replaced: week 2 with one of sixty games scored showed a 3
+       in this column for the manager who played it and a dash for the other
+       seven, beside ceilings of 24. The column is the week's forecast now -
+       every game of theirs in it, played or not - which is the only figure
+       that can sit beside a week ceiling and mean anything. */
+    const root = board(withWeek(1, {
+      tconn: { points: 4, remaining: 2, ceiling: 10, slateExpectedPoints: 17.9,
+               slatePriced: 10, slateGames: 10 },
+    })).container as unknown as HTMLElement;
+    fireEvent.click(within(root).getAllByRole("button", { name: "2" })[0]);
+    expect(row(root, "Tconn")["Exp Pts*"]).toBe("17.9");
+    /* and emphatically not the settled figure, which is what it used to be */
+    expect(row(root, "Tconn")["Exp Pts*"]).not.toBe(String(own(1, "tconn").expectedPoints));
+  });
+
+  test("and does not colour it against points that are not in yet", () => {
+    /* 4 banked against 17.9 expected of a week that has barely started is not
+       a manager running cold, it is Thursday. Colouring it would paint the
+       whole league red every week until Sunday. */
+    const root = board(withWeek(1, {
+      tconn: { points: 4, remaining: 2, ceiling: 10, slateExpectedPoints: 17.9,
+               slatePriced: 10, slateGames: 10 },
+    })).container as unknown as HTMLElement;
+    fireEvent.click(within(root).getAllByRole("button", { name: "2" })[0]);
+    expect(expCell(root, "Tconn").className).not.toMatch(/hot|cold/);
+    /* and the footnote says which of the two things the column is */
+    const summary = within(root).getByText(/Exp Pts is the points the closing lines expect/i);
+    expect(summary.textContent).toMatch(/every game of yours in it, played or not/i);
+  });
+
+  test("a manager with no priced game in the week is still a dash", () => {
+    /* "We cannot say" and "expected to score nothing" are different sentences
+       and must not print the same, whichever of the two expectations is up. */
+    const root = board(withWeek(1, {
+      tconn: { points: 4, remaining: 2, ceiling: 10, slateExpectedPoints: 17.9,
+               slatePriced: 10, slateGames: 10 },
+      devish: { slatePriced: 0, slateGames: 0, slateExpectedPoints: 0 },
+    })).container as unknown as HTMLElement;
+    fireEvent.click(within(root).getAllByRole("button", { name: "2" })[0]);
+    expect(row(root, "Devish")["Exp Pts*"]).toBe("-");
+  });
+
+  test("a finished week goes back to comparing what was settled", () => {
+    /* Nothing left to play means every game the expectation covers has been
+       played, so the two definitions are one number and the colour means
+       something again. The fixture's week 1 is played out and Nathan ran
+       under his line in it. */
+    stubFetch();
+    const root = board(data).container as unknown as HTMLElement;
+    fireEvent.click(within(root).getAllByRole("button", { name: "1" })[0]);
+    const k = own(0, "nathan");
+    expect(k.slateExpectedPoints, "the fixture's week 1 stopped being settled")
+      .toBe(k.expectedPoints);
+    expect(row(root, "Nathan")["Exp Pts*"]).toBe(String(k.expectedPoints));
+    expect(expCell(root, "Nathan").className).toMatch(/hot|cold/);
+  });
+
+  test("a week with no slate figures falls back to the settled ones", () => {
+    /* The slate pair postdates the rest of the weekly block by a deploy, so a
+       browser holding this JS can be handed a week that has one and not the
+       other. Showing the settled figure is what that payload can honestly
+       support - and it is what this column did last week. */
+    const older = {
+      ...data,
+      byWeek: data.byWeek.map((w, n) => n !== 1 ? w : {
+        ...w,
+        weekly: Object.fromEntries(
+          Object.entries(w.weekly!).map(([m, k]) => {
+            const { slateExpectedPoints, slateExpectedWins, slateExpectedLosses,
+                    slatePriced, slateGames, ...rest } = k;
+            return [m, m === "tconn" ? { ...rest, points: 4, remaining: 2, ceiling: 10 } : rest];
+          })
+        ),
+      }),
+    } as unknown as Data;
+    const root = board(older).container as unknown as HTMLElement;
+    fireEvent.click(within(root).getAllByRole("button", { name: "2" })[0]);
+    expect(row(root, "Tconn")["Exp Pts*"]).toBe(String(own(1, "tconn").expectedPoints));
+    expect(root.textContent).not.toMatch(/undefined/);
+  });
+
   test("a weekly block missing a manager is not used at all", () => {
     /* All of it or none of it. A block covering seven managers of eight would
        sort one row's week against another's season, with a season ceiling in

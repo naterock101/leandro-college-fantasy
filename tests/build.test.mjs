@@ -740,6 +740,76 @@ test("a manager with no game in a week tops out at what they scored in it", () =
   assert.ok(byes > 0, "no manager sat a week out, so this test measured nothing");
 });
 
+test("the week's expectation covers the whole week, not just the played part", () => {
+  /* A week in flight is mostly games that have not been played, so an
+     expectation over the settled ones alone answers a question nobody asked:
+     week 2 with one game scored showed 3 for the manager who played it and a
+     dash for everyone else, beside ceilings of 24. The slate pair is the
+     whole week - settled games at their closing price, upcoming ones at the
+     price up now - and it is what the column shows. */
+  const early = runBuilder("2026-09-01T00:00:00.000Z");
+  let forecast = 0;
+  for (const w of early.byWeek) {
+    for (const [m, k] of Object.entries(w.weekly)) {
+      const where = `${m} at ${w.label}`;
+      /* It is a superset of the settled pair, never smaller. */
+      assert.ok(k.slatePriced >= k.priced, `${where}: slate denominator shrank`);
+      assert.ok(k.slateExpectedPoints >= k.expectedPoints, `${where}: slate points shrank`);
+      assert.ok(k.slateExpectedWins >= k.expectedWins, `${where}: slate wins shrank`);
+      /* Its denominator cannot exceed the games the week actually holds for
+         them, and `slateGames` is that count. */
+      assert.equal(k.slateGames, k.wins + k.losses + k.remaining, `${where}: slate games`);
+      assert.ok(k.slatePriced <= k.slateGames, `${where}: priced more games than they have`);
+      /* And nobody can be expected more than every game of theirs paying out. */
+      assert.ok(k.slateExpectedPoints <= k.slateGames * 3, `${where}: slate above what is on offer`);
+      if (k.slatePriced > k.priced) forecast++;
+    }
+  }
+  assert.ok(forecast > 0, "no week had an unplayed priced game, so this test measured nothing");
+});
+
+test("a week that is played out expects exactly what it settled", () => {
+  /* The two definitions meet when there is nothing left to play, which is what
+     lets one column carry both without a second definition to explain - and
+     what lets the page shade a finished week and leave a live one alone. */
+  let finished = 0;
+  for (const w of built.byWeek) {
+    for (const [m, k] of Object.entries(w.weekly)) {
+      if (k.remaining > 0) continue;
+      finished++;
+      const where = `${m} at ${w.label}`;
+      assert.equal(k.slatePriced, k.priced, `${where}: denominator`);
+      assert.equal(k.slateExpectedPoints, k.expectedPoints, `${where}: points`);
+      assert.equal(k.slateExpectedWins, k.expectedWins, `${where}: wins`);
+      assert.equal(k.slateExpectedLosses, k.expectedLosses, `${where}: losses`);
+    }
+  }
+  assert.ok(finished > 0, "no week was played out, so this test measured nothing");
+});
+
+test("the week's forecast agrees with the projection it overlaps", () => {
+  /* The projection prices the next scheduled week and byWeek now prices every
+     week, so where they cover the same week they are two sums over one set of
+     games and must land on the same number. They are computed in different
+     functions off the same lines file, which is exactly the drift this
+     catches: a slate that reached for the closing price on an unplayed game,
+     or the projection changing its mind about pick-ems, would show up here
+     and nowhere else. */
+  const early = runBuilder("2026-09-01T00:00:00.000Z");
+  const pr = early.projection;
+  assert.ok(pr, "the early build has no projection");
+  const w = early.byWeek.find((x) => x.label === pr.label);
+  if (!w) return; /* the projected week has no played game yet, so no entry */
+  for (const [m, k] of Object.entries(w.weekly)) {
+    const gain = pr.managers[m]?.expectedGained;
+    if (typeof gain !== "number") continue;
+    /* banked in the week, plus what the lines give the rest of it */
+    const whole = round1(k.expectedPoints + gain);
+    assert.ok(Math.abs(k.slateExpectedPoints - whole) <= 0.2,
+      `${m} ${w.label}: slate ${k.slateExpectedPoints} vs settled+projected ${whole}`);
+  }
+});
+
 test("a week's own matchup is docked from that week and no other", () => {
   /* Two of one manager's teams meeting pays the winner once. The dock belongs
      to the week the game is in - a season-wide figure applied to every week
