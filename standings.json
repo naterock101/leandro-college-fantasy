@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-09-11T19:10:32.759Z",
+  "generatedAt": "2026-09-11T20:42:30.537Z",
   "season": 2026,
   "scoring": {
     "p4": 3,
     "g5": 2
   },
   "postseasonScheduled": false,
-  "linesFetchedAt": "2026-09-11T19:10:31.904Z",
+  "linesFetchedAt": "2026-09-11T20:42:29.846Z",
   "standings": [
     {
       "manager": "adam",
@@ -1045,8 +1045,8 @@
         "points": 36,
         "gained": 20,
         "rankDelta": 1,
-        "expectedGained": 18.6,
-        "expectedPoints": 34.6,
+        "expectedGained": 18.7,
+        "expectedPoints": 34.7,
         "expectedWins": 13.4,
         "expectedLosses": 6.6,
         "expectedRankDelta": 2,
@@ -1268,7 +1268,12 @@
           "pricedPoints": 14,
           "remaining": 0,
           "collisionLoss": 0,
-          "ceiling": 14
+          "ceiling": 14,
+          "slatePriced": 11,
+          "slateExpectedWins": 5.8,
+          "slateExpectedLosses": 5.2,
+          "slateExpectedPoints": 15.5,
+          "slateGames": 11
         },
         "tconn": {
           "points": 18,
@@ -1282,7 +1287,12 @@
           "pricedPoints": 18,
           "remaining": 0,
           "collisionLoss": 0,
-          "ceiling": 18
+          "ceiling": 18,
+          "slatePriced": 11,
+          "slateExpectedWins": 7.3,
+          "slateExpectedLosses": 3.7,
+          "slateExpectedPoints": 18.1,
+          "slateGames": 11
         },
         "leandro": {
           "points": 15,
@@ -1296,7 +1306,12 @@
           "pricedPoints": 15,
           "remaining": 0,
           "collisionLoss": 0,
-          "ceiling": 15
+          "ceiling": 15,
+          "slatePriced": 11,
+          "slateExpectedWins": 6.3,
+          "slateExpectedLosses": 4.7,
+          "slateExpectedPoints": 15.7,
+          "slateGames": 11
         },
         "charlie": {
           "points": 22,
@@ -1310,7 +1325,12 @@
           "pricedPoints": 22,
           "remaining": 0,
           "collisionLoss": 0,
-          "ceiling": 22
+          "ceiling": 22,
+          "slatePriced": 10,
+          "slateExpectedWins": 8.5,
+          "slateExpectedLosses": 1.5,
+          "slateExpectedPoints": 20.8,
+          "slateGames": 10
         },
         "steve": {
           "points": 16,
@@ -1324,7 +1344,12 @@
           "pricedPoints": 16,
           "remaining": 0,
           "collisionLoss": 0,
-          "ceiling": 16
+          "ceiling": 16,
+          "slatePriced": 10,
+          "slateExpectedWins": 7.3,
+          "slateExpectedLosses": 2.7,
+          "slateExpectedPoints": 18,
+          "slateGames": 10
         },
         "devish": {
           "points": 21,
@@ -1338,7 +1363,12 @@
           "pricedPoints": 21,
           "remaining": 0,
           "collisionLoss": 0,
-          "ceiling": 21
+          "ceiling": 21,
+          "slatePriced": 13,
+          "slateExpectedWins": 8.7,
+          "slateExpectedLosses": 4.3,
+          "slateExpectedPoints": 21.2,
+          "slateGames": 13
         },
         "adam": {
           "points": 24,
@@ -1352,7 +1382,12 @@
           "pricedPoints": 24,
           "remaining": 0,
           "collisionLoss": 0,
-          "ceiling": 24
+          "ceiling": 24,
+          "slatePriced": 12,
+          "slateExpectedWins": 9.4,
+          "slateExpectedLosses": 2.6,
+          "slateExpectedPoints": 22.4,
+          "slateGames": 12
         },
         "clint": {
           "points": 13,
@@ -1366,7 +1401,12 @@
           "pricedPoints": 13,
           "remaining": 0,
           "collisionLoss": 0,
-          "ceiling": 13
+          "ceiling": 13,
+          "slatePriced": 11,
+          "slateExpectedWins": 5.3,
+          "slateExpectedLosses": 5.7,
+          "slateExpectedPoints": 13.9,
+          "slateGames": 11
         }
       }
     },
@@ -1490,7 +1530,12 @@
           "pricedPoints": 3,
           "remaining": 9,
           "collisionLoss": 3,
-          "ceiling": 21
+          "ceiling": 21,
+          "slatePriced": 10,
+          "slateExpectedWins": 6.4,
+          "slateExpectedLosses": 3.6,
+          "slateExpectedPoints": 15.7,
+          "slateGames": 10
         },
         "tconn": {
           "points": 0,
@@ -1504,7 +1549,12 @@
           "pricedPoints": 0,
           "remaining": 10,
           "collisionLoss": 0,
-          "ceiling": 24
+          "ceiling": 24,
+          "slatePriced": 10,
+          "slateExpectedWins": 7.1,
+          "slateExpectedLosses": 2.9,
+          "slateExpectedPoints": 17.9,
+          "slateGames": 10
         },
         "leandro": {
           "points": 0,
@@ -1518,7 +1568,12 @@
           "pricedPoints": 0,
           "remaining": 10,
           "collisionLoss": 0,
-          "ceiling": 24
+          "ceiling": 24,
+          "slatePriced": 10,
+          "slateExpectedWins": 6,
+          "slateExpectedLosses": 4,
+          "slateExpectedPoints": 15.3,
+          "slateGames": 10
         },
         "charlie": {
           "points": 0,
@@ -1532,7 +1587,12 @@
           "pricedPoints": 0,
           "remaining": 10,
           "collisionLoss": 0,
-          "ceiling": 24
+          "ceiling": 24,
+          "slatePriced": 10,
+          "slateExpectedWins": 6.6,
+          "slateExpectedLosses": 3.4,
+          "slateExpectedPoints": 16,
+          "slateGames": 10
         },
         "steve": {
           "points": 0,
@@ -1546,7 +1606,12 @@
           "pricedPoints": 0,
           "remaining": 10,
           "collisionLoss": 0,
-          "ceiling": 24
+          "ceiling": 24,
+          "slatePriced": 10,
+          "slateExpectedWins": 7.4,
+          "slateExpectedLosses": 2.6,
+          "slateExpectedPoints": 18.7,
+          "slateGames": 10
         },
         "devish": {
           "points": 0,
@@ -1560,7 +1625,12 @@
           "pricedPoints": 0,
           "remaining": 10,
           "collisionLoss": 0,
-          "ceiling": 24
+          "ceiling": 24,
+          "slatePriced": 10,
+          "slateExpectedWins": 4.8,
+          "slateExpectedLosses": 5.2,
+          "slateExpectedPoints": 13,
+          "slateGames": 10
         },
         "adam": {
           "points": 0,
@@ -1574,7 +1644,12 @@
           "pricedPoints": 0,
           "remaining": 10,
           "collisionLoss": 0,
-          "ceiling": 24
+          "ceiling": 24,
+          "slatePriced": 10,
+          "slateExpectedWins": 6,
+          "slateExpectedLosses": 4,
+          "slateExpectedPoints": 15.3,
+          "slateGames": 10
         },
         "clint": {
           "points": 0,
@@ -1588,7 +1663,12 @@
           "pricedPoints": 0,
           "remaining": 10,
           "collisionLoss": 0,
-          "ceiling": 24
+          "ceiling": 24,
+          "slatePriced": 10,
+          "slateExpectedWins": 7.9,
+          "slateExpectedLosses": 2.1,
+          "slateExpectedPoints": 19.1,
+          "slateGames": 10
         }
       }
     }
@@ -1737,42 +1817,8 @@
           "favorite": "Kansas State",
           "formatted": "Kansas State -17.5",
           "overUnder": 48.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T19:10:31.904Z",
-          "closed": false
-        }
-      },
-      {
-        "key": "0|02",
-        "id": 401856679,
-        "week": 2,
-        "seasonType": "regular",
-        "date": "2026-09-12T16:00:00.000Z",
-        "away": {
-          "team": "Oklahoma",
-          "manager": "clint",
-          "tier": "p4",
-          "conf": "SEC",
-          "draft": "Oklahoma Sooners"
-        },
-        "home": {
-          "team": "Michigan",
-          "manager": "charlie",
-          "tier": "p4",
-          "conf": "Big Ten",
-          "draft": "Michigan Wolverines"
-        },
-        "neutral": false,
-        "h2h": true,
-        "sameManager": false,
-        "stakes": 3,
-        "spread": {
-          "spread": 5.5,
-          "favorite": "Oklahoma",
-          "formatted": "Oklahoma -5.5",
-          "overUnder": 43.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T09:04:45.004Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -1805,8 +1851,8 @@
           "favorite": "Texas A&M",
           "formatted": "Texas A&M -14.5",
           "overUnder": 50.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -1839,8 +1885,42 @@
           "favorite": "Virginia Tech",
           "formatted": "Virginia Tech -19.5",
           "overUnder": 48.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T19:10:31.904Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
+          "closed": false
+        }
+      },
+      {
+        "key": "0|02",
+        "id": 401856679,
+        "week": 2,
+        "seasonType": "regular",
+        "date": "2026-09-12T16:00:00.000Z",
+        "away": {
+          "team": "Oklahoma",
+          "manager": "clint",
+          "tier": "p4",
+          "conf": "SEC",
+          "draft": "Oklahoma Sooners"
+        },
+        "home": {
+          "team": "Michigan",
+          "manager": "charlie",
+          "tier": "p4",
+          "conf": "Big Ten",
+          "draft": "Michigan Wolverines"
+        },
+        "neutral": false,
+        "h2h": true,
+        "sameManager": false,
+        "stakes": 3,
+        "spread": {
+          "spread": 5.5,
+          "favorite": "Oklahoma",
+          "formatted": "Oklahoma -5.5",
+          "overUnder": 43.5,
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -1873,42 +1953,8 @@
           "favorite": "Georgia",
           "formatted": "Georgia -39.5",
           "overUnder": 55.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
-          "closed": false
-        }
-      },
-      {
-        "key": "0|02",
-        "id": 401856810,
-        "week": 2,
-        "seasonType": "regular",
-        "date": "2026-09-12T19:30:00.000Z",
-        "away": {
-          "team": "Arizona",
-          "manager": "leandro",
-          "tier": "p4",
-          "conf": "Big 12",
-          "draft": "Arizona Wildcats"
-        },
-        "home": {
-          "team": "BYU",
-          "manager": "clint",
-          "tier": "p4",
-          "conf": "Big 12",
-          "draft": "BYU Cougars"
-        },
-        "neutral": false,
-        "h2h": true,
-        "sameManager": false,
-        "stakes": 3,
-        "spread": {
-          "spread": -7.5,
-          "favorite": "BYU",
-          "formatted": "BYU -7.5",
-          "overUnder": 48.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -1941,8 +1987,42 @@
           "favorite": "Washington",
           "formatted": "Washington -27.5",
           "overUnder": 55.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
+          "closed": false
+        }
+      },
+      {
+        "key": "0|02",
+        "id": 401856810,
+        "week": 2,
+        "seasonType": "regular",
+        "date": "2026-09-12T19:30:00.000Z",
+        "away": {
+          "team": "Arizona",
+          "manager": "leandro",
+          "tier": "p4",
+          "conf": "Big 12",
+          "draft": "Arizona Wildcats"
+        },
+        "home": {
+          "team": "BYU",
+          "manager": "clint",
+          "tier": "p4",
+          "conf": "Big 12",
+          "draft": "BYU Cougars"
+        },
+        "neutral": false,
+        "h2h": true,
+        "sameManager": false,
+        "stakes": 3,
+        "spread": {
+          "spread": -7.5,
+          "favorite": "BYU",
+          "formatted": "BYU -7.5",
+          "overUnder": 48.5,
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -1975,8 +2055,8 @@
           "favorite": "Texas",
           "formatted": "Texas -1.5",
           "overUnder": 49.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -2009,8 +2089,8 @@
           "favorite": "Texas Tech",
           "formatted": "Texas Tech -26.5",
           "overUnder": 53.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -2043,8 +2123,8 @@
           "favorite": "USC",
           "formatted": "USC -31.5",
           "overUnder": 59.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -2077,8 +2157,8 @@
           "favorite": "Army",
           "formatted": "Army -3",
           "overUnder": 46.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T19:10:31.904Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -2111,8 +2191,8 @@
           "favorite": "East Carolina",
           "formatted": "East Carolina -6.5",
           "overUnder": 56.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -2145,8 +2225,8 @@
           "favorite": "Texas State",
           "formatted": "Texas State -1.5",
           "overUnder": 66.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -2178,9 +2258,9 @@
           "spread": -2.5,
           "favorite": "Ohio",
           "formatted": "Ohio -2.5",
-          "overUnder": 50.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
+          "overUnder": 49.5,
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -2213,8 +2293,8 @@
           "favorite": "Florida International",
           "formatted": "Florida International -10",
           "overUnder": 47.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -2247,8 +2327,8 @@
           "favorite": "Boise State",
           "formatted": "Boise State -8.5",
           "overUnder": 56.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -2281,8 +2361,8 @@
           "favorite": "Marshall",
           "formatted": "Marshall -13.5",
           "overUnder": 56.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -2315,8 +2395,8 @@
           "favorite": "Navy",
           "formatted": "Navy -4.5",
           "overUnder": 58.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -2349,8 +2429,8 @@
           "favorite": "North Dakota State",
           "formatted": "North Dakota State -1.5",
           "overUnder": 47.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -2383,76 +2463,8 @@
           "favorite": "Hawai'i",
           "formatted": "Hawai'i -7",
           "overUnder": 50.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
-          "closed": false
-        }
-      },
-      {
-        "key": "0|02",
-        "id": 401858222,
-        "week": 2,
-        "seasonType": "regular",
-        "date": "2026-09-11T23:00:00.000Z",
-        "away": {
-          "team": "Richmond",
-          "manager": null,
-          "tier": null,
-          "conf": null,
-          "draft": "Richmond"
-        },
-        "home": {
-          "team": "NC State",
-          "manager": "clint",
-          "tier": "p4",
-          "conf": "ACC",
-          "draft": "NC State Wolfpack"
-        },
-        "neutral": false,
-        "h2h": false,
-        "sameManager": false,
-        "stakes": 3,
-        "spread": {
-          "spread": -33.5,
-          "favorite": "NC State",
-          "formatted": "NC State -33.5",
-          "overUnder": 50.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
-          "closed": false
-        }
-      },
-      {
-        "key": "0|02",
-        "id": 401858215,
-        "week": 2,
-        "seasonType": "regular",
-        "date": "2026-09-11T23:00:00.000Z",
-        "away": {
-          "team": "Villanova",
-          "manager": null,
-          "tier": null,
-          "conf": null,
-          "draft": "Villanova"
-        },
-        "home": {
-          "team": "Louisville",
-          "manager": "leandro",
-          "tier": "p4",
-          "conf": "ACC",
-          "draft": "Louisville Cardinals"
-        },
-        "neutral": false,
-        "h2h": false,
-        "sameManager": false,
-        "stakes": 3,
-        "spread": {
-          "spread": -37.5,
-          "favorite": "Louisville",
-          "formatted": "Louisville -37.5",
-          "overUnder": 56.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T19:10:31.904Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -2485,42 +2497,76 @@
           "favorite": "Virginia",
           "formatted": "Virginia -46.5",
           "overUnder": 55.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
       {
         "key": "0|02",
-        "id": 401856782,
+        "id": 401858215,
         "week": 2,
         "seasonType": "regular",
-        "date": "2026-09-12T16:00:00.000Z",
+        "date": "2026-09-11T23:00:00.000Z",
         "away": {
-          "team": "Oregon",
-          "manager": "steve",
-          "tier": "p4",
-          "conf": "Big Ten",
-          "draft": "Oregon Ducks"
-        },
-        "home": {
-          "team": "Oklahoma State",
+          "team": "Villanova",
           "manager": null,
           "tier": null,
           "conf": null,
-          "draft": "Oklahoma State"
+          "draft": "Villanova"
+        },
+        "home": {
+          "team": "Louisville",
+          "manager": "leandro",
+          "tier": "p4",
+          "conf": "ACC",
+          "draft": "Louisville Cardinals"
         },
         "neutral": false,
         "h2h": false,
         "sameManager": false,
         "stakes": 3,
         "spread": {
-          "spread": 23.5,
-          "favorite": "Oregon",
-          "formatted": "Oregon -23.5",
-          "overUnder": 55.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
+          "spread": -37.5,
+          "favorite": "Louisville",
+          "formatted": "Louisville -37.5",
+          "overUnder": 56.5,
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
+          "closed": false
+        }
+      },
+      {
+        "key": "0|02",
+        "id": 401858222,
+        "week": 2,
+        "seasonType": "regular",
+        "date": "2026-09-11T23:00:00.000Z",
+        "away": {
+          "team": "Richmond",
+          "manager": null,
+          "tier": null,
+          "conf": null,
+          "draft": "Richmond"
+        },
+        "home": {
+          "team": "NC State",
+          "manager": "clint",
+          "tier": "p4",
+          "conf": "ACC",
+          "draft": "NC State Wolfpack"
+        },
+        "neutral": false,
+        "h2h": false,
+        "sameManager": false,
+        "stakes": 3,
+        "spread": {
+          "spread": -33.5,
+          "favorite": "NC State",
+          "formatted": "NC State -33.5",
+          "overUnder": 50.5,
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -2553,8 +2599,42 @@
           "favorite": "Indiana",
           "formatted": "Indiana -56.5",
           "overUnder": 64.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
+          "closed": false
+        }
+      },
+      {
+        "key": "0|02",
+        "id": 401856782,
+        "week": 2,
+        "seasonType": "regular",
+        "date": "2026-09-12T16:00:00.000Z",
+        "away": {
+          "team": "Oregon",
+          "manager": "steve",
+          "tier": "p4",
+          "conf": "Big Ten",
+          "draft": "Oregon Ducks"
+        },
+        "home": {
+          "team": "Oklahoma State",
+          "manager": null,
+          "tier": null,
+          "conf": null,
+          "draft": "Oklahoma State"
+        },
+        "neutral": false,
+        "h2h": false,
+        "sameManager": false,
+        "stakes": 3,
+        "spread": {
+          "spread": 23.5,
+          "favorite": "Oregon",
+          "formatted": "Oregon -23.5",
+          "overUnder": 55.5,
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -2583,12 +2663,12 @@
         "sameManager": false,
         "stakes": 3,
         "spread": {
-          "spread": 24.5,
+          "spread": 23.5,
           "favorite": "Penn State",
-          "formatted": "Penn State -24.5",
+          "formatted": "Penn State -23.5",
           "overUnder": 50.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T19:10:31.904Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -2621,8 +2701,8 @@
           "favorite": "Alabama",
           "formatted": "Alabama -10",
           "overUnder": 48.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -2655,8 +2735,8 @@
           "favorite": "Pittsburgh",
           "formatted": "Pittsburgh -7",
           "overUnder": 56.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -2685,12 +2765,12 @@
         "sameManager": false,
         "stakes": 3,
         "spread": {
-          "spread": -28.5,
+          "spread": -29.5,
           "favorite": "SMU",
-          "formatted": "SMU -28.5",
+          "formatted": "SMU -29.5",
           "overUnder": 58.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T19:10:31.904Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -2719,12 +2799,12 @@
         "sameManager": false,
         "stakes": 3,
         "spread": {
-          "spread": -49.5,
+          "spread": -50.5,
           "favorite": "Florida",
-          "formatted": "Florida -49.5",
-          "overUnder": 65.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
+          "formatted": "Florida -50.5",
+          "overUnder": 66.5,
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -2757,8 +2837,8 @@
           "favorite": "Houston",
           "formatted": "Houston -51.5",
           "overUnder": 60.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -2791,42 +2871,8 @@
           "favorite": "Iowa",
           "formatted": "Iowa -14",
           "overUnder": 41.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
-          "closed": false
-        }
-      },
-      {
-        "key": "0|02",
-        "id": 401867796,
-        "week": 2,
-        "seasonType": "regular",
-        "date": "2026-09-12T23:30:00.000Z",
-        "away": {
-          "team": "Louisiana Tech",
-          "manager": null,
-          "tier": null,
-          "conf": null,
-          "draft": "Louisiana Tech"
-        },
-        "home": {
-          "team": "LSU",
-          "manager": "leandro",
-          "tier": "p4",
-          "conf": "SEC",
-          "draft": "LSU Tigers"
-        },
-        "neutral": false,
-        "h2h": false,
-        "sameManager": false,
-        "stakes": 3,
-        "spread": {
-          "spread": -35.5,
-          "favorite": "LSU",
-          "formatted": "LSU -35.5",
-          "overUnder": 55.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -2859,8 +2905,42 @@
           "favorite": "Clemson",
           "formatted": "Clemson -19.5",
           "overUnder": 55.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
+          "closed": false
+        }
+      },
+      {
+        "key": "0|02",
+        "id": 401867796,
+        "week": 2,
+        "seasonType": "regular",
+        "date": "2026-09-12T23:30:00.000Z",
+        "away": {
+          "team": "Louisiana Tech",
+          "manager": null,
+          "tier": null,
+          "conf": null,
+          "draft": "Louisiana Tech"
+        },
+        "home": {
+          "team": "LSU",
+          "manager": "leandro",
+          "tier": "p4",
+          "conf": "SEC",
+          "draft": "LSU Tigers"
+        },
+        "neutral": false,
+        "h2h": false,
+        "sameManager": false,
+        "stakes": 3,
+        "spread": {
+          "spread": -35.5,
+          "favorite": "LSU",
+          "formatted": "LSU -35.5",
+          "overUnder": 55.5,
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -2893,8 +2973,8 @@
           "favorite": "Ole Miss",
           "formatted": "Ole Miss -45.5",
           "overUnder": 60.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -2923,12 +3003,12 @@
         "sameManager": false,
         "stakes": 3,
         "spread": {
-          "spread": -43.5,
+          "spread": -44.5,
           "favorite": "TCU",
-          "formatted": "TCU -43.5",
+          "formatted": "TCU -44.5",
           "overUnder": 54.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -2961,8 +3041,42 @@
           "favorite": "Utah",
           "formatted": "Utah -12.5",
           "overUnder": 55.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
+          "closed": false
+        }
+      },
+      {
+        "key": "0|02",
+        "id": 401866415,
+        "week": 2,
+        "seasonType": "regular",
+        "date": "2026-09-12T17:00:00.000Z",
+        "away": {
+          "team": "Colgate",
+          "manager": null,
+          "tier": null,
+          "conf": null,
+          "draft": "Colgate"
+        },
+        "home": {
+          "team": "Central Michigan",
+          "manager": "charlie",
+          "tier": "g5",
+          "conf": "Mid-American",
+          "draft": "Central Michigan Chippewas"
+        },
+        "neutral": false,
+        "h2h": false,
+        "sameManager": false,
+        "stakes": 2,
+        "spread": {
+          "spread": -21.5,
+          "favorite": "Central Michigan",
+          "formatted": "Central Michigan -21.5",
+          "overUnder": 49.5,
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -2995,110 +3109,8 @@
           "favorite": "Miami (OH)",
           "formatted": "Miami (OH) -30.5",
           "overUnder": 50.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T19:10:31.904Z",
-          "closed": false
-        }
-      },
-      {
-        "key": "0|02",
-        "id": 401866415,
-        "week": 2,
-        "seasonType": "regular",
-        "date": "2026-09-12T17:00:00.000Z",
-        "away": {
-          "team": "Colgate",
-          "manager": null,
-          "tier": null,
-          "conf": null,
-          "draft": "Colgate"
-        },
-        "home": {
-          "team": "Central Michigan",
-          "manager": "charlie",
-          "tier": "g5",
-          "conf": "Mid-American",
-          "draft": "Central Michigan Chippewas"
-        },
-        "neutral": false,
-        "h2h": false,
-        "sameManager": false,
-        "stakes": 2,
-        "spread": {
-          "spread": -22.5,
-          "favorite": "Central Michigan",
-          "formatted": "Central Michigan -22.5",
-          "overUnder": 48.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T19:10:31.904Z",
-          "closed": false
-        }
-      },
-      {
-        "key": "0|02",
-        "id": 401866419,
-        "week": 2,
-        "seasonType": "regular",
-        "date": "2026-09-12T19:30:00.000Z",
-        "away": {
-          "team": "Central Connecticut",
-          "manager": null,
-          "tier": null,
-          "conf": null,
-          "draft": "Central Connecticut"
-        },
-        "home": {
-          "team": "Toledo",
-          "manager": "tconn",
-          "tier": "g5",
-          "conf": "Mid-American",
-          "draft": "Toledo Rockets"
-        },
-        "neutral": false,
-        "h2h": false,
-        "sameManager": false,
-        "stakes": 2,
-        "spread": {
-          "spread": -35.5,
-          "favorite": "Toledo",
-          "formatted": "Toledo -35.5",
-          "overUnder": 54.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T19:10:31.904Z",
-          "closed": false
-        }
-      },
-      {
-        "key": "0|02",
-        "id": 401867929,
-        "week": 2,
-        "seasonType": "regular",
-        "date": "2026-09-12T19:30:00.000Z",
-        "away": {
-          "team": "Wagner",
-          "manager": null,
-          "tier": null,
-          "conf": null,
-          "draft": "Wagner"
-        },
-        "home": {
-          "team": "James Madison",
-          "manager": "charlie",
-          "tier": "g5",
-          "conf": "Sun Belt",
-          "draft": "James Madison Dukes"
-        },
-        "neutral": false,
-        "h2h": false,
-        "sameManager": false,
-        "stakes": 2,
-        "spread": {
-          "spread": -45.5,
-          "favorite": "James Madison",
-          "formatted": "James Madison -45.5",
-          "overUnder": 54.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -3131,8 +3143,76 @@
           "favorite": "Michigan State",
           "formatted": "Michigan State -17.5",
           "overUnder": 49.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
+          "closed": false
+        }
+      },
+      {
+        "key": "0|02",
+        "id": 401866419,
+        "week": 2,
+        "seasonType": "regular",
+        "date": "2026-09-12T19:30:00.000Z",
+        "away": {
+          "team": "Central Connecticut",
+          "manager": null,
+          "tier": null,
+          "conf": null,
+          "draft": "Central Connecticut"
+        },
+        "home": {
+          "team": "Toledo",
+          "manager": "tconn",
+          "tier": "g5",
+          "conf": "Mid-American",
+          "draft": "Toledo Rockets"
+        },
+        "neutral": false,
+        "h2h": false,
+        "sameManager": false,
+        "stakes": 2,
+        "spread": {
+          "spread": -35.5,
+          "favorite": "Toledo",
+          "formatted": "Toledo -35.5",
+          "overUnder": 54.5,
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
+          "closed": false
+        }
+      },
+      {
+        "key": "0|02",
+        "id": 401867929,
+        "week": 2,
+        "seasonType": "regular",
+        "date": "2026-09-12T19:30:00.000Z",
+        "away": {
+          "team": "Wagner",
+          "manager": null,
+          "tier": null,
+          "conf": null,
+          "draft": "Wagner"
+        },
+        "home": {
+          "team": "James Madison",
+          "manager": "charlie",
+          "tier": "g5",
+          "conf": "Sun Belt",
+          "draft": "James Madison Dukes"
+        },
+        "neutral": false,
+        "h2h": false,
+        "sameManager": false,
+        "stakes": 2,
+        "spread": {
+          "spread": -45.5,
+          "favorite": "James Madison",
+          "formatted": "James Madison -45.5",
+          "overUnder": 54.5,
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -3165,8 +3245,76 @@
           "favorite": "UNLV",
           "formatted": "UNLV -3",
           "overUnder": 57.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
+          "closed": false
+        }
+      },
+      {
+        "key": "0|02",
+        "id": 401865252,
+        "week": 2,
+        "seasonType": "regular",
+        "date": "2026-09-12T20:00:00.000Z",
+        "away": {
+          "team": "Mercyhurst",
+          "manager": null,
+          "tier": null,
+          "conf": null,
+          "draft": "Mercyhurst"
+        },
+        "home": {
+          "team": "New Mexico",
+          "manager": "leandro",
+          "tier": "g5",
+          "conf": "Mountain West",
+          "draft": "New Mexico Lobos"
+        },
+        "neutral": false,
+        "h2h": false,
+        "sameManager": false,
+        "stakes": 2,
+        "spread": {
+          "spread": -41.5,
+          "favorite": "New Mexico",
+          "formatted": "New Mexico -41.5",
+          "overUnder": 53.5,
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
+          "closed": false
+        }
+      },
+      {
+        "key": "0|02",
+        "id": 401864506,
+        "week": 2,
+        "seasonType": "regular",
+        "date": "2026-09-12T20:00:00.000Z",
+        "away": {
+          "team": "Northern Colorado",
+          "manager": null,
+          "tier": null,
+          "conf": null,
+          "draft": "Northern Colorado"
+        },
+        "home": {
+          "team": "Wyoming",
+          "manager": "steve",
+          "tier": "g5",
+          "conf": "Mountain West",
+          "draft": "Wyoming Cowboys"
+        },
+        "neutral": false,
+        "h2h": false,
+        "sameManager": false,
+        "stakes": 2,
+        "spread": {
+          "spread": -23.5,
+          "favorite": "Wyoming",
+          "formatted": "Wyoming -23.5",
+          "overUnder": 47.5,
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -3199,77 +3347,9 @@
           "favorite": "Troy",
           "formatted": "Troy ML -1650",
           "overUnder": 51.5,
-          "provider": "Draft Kings",
+          "provider": "DraftKings",
           "probability": 0.9083,
-          "seenAt": "2026-09-11T16:27:16.378Z",
-          "closed": false
-        }
-      },
-      {
-        "key": "0|02",
-        "id": 401865252,
-        "week": 2,
-        "seasonType": "regular",
-        "date": "2026-09-12T20:00:00.000Z",
-        "away": {
-          "team": "Mercyhurst",
-          "manager": null,
-          "tier": null,
-          "conf": null,
-          "draft": "Mercyhurst"
-        },
-        "home": {
-          "team": "New Mexico",
-          "manager": "leandro",
-          "tier": "g5",
-          "conf": "Mountain West",
-          "draft": "New Mexico Lobos"
-        },
-        "neutral": false,
-        "h2h": false,
-        "sameManager": false,
-        "stakes": 2,
-        "spread": {
-          "spread": -41.5,
-          "favorite": "New Mexico",
-          "formatted": "New Mexico -41.5",
-          "overUnder": 52.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
-          "closed": false
-        }
-      },
-      {
-        "key": "0|02",
-        "id": 401864506,
-        "week": 2,
-        "seasonType": "regular",
-        "date": "2026-09-12T20:00:00.000Z",
-        "away": {
-          "team": "Northern Colorado",
-          "manager": null,
-          "tier": null,
-          "conf": null,
-          "draft": "Northern Colorado"
-        },
-        "home": {
-          "team": "Wyoming",
-          "manager": "steve",
-          "tier": "g5",
-          "conf": "Mountain West",
-          "draft": "Wyoming Cowboys"
-        },
-        "neutral": false,
-        "h2h": false,
-        "sameManager": false,
-        "stakes": 2,
-        "spread": {
-          "spread": -22.5,
-          "favorite": "Wyoming",
-          "formatted": "Wyoming -22.5",
-          "overUnder": 47.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -3302,8 +3382,8 @@
           "favorite": "Vanderbilt",
           "formatted": "Vanderbilt -21",
           "overUnder": 54.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -3336,8 +3416,8 @@
           "favorite": "Liberty",
           "formatted": "Liberty -27.5",
           "overUnder": 55.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -3366,80 +3446,12 @@
         "sameManager": false,
         "stakes": 2,
         "spread": {
-          "spread": -25.5,
+          "spread": -27.5,
           "favorite": "Western Michigan",
-          "formatted": "Western Michigan -25.5",
+          "formatted": "Western Michigan -27.5",
           "overUnder": 52.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
-          "closed": false
-        }
-      },
-      {
-        "key": "0|02",
-        "id": 401869955,
-        "week": 2,
-        "seasonType": "regular",
-        "date": "2026-09-12T23:00:00.000Z",
-        "away": {
-          "team": "Georgia State",
-          "manager": null,
-          "tier": null,
-          "conf": null,
-          "draft": "Georgia State"
-        },
-        "home": {
-          "team": "Kennesaw State",
-          "manager": "charlie",
-          "tier": "g5",
-          "conf": "Conference USA",
-          "draft": "Kennesaw State Owls"
-        },
-        "neutral": false,
-        "h2h": false,
-        "sameManager": false,
-        "stakes": 2,
-        "spread": {
-          "spread": -8.5,
-          "favorite": "Kennesaw State",
-          "formatted": "Kennesaw State -8.5",
-          "overUnder": 54.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
-          "closed": false
-        }
-      },
-      {
-        "key": "0|02",
-        "id": 401868241,
-        "week": 2,
-        "seasonType": "regular",
-        "date": "2026-09-12T23:00:00.000Z",
-        "away": {
-          "team": "West Georgia",
-          "manager": null,
-          "tier": null,
-          "conf": null,
-          "draft": "West Georgia"
-        },
-        "home": {
-          "team": "Arkansas State",
-          "manager": "clint",
-          "tier": "g5",
-          "conf": "Sun Belt",
-          "draft": "Arkansas State Red Wolves"
-        },
-        "neutral": false,
-        "h2h": false,
-        "sameManager": false,
-        "stakes": 2,
-        "spread": {
-          "spread": -31.5,
-          "favorite": "Arkansas State",
-          "formatted": "Arkansas State -31.5",
-          "overUnder": 56.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -3472,8 +3484,42 @@
           "favorite": "Tulane",
           "formatted": "Tulane -10",
           "overUnder": 49.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T19:10:31.904Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
+          "closed": false
+        }
+      },
+      {
+        "key": "0|02",
+        "id": 401869955,
+        "week": 2,
+        "seasonType": "regular",
+        "date": "2026-09-12T23:00:00.000Z",
+        "away": {
+          "team": "Georgia State",
+          "manager": null,
+          "tier": null,
+          "conf": null,
+          "draft": "Georgia State"
+        },
+        "home": {
+          "team": "Kennesaw State",
+          "manager": "charlie",
+          "tier": "g5",
+          "conf": "Conference USA",
+          "draft": "Kennesaw State Owls"
+        },
+        "neutral": false,
+        "h2h": false,
+        "sameManager": false,
+        "stakes": 2,
+        "spread": {
+          "spread": -8.5,
+          "favorite": "Kennesaw State",
+          "formatted": "Kennesaw State -8.5",
+          "overUnder": 54.5,
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -3506,8 +3552,8 @@
           "favorite": "Colorado State",
           "formatted": "Colorado State -20.5",
           "overUnder": 56.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -3540,8 +3586,42 @@
           "favorite": "Nebraska",
           "formatted": "Nebraska -30.5",
           "overUnder": 50.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
+          "closed": false
+        }
+      },
+      {
+        "key": "0|02",
+        "id": 401868241,
+        "week": 2,
+        "seasonType": "regular",
+        "date": "2026-09-12T23:00:00.000Z",
+        "away": {
+          "team": "West Georgia",
+          "manager": null,
+          "tier": null,
+          "conf": null,
+          "draft": "West Georgia"
+        },
+        "home": {
+          "team": "Arkansas State",
+          "manager": "clint",
+          "tier": "g5",
+          "conf": "Sun Belt",
+          "draft": "Arkansas State Red Wolves"
+        },
+        "neutral": false,
+        "h2h": false,
+        "sameManager": false,
+        "stakes": 2,
+        "spread": {
+          "spread": -31.5,
+          "favorite": "Arkansas State",
+          "formatted": "Arkansas State -31.5",
+          "overUnder": 56.5,
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -3574,8 +3654,8 @@
           "favorite": "UCLA",
           "formatted": "UCLA -12.5",
           "overUnder": 54.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -3608,8 +3688,8 @@
           "favorite": "Auburn",
           "formatted": "Auburn -32.5",
           "overUnder": 56.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -3642,8 +3722,8 @@
           "favorite": "San José State",
           "formatted": "San José State -20.5",
           "overUnder": 56.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -3676,8 +3756,8 @@
           "favorite": "Montana State",
           "formatted": "Montana State -3.5",
           "overUnder": 49.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       },
@@ -3710,8 +3790,8 @@
           "favorite": "Fresno State",
           "formatted": "Fresno State -18.5",
           "overUnder": 45.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-09-11T16:27:16.378Z",
+          "provider": "DraftKings",
+          "seenAt": "2026-09-11T20:42:29.846Z",
           "closed": false
         }
       }
