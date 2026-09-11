@@ -32,7 +32,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 
 import { cap } from "../lib/format.mjs";
 import { KARTS } from "../app/components/Karts";
-import { GEOM } from "../app/components/TrendsChart";
+import { axisOf, GEOM } from "../app/components/TrendsChart";
 import { TrendsChart } from "../app/components/TrendsChart";
 import { TrendsMatrix } from "../app/components/TrendsMatrix";
 import { advance, payload, renderPage, stubFetch } from "./helpers";
@@ -40,17 +40,20 @@ import { advance, payload, renderPage, stubFetch } from "./helpers";
 const managers: string[] = payload.standings.map((r: any) => r.manager);
 const byWeek: any[] = payload.byWeek;
 
-/* The top of the y axis is the leader's running total, so the inversion below
-   needs no knowledge of any rounding rule - there is deliberately not one. */
-const topOfAxis = Math.max(
-  1,
-  ...byWeek.flatMap((w) => Object.values(w.cumulative).map((c: any) => c.points))
+/* The axis is fitted to the data rather than pinned to zero, so the inversion
+   needs the floor as well as the top. Both come from the chart's own `axisOf`
+   and not from a second copy of the rule: a test that re-derived the range
+   here would keep passing after the chart changed how it picks one, and would
+   be checking its own arithmetic rather than the drawing. */
+const axis = axisOf(
+  byWeek.flatMap((w) => Object.values(w.cumulative).map((c: any) => c.points))
 );
 
 const plotH = GEOM.H - GEOM.padT - GEOM.padB;
 
 /** A drawn point, turned back into the number it claims to be showing. */
-const valueAt = (y: number) => ((GEOM.H - GEOM.padB - y) / plotH) * topOfAxis;
+const valueAt = (y: number) =>
+  axis.base + ((GEOM.H - GEOM.padB - y) / plotH) * (axis.top - axis.base);
 
 const seriesOf = (root: HTMLElement, manager: string) => {
   const g = root.querySelector(`[data-series="${manager}"]`);
@@ -219,6 +222,66 @@ describe("the race chart", () => {
       const gap = placed[i].y - placed[i - 1].y;
       expect(gap, `${placed[i - 1].m} and ${placed[i].m} are ${gap} apart`)
         .toBeGreaterThanOrEqual(placed[i].size);
+    }
+  });
+
+  test("a pack nowhere near zero gets the plot to itself", () => {
+    /* The reason the axis is fitted rather than pinned to zero, and the case
+       the golden fixture cannot make: four of its managers are on nought, so
+       the fitted floor and the zero floor are the same number and this whole
+       branch goes untested. These are the real totals from the second
+       Saturday of 2026 - eight managers inside twelve points, all of them a
+       long way above zero, which on a zero-based axis was one band in the top
+       half with every driver shoved off its own line. */
+    const totals: Record<string, number> = {
+      adam: 24, charlie: 22, devish: 21, tconn: 18,
+      nathan: 17, steve: 16, leandro: 15, clint: 13,
+    };
+    const names = Object.keys(totals);
+    const weeks = byWeek.slice(0, 2).map((w, i) => ({
+      ...w,
+      cumulative: Object.fromEntries(
+        names.map((m) => [m, { points: totals[m] - (i === 0 ? 1 : 0), wins: 1, losses: 0 }])
+      ),
+    }));
+    const { container } = render(<TrendsChart byWeek={weeks} managers={names} />);
+    const root = container as unknown as HTMLElement;
+
+    /* Gridlines sit on round multiples inside the axis, so the lowest of them
+       is at or above the floor rather than on it - which is enough to say the
+       axis is no longer pinned to zero. */
+    const lowest = Math.min(
+      ...[...root.querySelectorAll("text.ax.r")].map((t) => Number(t.textContent))
+    );
+    expect(lowest, "the axis is still pinned to zero").toBeGreaterThan(0);
+    /* A chart that has stopped starting at zero has to say so, or every lead
+       on it reads as bigger than it is. */
+    const note = within(root).getByText(/starts at \d+ rather than zero/);
+    expect(Number(note.textContent!.match(/starts at (\d+)/)![1])).toBeLessThanOrEqual(lowest);
+
+    /* And the payoff: with the plot spent on the spread, every face is
+       standing on the end of its own line rather than in a column beside it. */
+    for (const m of names) {
+      const [, y] = seriesOf(root, m).slice(-1)[0];
+      const moved = Math.abs(driverAt(root, m).y - y);
+      expect(moved, `${m} was still nudged ${moved.toFixed(1)} units`).toBeLessThanOrEqual(1);
+    }
+  });
+
+  test("gridlines are drawn where their own labels say they are", () => {
+    /* A fitted axis rarely divides into four round numbers, and the failure
+       is silent: a line drawn at 17.5 under a label reading 18 is a ruler
+       that is wrong by half a point everywhere. The labels are rounded, so
+       the lines have to move to them rather than the other way round. */
+    const { container } = render(<TrendsChart byWeek={byWeek} managers={managers} />);
+    const root = container as unknown as HTMLElement;
+    const rows = [...root.querySelectorAll("text.ax.r")];
+    expect(rows.length).toBeGreaterThan(1);
+    for (const t of rows) {
+      const stated = Number(t.textContent);
+      expect(Number.isInteger(stated), `gridline labelled ${t.textContent}`).toBe(true);
+      /* the label is offset three units below its own line - see the chart */
+      expect(valueAt(Number(t.getAttribute("y")) - 3)).toBeCloseTo(stated, 3);
     }
   });
 

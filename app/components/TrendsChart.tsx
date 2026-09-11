@@ -29,8 +29,24 @@ import { KartIcon, KARTS, type Marker } from "./Karts";
    box instead. Only the height and the vertical padding are load-bearing for
    the tests, which invert a plotted y back into points to check it against the
    hidden table - hard-coding those in the test would mean a change here
-   silently stops the test measuring anything. */
-export const GEOM = { W: 460, H: 280, padL: 30, padR: 132, padT: 14, padB: 26 };
+   silently stops the test measuring anything.
+
+   `H` is 440 rather than the 280 this started at, and the extra 160 units are
+   not decoration. A driver is 26 units tall and must not overlap the next one,
+   so the height is what decides how close on points two managers can be and
+   still each keep their face on their own line. The arithmetic that picked the
+   number: the axis below fits the plot to the spread of the pack, this league
+   opened about 14 points wide, and 440 leaves 400 units of plot - which is
+   about 28 units for every point of difference between two managers. One point
+   apart is therefore still two lanes rather than a pile. At 280 it was 17, and
+   the whole grid had to be shoved apart to be read at all.
+
+   `W` is deliberately left alone. The svg is never drawn wider than its own
+   units but on a phone it is drawn a good deal narrower, and every unit added
+   to the box shrinks the names in the gutter by the same proportion - a wider
+   box buys a longer flat line and costs the labels, which is the wrong trade
+   in both directions. */
+export const GEOM = { W: 460, H: 440, padL: 30, padR: 132, padT: 14, padB: 26 };
 
 const plotW = GEOM.W - GEOM.padL - GEOM.padR;
 const plotH = GEOM.H - GEOM.padT - GEOM.padB;
@@ -125,8 +141,72 @@ type Series = {
   style: ReturnType<typeof styleFor>;
 };
 
-/** Where a value sits vertically, given the top of the axis. */
-const yAt = (v: number, top: number) => GEOM.H - GEOM.padB - (v / top) * plotH;
+/* Step sizes a reader counts in. 4 is in the list and 3 is not, which is the
+   whole point of having a list: the steps people read off an axis without
+   thinking are the ones they can add up in their head. */
+const STEPS = [1, 2, 4, 5, 10, 20, 25, 50, 100];
+
+/**
+ * The gridlines, as values: a round step near a quarter of the range, then
+ * every multiple of it the axis actually covers.
+ *
+ * The alternative - four equal slices of whatever the range happens to be -
+ * is what this drew first, and on a fitted axis a quarter is almost never a
+ * whole number: a league 14 points wide got 10, 14, 17, 21, 24, which are
+ * five correct numbers in four different gaps, and a ruler with uneven
+ * markings is harder to read than no ruler. Rounding the labels instead is
+ * worse again, because then the line is not where its own label says.
+ *
+ * The leader's total may not land on one of these, and that is fine: their
+ * name and their number are in the gutter at the end of their line, which is
+ * where this chart answers "how many" anyway.
+ */
+const ticksFor = (base: number, top: number) => {
+  const step = STEPS.find((v) => (top - base) / v <= 5) ?? Math.ceil((top - base) / 5);
+  const out: number[] = [];
+  for (let v = Math.ceil(base / step) * step; v <= top; v += step) out.push(v);
+  /* Unreachable from `axisOf`, which hands over a whole-number floor and a
+     top at least one above it - and a step is never wider than the range, so
+     a multiple always lands inside. Kept because `ticksFor` is arithmetic on
+     two numbers and nothing in its signature promises where they came from:
+     an axis with no lines on it at all reads as a chart that failed to draw,
+     which is a worse thing to ship than one dead line. */
+  return out.length ? out : [base, top];
+};
+
+/**
+ * The slice of the scoreboard the plot covers.
+ *
+ * Not zero-based, and that is the point. Cumulative points only ever go up,
+ * so a zero-based axis spends most of its height on the stretch of the season
+ * everybody has already driven through: by the second Saturday the whole
+ * league lived in the top half of this chart as one band, every driver had to
+ * be shoved off its own line to be legible, and the picture answered "who is
+ * ahead" with eight faces in a column that were no longer standing on
+ * anything. Fitting the axis to the pack spends the plot on the difference
+ * between managers, which is the only thing this chart is read for.
+ *
+ * The top stays the leader's exact total rather than a rounded-up ceiling:
+ * rounding puts the leading line short of the top of the plot, which reads as
+ * everyone having further to go than they do.
+ *
+ * The floor is the back of the pack less a tenth of the spread, so the last
+ * manager's line is not drawn along the axis itself and mistaken for zero,
+ * and never less than a whole point below them - which is also what keeps a
+ * league where everybody is level from dividing by nothing. It is clamped at
+ * zero because a negative total is not a thing and an axis that starts at -1
+ * says it might be.
+ */
+export const axisOf = (values: number[]) => {
+  const hi = values.length ? Math.max(...values) : 1;
+  const lo = values.length ? Math.min(...values) : 0;
+  const base = Math.max(0, Math.floor(lo - Math.max(1, (hi - lo) / 10)));
+  return { base, top: Math.max(hi, base + 1) };
+};
+
+/** Where a value sits vertically, given the range the axis covers. */
+const yAt = (v: number, base: number, top: number) =>
+  GEOM.H - GEOM.padB - ((v - base) / (top - base)) * plotH;
 
 const xAt = (i: number, n: number) =>
   GEOM.padL + (n <= 1 ? spanOf(n) : (i / (n - 1)) * plotW);
@@ -148,13 +228,11 @@ export function TrendsChart({
       ...new Set([...managers, ...byWeek.flatMap((w) => Object.keys(w.cumulative ?? {}))]),
     ].sort();
 
-    /* The axis tops out at the leader's actual total rather than a rounded-up
-       ceiling: rounding puts the leading line short of the top of the plot,
-       which reads as everyone having further to go than they do. The floor of
-       1 is only there so a league where nobody has scored still divides. */
-    const top = Math.max(
-      1,
-      ...byWeek.flatMap((w) => Object.values(w.cumulative ?? {}).map((c) => c.points))
+    /* Every number that will be plotted, which is what the axis is fitted to
+       - not just the last week's, because an early week below the floor would
+       be drawn off the bottom of its own chart. */
+    const { base, top } = axisOf(
+      byWeek.flatMap((w) => Object.values(w.cumulative ?? {}).map((c) => c.points))
     );
 
     const series: Series[] = all.map((manager, i) => {
@@ -170,7 +248,7 @@ export function TrendsChart({
           : values
               .map((v, x) => [v, x] as const)
               .filter(([v, x]) => v !== null && x >= from)
-              .map(([v, x]) => [r(xAt(x, byWeek.length)), r(yAt(v as number, top))]);
+              .map(([v, x]) => [r(xAt(x, byWeek.length)), r(yAt(v as number, base, top))]);
       return { manager, values, coords, style: styleFor(manager, i) };
     });
 
@@ -218,7 +296,7 @@ export function TrendsChart({
       }
     }
 
-    return { all, top, series, labels, weeks: byWeek };
+    return { all, base, top, series, labels, weeks: byWeek };
   }, [byWeek, managers]);
 
   if (!byWeek.length) {
@@ -230,10 +308,8 @@ export function TrendsChart({
     );
   }
 
-  const { top, series, labels, weeks } = model;
-  /* Five gridlines including both ends: enough to read a value off without
-     drawing a ruler through eight lines. */
-  const ticks = [0, 1, 2, 3, 4].map((k) => (top * k) / 4);
+  const { base, top, series, labels, weeks } = model;
+  const ticks = ticksFor(base, top);
   /* Every week label at four weeks, every second or third by December: twelve
      labels across 306 units would overlap. The last week is labelled too, but
      only when it is a full step clear of the previous one - at twelve weeks
@@ -267,17 +343,33 @@ export function TrendsChart({
           aria-hidden="true"
           focusable="false"
         >
+          {/* The floor of the plot, drawn as an axis rather than as a
+              gridline: it carries no label because the value it sits on is
+              the fitted floor, which is a number nobody chose and nobody
+              needs. It exists because the gridlines are now on round
+              multiples and the lowest of them is usually a little way up the
+              chart - which left the bottom of the plot as open space, the
+              week labels floating under nothing, and the whole drawing
+              looking like it had been cut off. */}
+          <line
+            x1={GEOM.padL}
+            x2={gutter}
+            y1={GEOM.H - GEOM.padB}
+            y2={GEOM.H - GEOM.padB}
+            className="grid"
+          />
+
           {ticks.map((v, i) => (
             <g key={i}>
               <line
                 x1={GEOM.padL}
                 x2={gutter}
-                y1={r(yAt(v, top))}
-                y2={r(yAt(v, top))}
+                y1={r(yAt(v, base, top))}
+                y2={r(yAt(v, base, top))}
                 className="grid"
               />
-              <text x={GEOM.padL - 6} y={r(yAt(v, top)) + 3} className="ax r">
-                {Math.round(v)}
+              <text x={GEOM.padL - 6} y={r(yAt(v, base, top)) + 3} className="ax r">
+                {v}
               </text>
             </g>
           ))}
@@ -355,7 +447,7 @@ export function TrendsChart({
                 y1={r(at)}
                 y2={r(y)}
                 stroke={s.style.stroke}
-                strokeWidth="1"
+                strokeWidth="1.5"
                 className="lead"
               />
             ) : null
@@ -394,6 +486,28 @@ export function TrendsChart({
           ))}
         </svg>
       </div>
+
+      {/* The axis does not start at zero, so it has to say so. Everything
+          else on this chart is a comparison between managers and survives a
+          truncated scale intact; the one reading it breaks is "how big is the
+          gap", which is exactly what a reader estimates off the height of the
+          gap between two lines. One sentence is cheaper than the alternative,
+          which is a chart that quietly doubles every lead. Only rendered when
+          it is true - an early-season chart that does start at zero should not
+          be apologising for a scale it is not using.
+
+          Hidden from the accessibility tree for the same reason the svg above
+          it is: the chart a screen reader gets is the table below, which is
+          exact numbers with no scale, no lines and no gaps to misjudge. Read
+          out there, this sentence is a caveat about a picture that is not in
+          the room. */}
+      {base > 0 && (
+        <p className="caption" aria-hidden="true">
+          The scale starts at {base} rather than zero, so the pack has room to
+          spread out. Gaps between lines are differences in points, not
+          proportions.
+        </p>
+      )}
 
       {/* The chart, as numbers. This is not a courtesy copy: the svg above is
           aria-hidden, so for a screen reader this table *is* the chart, and
@@ -434,8 +548,14 @@ export const css = `
     .race .ax.r{text-anchor:end} .race .ax.mid{text-anchor:middle}
     .race .nm{font-size:15px;font-weight:600}
     /* The tie between a driver that has been nudged clear of the pack and the
-       point it belongs to. Thin and half-lit: it is a pointer, not a series. */
-    .race .lead{stroke-dasharray:2 2}
+       point it belongs to. Still lighter than a series - it is a pointer, not
+       data - but no longer the 1-unit, 2-2 hairline it was, which on the chart
+       that made every driver move was invisible at exactly the moment eight of
+       them needed explaining. Dash and width carry that on their own: an
+       opacity would dim it below the contrast floor and, worse, do it
+       invisibly - see tests/contrast.test.tsx, which is why there is no
+       opacity anywhere in this stylesheet. */
+    .race .lead{stroke-dasharray:3 3}
     .race .nmp{font-family:ui-monospace,Menlo,monospace;font-size:13px;font-weight:400}
     /* Off the screen but in the accessibility tree, which display:none and
        visibility:hidden are both the wrong side of. The 1px box with a clip on

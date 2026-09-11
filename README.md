@@ -890,14 +890,45 @@ Three things that are less obvious than they look:
 - **Drivers are assigned by manager id, and colours never move.** A colour that
   changes when somebody wins on a Saturday makes the chart unreadable across
   two visits, and a colour attached to a character cannot drift to a rank.
+- **The y axis is fitted to the pack, not pinned to zero.** Cumulative points
+  only go up, so a zero-based axis spends its height on the part of the season
+  everyone has already driven through: by the second Saturday the whole league
+  was one band in the top half, every driver had to be shoved off its own line
+  to be legible, and the picture answered "who is ahead" with eight faces in a
+  column that were no longer standing on anything. `axisOf` fits the range to
+  the lowest number plotted less a tenth of the spread - never less than a
+  whole point, which is also what keeps an all-level league from dividing by
+  nothing - and the top stays the leader's exact total rather than a rounded
+  ceiling, because rounding leaves the leading line short of the top and reads
+  as everyone having further to go than they do. A truncated axis exaggerates
+  every gap, so the chart says in one line underneath where its scale starts,
+  and only when that is not zero.
+- **The height is load-bearing, and 440 is arithmetic rather than taste.** A
+  driver is 26 units tall and must not overlap the next one, so the height
+  decides how close on points two managers can be and still keep their own
+  faces on their own lines. This league is about 14 points wide; 440 leaves 400
+  units of plot, which is about 28 units per point of difference, so one point
+  apart is two lanes instead of a pile. At the old 280 it was 17 and everything
+  moved. The width is deliberately unchanged: the SVG is often drawn narrower
+  than its own units and never wider, so a wider box buys a longer flat line
+  and shrinks the names in the gutter by the same proportion.
+- **Gridlines sit on round multiples, and the floor is an axis line.** Four
+  equal slices of a fitted range are almost never whole numbers - a 14-point
+  league got 10, 14, 17, 21, 24, five correct numbers in four different gaps -
+  and rounding the labels instead puts a line at 17.5 under a label reading 18.
+  So the step is a round number near a quarter of the range and the lines are
+  its multiples, which usually leaves the bottom of the plot bare; an unlabelled
+  rule along the floor is what keeps the week labels from floating under
+  nothing.
 - **Faces and names are decluttered together, in two passes.** The gap is the
   height of a face rather than the height of a name: two names a few units
-  apart are two names, and two faces a few units apart are a pile. This season
-  opened with all eight managers inside twelve points of each other, which is
-  120 units of chart for 208 units of face. Where a face has been pushed off
-  its own line a thin leader runs back to the point, so the chart never claims
-  a total it is not standing next to - and the total is printed beside the name
-  regardless.
+  apart are two names, and two faces a few units apart are a pile. The fitted
+  axis is what mostly retired this: eight managers inside twelve points used to
+  be 120 units of chart for 208 units of face, and is now closer to 340. It
+  still runs, because a genuine tie still stacks. Where a face has been pushed
+  off its own line a thin leader runs back to the point, so the chart never
+  claims a total it is not standing next to - and the total is printed beside
+  the name regardless.
 - **And the second pass is what makes it two passes.** Pushing names apart
   downward and then sliding the whole column up off the bottom just moves the
   overflow to the top, where - the svg being `overflow:visible` - the leader's
