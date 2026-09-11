@@ -733,10 +733,41 @@ function buildByWeek(doc, owners, games, PTS, lines) {
      as progress ("64/65 scored") rather than a bare count. A game between two
      rostered teams is one game here, same as in the played buckets. */
   const scheduled = new Map();
+  /* What is still to come inside each week, per manager: how many of their
+     games have not been played, what those games could still pay, and the part
+     of that two of their own teams will take off each other. A week ceiling is
+     built from these exactly the way the season ceiling is built from the same
+     two counts, and none of it can be worked out on the page - the payload
+     carries totals, never a schedule. */
+  const ahead = new Map();
+  const aheadOf = (k) => {
+    if (!ahead.has(k)) ahead.set(k, { left: {}, upside: {}, collision: {} });
+    return ahead.get(k);
+  };
   for (const g of games) {
     if (!owners.has(home(g)) && !owners.has(away(g))) continue;
     const k = sortKey(g);
     scheduled.set(k, (scheduled.get(k) ?? 0) + 1);
+    /* "Upcoming" means scheduled or live and nothing else, the same rule the
+       season ceiling follows: a game abandoned in flight will never be played
+       and must not go on inflating anybody's week. */
+    const state = classify(g, NOW);
+    if (state === "scheduled" || state === "live") {
+      const a = aheadOf(k);
+      const oh = owners.get(home(g)), oa = owners.get(away(g));
+      for (const o of [oh, oa]) {
+        if (!o) continue;
+        a.left[o.manager] = (a.left[o.manager] ?? 0) + 1;
+        a.upside[o.manager] = (a.upside[o.manager] ?? 0) + PTS[o.tier];
+      }
+      /* A game between two of one manager's own teams pays the winner and
+         nothing else, so the lesser of the two prices comes straight back off
+         the week they are both counted in. */
+      if (oh && oa && oh.manager === oa.manager) {
+        const lesser = Math.min(PTS[oh.tier], PTS[oa.tier]);
+        a.collision[oh.manager] = (a.collision[oh.manager] ?? 0) + lesser;
+      }
+    }
     if (!isDone(g)) continue;
     if (!buckets.has(k)) buckets.set(k, []);
     buckets.get(k).push(g);
@@ -762,6 +793,13 @@ function buildByWeek(doc, owners, games, PTS, lines) {
   for (const k of [...buckets.keys()].sort()) {
     const [ord, wk] = k.split("|");
     const delta = Object.fromEntries(names.map((n) => [n, 0]));
+    /* The same ledger as `running` and `expected`, kept for this week alone.
+       A week view is a week, not a season sliced short: subtracting one
+       week's running totals from the next would recover the record well
+       enough and the expectation only to the digit each was rounded to, and
+       the first week of the season has nothing in front of it to subtract. */
+    const own = Object.fromEntries(names.map((n) =>
+      [n, { wins: 0, losses: 0, priced: 0, won: 0, expWins: 0, expPoints: 0, banked: 0 }]));
     for (const g of buckets.get(k)) {
       const hp = homePts(g), ap = awayPts(g);
       if (typeof hp !== "number" || typeof ap !== "number" || hp === ap) continue;
@@ -771,8 +809,9 @@ function buildByWeek(doc, owners, games, PTS, lines) {
       if (ow) {
         const p = PTS[ow.tier];
         running[ow.manager].points += p; running[ow.manager].wins++; delta[ow.manager] += p;
+        own[ow.manager].wins++;
       }
-      if (ol) running[ol.manager].losses++;
+      if (ol) { running[ol.manager].losses++; own[ol.manager].losses++; }
 
       /* Inside the guard above, not before it: a game that reached this
          function without a usable score produced no win and no loss, so it
@@ -793,6 +832,8 @@ function buildByWeek(doc, owners, games, PTS, lines) {
         if (typeof p !== "number") continue;
         expected[o.manager].wins += p;
         expected[o.manager].priced += 1;
+        own[o.manager].expWins += p;
+        own[o.manager].priced += 1;
         /* The same probability, weighted by what the win was worth. That
            weighting is the whole difference between the two expectations: to
            the record a win is a win, and to the board a power-conference win
@@ -801,6 +842,7 @@ function buildByWeek(doc, owners, games, PTS, lines) {
            a manager can be ahead of the market on the record and behind it on
            the points, by winning the cheap games and losing the dear one. */
         expected[o.manager].points += p * PTS[o.tier];
+        own[o.manager].expPoints += p * PTS[o.tier];
         /* The wins over *these* games, which is the only thing the expectation
            can honestly be compared against. It cannot be recovered on the page
            from the season record and a count: subtracting the unpriced games
@@ -808,14 +850,17 @@ function buildByWeek(doc, owners, games, PTS, lines) {
            a manager sitting at 0-3 with one priced game produces minus two. */
         if (team === winner) {
           expected[o.manager].won += 1;
+          own[o.manager].won += 1;
           /* and the points banked over those same games, for the same reason
              `won` is counted here: the points over the priced games cannot be
              recovered on the page from a season total and a game count, because
              nothing says which games the unpriced ones were or what they paid. */
           expected[o.manager].banked += PTS[o.tier];
+          own[o.manager].banked += PTS[o.tier];
         }
       }
     }
+    const upcoming = ahead.get(k) ?? { left: {}, upside: {}, collision: {} };
     out.push({
       key: k,
       label: ord === "1" ? `Postseason ${Number(wk)}` : `Week ${Number(wk)}`,
@@ -837,6 +882,35 @@ function buildByWeek(doc, owners, games, PTS, lines) {
           pricedWins: expected[n].won,
           expectedPoints: round1(expected[n].points),
           pricedPoints: expected[n].banked,
+        }];
+      })),
+      /* The same figures over this week and nothing else, which is what the
+         week view of the board shows. `cumulative` stays beside it because
+         other sections still read the running totals, and because a browser
+         holding cached JS renders the week from it as it always did.
+
+         `ceiling` is the week's own: what they have banked in it, plus every
+         game of theirs still to be played in it, less the games two of their
+         own teams will play each other. A manager on a bye has no upcoming
+         game in the week, so their ceiling is simply what they scored - which
+         is the true answer and was never the season figure the column used to
+         print. */
+      weekly: Object.fromEntries(names.map((n) => {
+        const w = round1(own[n].expWins);
+        const dock = upcoming.collision[n] ?? 0;
+        return [n, {
+          points: delta[n],
+          wins: own[n].wins,
+          losses: own[n].losses,
+          expectedWins: w,
+          expectedLosses: round1(own[n].priced - w),
+          priced: own[n].priced,
+          pricedWins: own[n].won,
+          expectedPoints: round1(own[n].expPoints),
+          pricedPoints: own[n].banked,
+          remaining: upcoming.left[n] ?? 0,
+          collisionLoss: dock,
+          ceiling: delta[n] + (upcoming.upside[n] ?? 0) - dock,
         }];
       })),
     });

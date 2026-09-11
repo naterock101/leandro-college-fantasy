@@ -660,6 +660,101 @@ test("the expected record accumulates rather than restarting each week", () => {
   assert.ok(grew, "no manager's expectation grew, so this test measured nothing");
 });
 
+/* ------------------------------------------------------------------ */
+/* the week's own figures                                              */
+/* ------------------------------------------------------------------ */
+
+test("the weekly figures add back up to the cumulative ones", () => {
+  /* The two blocks describe the same games from opposite ends, so the weeks
+     have to sum to the running total at each step. A weekly block that drifted
+     from `cumulative` would put two answers to one question in one payload,
+     and the week view would be the one nobody checked. */
+  const totals = {};
+  for (const [i, w] of built.byWeek.entries()) {
+    assert.ok(w.weekly, `${w.label} has no weekly block`);
+    for (const [m, k] of Object.entries(w.weekly)) {
+      const t = totals[m] ??= { points: 0, wins: 0, losses: 0, priced: 0,
+                                pricedWins: 0, pricedPoints: 0, expectedPoints: 0 };
+      for (const f of Object.keys(t)) t[f] = round1(t[f] + k[f]);
+      const c = w.cumulative[m];
+      for (const f of ["points", "wins", "losses", "priced", "pricedWins", "pricedPoints"]) {
+        assert.equal(t[f], c[f], `${m} ${f} at ${w.label}`);
+      }
+      /* The expectation is accumulated at full precision and rounded once
+         where it is published, so a sum of rounded weeks drifts from the
+         rounded running total by at most half a digit a week - plus half a
+         digit for the running total's own rounding. That bound is the whole
+         reason the page reads the weekly block rather than subtracting one
+         cumulative snapshot from the next: over a season the drift is real,
+         and a week's expectation is not a number to recover by subtraction. */
+      const slack = 0.05 * (i + 2);
+      assert.ok(Math.abs(t.expectedPoints - c.expectedPoints) <= slack,
+        `${m} expected points at ${w.label}: ${t.expectedPoints} vs ${c.expectedPoints}`);
+    }
+  }
+});
+
+test("the week's points are the week's delta", () => {
+  /* `delta` predates the weekly block and the awards read it, so the two say
+     the same thing about the same week or one of them is wrong. */
+  for (const w of built.byWeek) {
+    for (const [m, k] of Object.entries(w.weekly)) assert.equal(k.points, w.delta[m], `${m} ${w.label}`);
+  }
+});
+
+test("a week ceiling is the week's points plus what is still to be played in it", () => {
+  /* Built against a clock early enough that week 1's abandoned game is still
+     ahead of us rather than stalled, because the fixture's pinned instant has
+     every week either finished or not started - and a week with nothing left
+     in it cannot show that the headroom is the week's and not the season's. */
+  const early = runBuilder("2026-09-01T00:00:00.000Z");
+  const wk1 = early.byWeek.find((w) => w.label === "Week 1");
+  assert.ok(wk1, "week 1 dropped out of the early build");
+  const left = Object.values(wk1.weekly).reduce((n, k) => n + k.remaining, 0);
+  assert.ok(left > 0, "nothing was left to play, so this test measured nothing");
+
+  for (const [m, k] of Object.entries(wk1.weekly)) {
+    /* Never below what is already banked, never above banked plus three a
+       game - the most any game can pay - and never above the season ceiling,
+       which is this week's headroom plus every week after it. */
+    assert.ok(k.ceiling >= k.points, `${m} week ceiling below their own points`);
+    assert.ok(k.ceiling <= k.points + k.remaining * 3, `${m} week ceiling above what is on offer`);
+    const season = early.standings.find((s) => s.manager === m);
+    assert.ok(k.ceiling <= season.ceiling, `${m} week ceiling above the season's`);
+  }
+});
+
+test("a manager with no game in a week tops out at what they scored in it", () => {
+  /* The bye, which is the case a season ceiling gets loudest about: nothing
+     is coming, so the week's ceiling is the week's points and not a number
+     three times the size of them. */
+  let byes = 0;
+  for (const w of built.byWeek) {
+    for (const [m, k] of Object.entries(w.weekly)) {
+      if (k.wins + k.losses + k.remaining > 0) continue;
+      byes++;
+      assert.equal(k.ceiling, k.points, `${m} on a bye in ${w.label}`);
+      assert.equal(k.points, 0, `${m} scored in ${w.label} without playing`);
+    }
+  }
+  assert.ok(byes > 0, "no manager sat a week out, so this test measured nothing");
+});
+
+test("a week's own matchup is docked from that week and no other", () => {
+  /* Two of one manager's teams meeting pays the winner once. The dock belongs
+     to the week the game is in - a season-wide figure applied to every week
+     would take the same points off a dozen times. */
+  const early = runBuilder("2026-09-01T00:00:00.000Z");
+  for (const w of early.byWeek) {
+    for (const [m, k] of Object.entries(w.weekly)) {
+      assert.ok(k.collisionLoss >= 0, `${m} ${w.label} negative dock`);
+      /* A dock with no upcoming game behind it is a figure borrowed from
+         somewhere else, which is the bug. */
+      if (k.collisionLoss > 0) assert.ok(k.remaining >= 2, `${m} ${w.label} docked without a matchup`);
+    }
+  }
+});
+
 test("the expected record is the sum of the win probabilities, not the points", () => {
   /* Recomputed from the roster and the lines file rather than from the
      payload, so this checks the builder against its inputs. The tier value is

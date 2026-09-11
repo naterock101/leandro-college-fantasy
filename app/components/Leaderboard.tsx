@@ -202,17 +202,48 @@ export function Leaderboard({ data }: { data: Data }) {
   const weekIdx = week >= 0 && week < data.byWeek.length ? week : -1;
   const live = weekIdx < 0;
 
+  /* The selected week's own figures, when the payload carries them. A week
+     view used to be the season cut short at that week - running totals down
+     every column and a season ceiling beside them - so week 2 of a manager
+     with one game played read 24 points and a ceiling of 282, neither of
+     which is anything about week 2. Every column in this view is now the week
+     and nothing else.
+
+     A payload written before `weekly` shipped has none, and the view falls
+     back to the running totals it has always shown rather than to blanks.
+
+     All of it or none of it, and the board below reads this rather than the
+     raw field. A block covering some managers and not others would sort a
+     week's points against a season's in one table, with a season ceiling in
+     half the rows and a week's in the other half - which is the mixed row
+     this change exists to remove, put back one payload deeper. */
+  const weekly = useMemo(() => {
+    if (weekIdx < 0) return undefined;
+    const w = data.byWeek[weekIdx];
+    const k = w?.weekly;
+    if (!k) return undefined;
+    const names = Object.keys(w.cumulative);
+    return names.length > 0 && names.every((m) => k[m]) ? k : undefined;
+  }, [data, weekIdx]);
+
   const board = useMemo(() => {
     if (weekIdx < 0) return data.standings.map((r) => ({ ...r, delta: 0, live: true }));
     const w = data.byWeek[weekIdx];
     return Object.entries(w.cumulative)
       .map(([manager, c]) => {
         const base = data.standings.find((s) => s.manager === manager)!;
-        return { ...base, points: c.points, wins: c.wins, losses: c.losses,
-                 delta: w.delta[manager] ?? 0, live: false };
+        const k = weekly?.[manager];
+        /* Taken as a set or not at all. A week's points under a season
+           ceiling is the mixed row this replaced, one column deeper. */
+        return k
+          ? { ...base, points: k.points, wins: k.wins, losses: k.losses,
+              remaining: k.remaining, ceiling: k.ceiling,
+              collisionLoss: k.collisionLoss, delta: k.points, live: false }
+          : { ...base, points: c.points, wins: c.wins, losses: c.losses,
+              delta: w.delta[manager] ?? 0, live: false };
       })
       .sort((a, b) => b.points - a.points || b.wins - a.wins || a.manager.localeCompare(b.manager));
-  }, [data, weekIdx]);
+  }, [data, weekIdx, weekly]);
 
   /* Weeks appear in byWeek only once they have a played game, so summing them
      covers the season to date - every week already under way - and never the
@@ -231,7 +262,10 @@ export function Leaderboard({ data }: { data: Data }) {
      single season-level figure that could only ever be right in one view. */
   const expIdx = live ? data.byWeek.length - 1 : weekIdx;
   const expWeek = data.byWeek[expIdx];
-  const expected = expWeek?.cumulative ?? {};
+  /* The live board accumulates, so it reads the running expectation out of
+     the last week there is. A week view reads that week's own, so the
+     expectation covers exactly the games the points beside it do. */
+  const expected = (live ? expWeek?.cumulative : weekly ?? expWeek?.cumulative) ?? {};
   /* `expectedWins` is checked rather than assumed: it postdates the rest of
      byWeek, so a cached page can meet a week that has cumulative totals and
      none of the expectation, and one manager's undefined would print
@@ -265,7 +299,13 @@ export function Leaderboard({ data }: { data: Data }) {
      how wide the table is. Two optional columns is where that starts going
      wrong quietly, with a detail cell one short and the layout only slightly
      off. */
-  const cols = 5 + (showProj ? 1 : 0) + (showExpPts ? 1 : 0);
+  /* A week with nothing left to play has no headroom to report: every ceiling
+     in it is the points beside it and every "games left" is 0, which is two
+     columns saying nothing in the words of something. They go, the same way
+     the expectation goes when no game in view was priced. The live board and
+     the fallback week view keep theirs - neither is ever finished. */
+  const weekOver = Boolean(weekly) && Object.values(weekly!).every((k) => k.remaining === 0);
+  const cols = 3 + (showProj ? 1 : 0) + (showExpPts ? 1 : 0) + (weekOver ? 0 : 2);
 
   return (
     <>
@@ -281,7 +321,9 @@ export function Leaderboard({ data }: { data: Data }) {
         <p className="asof">
           {live
             ? `Season to date · ${tally(scored, slated)} games scored`
-            : `As of ${data.byWeek[weekIdx].label.toLowerCase()} · ${tally(data.byWeek[weekIdx].games, data.byWeek[weekIdx].scheduled)} games scored`}
+            /* "As of week 2" was the running-total sentence and stops being
+               true the moment the columns under it are the week's own. */
+            : `${weekly ? `${data.byWeek[weekIdx].label} only` : `As of ${data.byWeek[weekIdx].label.toLowerCase()}`} · ${tally(data.byWeek[weekIdx].games, data.byWeek[weekIdx].scheduled)} games scored`}
         </p>
       )}
 
@@ -303,10 +345,17 @@ export function Leaderboard({ data }: { data: Data }) {
             <th className="num">Pts</th>
             {showExpPts && <th className="num"><Stack over="Exp" under="Pts*" /></th>}
             {showProj && <th className="num"><Stack over="EoW" under="Proj" /></th>}
-            <th className="num">
-              {live ? <Stack over="Games" under="left" /> : "+/-"}
-            </th>
-            <th className="num">Ceil</th>
+            {!weekOver && (
+              <th className="num">
+                {/* +/- was the week's points, which is what Pts is in this view
+                    now - a column repeating the one three cells to its left.
+                    What it has to say instead is the same thing the live board
+                    says here: how much of the week is still to be played, which
+                    is what the ceiling beside it is built out of. */}
+                {live || weekly ? <Stack over="Games" under="left" /> : "+/-"}
+              </th>
+            )}
+            {!weekOver && <th className="num">Ceil</th>}
           </tr>
         </thead>
         <tbody>
@@ -407,8 +456,12 @@ export function Leaderboard({ data }: { data: Data }) {
                     </td>
                   );
                 })()}
-                <td className="num mono muted">{live ? r.remaining : r.delta > 0 ? `+${r.delta}` : "0"}</td>
-                <td className="num mono ceil">{r.ceiling}</td>
+                {!weekOver && (
+                  <td className="num mono muted">
+                    {live || weekly ? r.remaining : r.delta > 0 ? `+${r.delta}` : "0"}
+                  </td>
+                )}
+                {!weekOver && <td className="num mono ceil">{r.ceiling}</td>}
               </tr>,
               isOpen && (
                 <tr key={r.manager + "-d"} className="detail">
@@ -481,6 +534,18 @@ export function Leaderboard({ data }: { data: Data }) {
                         );
                       })()}
                     </div>
+                    {/* The one thing in this view that is still a season
+                        figure, said out loud rather than left to look like
+                        the week. Per-team weekly records are not in the
+                        payload and would not be worth what they cost: byWeek
+                        is refetched by every open tab every two minutes, and
+                        ten teams a manager a week is the sort of growth term
+                        the lazy split exists to keep off that path. */}
+                    {weekly && (
+                      <div className="note pre">
+                        Squad records below are the season&rsquo;s, not this week&rsquo;s.
+                      </div>
+                    )}
                     {teams.map((t) => (
                       <div className="team" key={t.team}>
                         <span className={`tier ${t.tier}`}>{t.tier === "p4" ? 3 : 2}</span>
@@ -524,7 +589,7 @@ export function Leaderboard({ data }: { data: Data }) {
                     })()}
                     {r.collisionLoss > 0 && (
                       <div className="note">
-                        Ceiling docked {r.collisionLoss} for upcoming games between two of your own teams.
+                        Ceiling docked {r.collisionLoss} for {weekly ? "games this week" : "upcoming games"} between two of your own teams.
                       </div>
                     )}
                   </td>
@@ -561,11 +626,23 @@ export function Leaderboard({ data }: { data: Data }) {
             the live board and flatly wrong under a week snapshot, where it is
             that week's cumulative total. What the two columns do and do not
             share is the footnote's job, and it says it per view. */}
-        Ceiling is current points plus every remaining scheduled game, less any
-        games between two of your own teams.{" "}
-        {data.postseasonScheduled
-          ? "Bowl and playoff games are now scheduled and are included."
-          : "Conference championship, bowl and playoff games are not projected. They will raise these numbers once they are scheduled in December."}
+        {weekly ? (
+          <>
+            Every column is {expWeek!.label.toLowerCase()} alone, not the season
+            to date.{" "}
+            {weekOver
+              ? "The week is played out, so there is no ceiling left to quote."
+              : "Ceiling is the points banked in the week plus every game of yours still to be played in it, less any games between two of your own teams - so a bye week tops out at what is already on the board."}
+          </>
+        ) : (
+          <>
+            Ceiling is current points plus every remaining scheduled game, less
+            any games between two of your own teams.{" "}
+            {data.postseasonScheduled
+              ? "Bowl and playoff games are now scheduled and are included."
+              : "Conference championship, bowl and playoff games are not projected. They will raise these numbers once they are scheduled in December."}
+          </>
+        )}
       </p>
 
       {/* A disclosure rather than more paragraph. The line everyone reads stays
@@ -592,12 +669,12 @@ export function Leaderboard({ data }: { data: Data }) {
                 week, which is the week this column is most likely to be read
                 on for the first time. */}
             *Exp Pts is the points the closing lines expected
-            {expIdx === 0
-              ? ` of ${expWeek!.label.toLowerCase()}.`
+            {weekly || expIdx === 0
+              ? ` of ${expWeek!.label.toLowerCase()}${weekly && expIdx > 0 ? " alone" : ""}.`
               : `, accumulated: what they expected of ${data.byWeek[0].label.toLowerCase()}, plus every week since, up to ${expWeek!.label.toLowerCase()}.`}{" "}
             {someUnpriced
               ? "A settled game the books never priced is in neither column, so the two do not always count the same games - hover a row for its own denominators."
-              : "Every settled game so far carried a line, so it is over exactly the games Pts is."}
+              : `Every settled game ${weekly ? "in the week" : "so far"} carried a line, so it is over exactly the games Pts is.`}
           </summary>
           <p>
             Every closing line becomes a win probability - roughly, how often a
@@ -672,6 +749,10 @@ export const css = `
     .team .wl{width:30px;text-align:right;flex-shrink:0}
     .team .tp{color:var(--amber);font-weight:700;width:22px;text-align:right;flex-shrink:0}
     .note{margin-top:8px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--rule);padding-top:7px}
+    /* The same small print, above what it is about rather than below it: the
+       rule belongs under the sentence here, not over it. */
+    .note.pre{margin-top:0;padding-top:0;border-top:0;padding-bottom:7px;
+      border-bottom:1px solid var(--rule);margin-bottom:5px}
     .proj{color:var(--muted);white-space:nowrap}
     /* the projected and expected columns make the leaderboard 7 wide, which
        overruns a 375px phone at the default padding. th is shared with the All teams

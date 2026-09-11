@@ -299,9 +299,10 @@ keeping exactly as it is.
 - `tests/contrast.test.tsx` - the token pairs, computed rather than eyeballed,
   plus the drivers' colours put through a dichromacy simulation
 - `tests/leaderboard.test.tsx` - the two records: that the expectation really
-  accumulates rather than showing one week against a season, that both columns
-  follow the week strip together, and that a payload predating the expectation
-  drops the column rather than printing `undefined` down it
+  accumulates rather than showing one week against a season, that a week view
+  is the week alone down to its ceiling - byes and own matchups included - and
+  that a payload predating either the expectation or the weekly figures falls
+  back rather than printing `undefined` down a column
 - `tests/trends.test.tsx` - the race chart against its own hidden table; that
   every line ends in its manager's driver, that a driver pushed off its line is
   tied back to it, that no two faces overlap, and that every driver names a PNG
@@ -605,7 +606,15 @@ is concerned: `lib/payload.mjs` cuts it up for the wire and puts it back
 together on arrival.
 
 - `standings[]` - per manager: points, wins, losses, remaining, ceiling, collisionLoss, and a `teams` map
-- `byWeek[]` - cumulative standings snapshot after each week, regular then postseason
+- `byWeek[]` - one entry per week, regular then postseason, carrying the same
+  figures twice. `cumulative` is the running snapshot after that week, which is
+  what the live board and every other section reads. `weekly` is the week and
+  nothing else - points, record, expectation, games still to play in it,
+  `collisionLoss` and a `ceiling` of its own - and it is what the week view of
+  the leaderboard shows. Both are published because neither can be recovered
+  from the other: subtracting one `cumulative` from the next loses a rounding
+  step a week on the expectation, has nothing behind week 1 to subtract, and
+  says nothing at all about what is left to play inside a week
 - `gamesOfWeek` - upcoming games where both teams are drafted, in the next week
   that has any. "Upcoming" is `scheduled` or `live` and nothing else, so a game
   that kicked off and was never completed cannot hold the week open
@@ -739,6 +748,35 @@ not what was chosen.
 other. Only one of them can win, so the lesser of the two point values is
 subtracted. Nathan has Texas A&M vs Arizona State on Sep 12, both worth 3, so
 his ceiling is docked 3.
+
+### A week ceiling is not the season's
+
+Pick a week off the strip and every column is that week alone: points scored in
+it, what the closing lines expected of it, how many of your games in it are
+still to be played, and a ceiling built out of those. It used to be the season
+cut short at that week - running totals down every column with the season
+ceiling beside them - so a manager with one game played in week 2 read 24
+points next to a ceiling of 282, and neither number was about week 2.
+
+The same two adjustments apply, scoped to the week: a manager on a bye has no
+game in it and tops out at what they already scored, and two of one manager's
+own teams meeting inside the week docks the lesser of the two values once, from
+that week and no other.
+
+A week with nothing left to play drops both columns rather than printing them.
+Every ceiling in a finished week is the points beside it and every "games left"
+is 0, which is two columns saying nothing in the words of something - the same
+rule that hides the expectation when no game in view carried a line.
+
+The squad list in a manager's dropdown is the one figure in that view that is
+still the season's, and it says so. Per-team weekly records are not published:
+`byWeek` is in the always-fetched core file, refetched by every open tab every
+two minutes, and ten teams a manager a week is exactly the growth term the lazy
+split exists to keep off that path.
+
+A payload written before `weekly` existed falls back whole - running totals,
+the `+/-` column and the season ceiling - because that is what such a payload
+has, and a browser holding cached JS must render it rather than blanks.
 
 Ceiling deliberately does **not** project the postseason. Bowl and playoff games
 are not in the feed until December; when they appear they are counted like any

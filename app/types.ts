@@ -161,7 +161,24 @@ export type Data = {
                                             payload can carry one and not the other and
                                             the board checks for each separately. */
                                          expectedPoints?: number;
-                                         pricedPoints?: number }> }[];
+                                         pricedPoints?: number }>;
+            /* The same figures over this week alone, which is what the week
+               view of the leaderboard shows: a week is a week, not a season
+               cut short at it. `ceiling` here is the week's own - points
+               banked in it plus every game of theirs still to be played in
+               it, less the games two of their own teams play each other - so
+               a manager on a bye tops out at what they have already scored.
+
+               Optional, and every read of it falls back to `cumulative`: a
+               browser holding cached JS must not break on a payload written
+               before this shipped, and the week view it draws from the running
+               totals is what that page has always drawn. */
+            weekly?: Record<string, { points: number; wins: number; losses: number;
+                                      expectedWins: number; expectedLosses: number;
+                                      priced: number; pricedWins: number;
+                                      expectedPoints: number; pricedPoints: number;
+                                      remaining: number; collisionLoss: number;
+                                      ceiling: number }> }[];
   linesFetchedAt: string | null;
   projection: {
     label: string; games: number; projected: number; unprojected: number;

@@ -697,53 +697,206 @@ describe("payloads that predate the columns", () => {
   });
 });
 
+/**
+ * The week view, which is a week and not a season cut short at one.
+ *
+ * The live board accumulates - that is what a season standing is. A week view
+ * does not: picking week 2 used to leave every column running (week 1 plus
+ * week 2's points, the expectation behind both) and the ceiling frankly
+ * season-long, so a manager with one game played in the week read 24 points
+ * beside a ceiling of 282 and neither number was about week 2 at all.
+ *
+ * The awkward cases are the ones that make it worth a block of tests: a
+ * manager on a bye has no game in the week and so tops out at what they
+ * already have, and a manager whose own two teams meet cannot be paid twice
+ * for one game. Both are wrong in the flattering direction when a week
+ * borrows the season's arithmetic.
+ */
 describe("the week strip", () => {
-  test("moves both columns together", async () => {
-    /* The point of reading the expectation out of the selected week rather
-       than out of one season-level figure: pick week 1 and both columns are
-       week 1's, not week 1's total against the season's expectation. */
+  /** The figures the payload carries for a manager in one week alone. */
+  const own = (i: number, manager: string) => data.byWeek[i].weekly![manager];
+  /** The running totals at the end of that week, which is what it is not. */
+  const upTo = (i: number, manager: string) => data.byWeek[i].cumulative[manager] as any;
+
+  /** Picks a week off the strip. The live button is "Live". */
+  const pick = (root: HTMLElement, label: string) =>
+    fireEvent.click(within(root).getAllByRole("button", { name: label })[0]);
+
+  /** A payload whose week `i` carries the weekly figures in `over`. */
+  const withWeek = (i: number, over: Record<string, Partial<NonNullable<Data["byWeek"][number]["weekly"]>[string]>>) =>
+    ({
+      ...data,
+      byWeek: data.byWeek.map((w, n) => n !== i ? w : {
+        ...w,
+        weekly: Object.fromEntries(
+          Object.entries(w.weekly!).map(([m, k]) => [m, { ...k, ...(over[m] ?? {}) }])
+        ),
+      }),
+    }) as unknown as Data;
+
+  test("shows the week alone, not the season up to it", async () => {
+    /* Tconn scored in week 1 and again in week 2, so the week figure and the
+       running one are genuinely different numbers - which is what makes this
+       an assertion about the view rather than two ways of writing 3. */
     stubFetch();
     const { container } = await renderPage();
     const root = container as unknown as HTMLElement;
-    const lastWeek = data.byWeek.length - 1;
-    const at = (i: number, m: string) => data.byWeek[i].cumulative[m] as any;
 
-    expect(headers(root)).toContain("Exp Pts*");
-    expect(row(root, "Nathan")["Exp Pts*"]).toBe(String(at(lastWeek, "nathan").expectedPoints));
+    expect(own(1, "tconn").points).toBeLessThan(upTo(1, "tconn").points);
+    expect(own(1, "tconn").expectedPoints).toBeLessThan(upTo(1, "tconn").expectedPoints);
 
-    fireEvent.click(within(root).getAllByRole("button", { name: "1" })[0]);
+    pick(root, "2");
     expect(headers(root), "the column vanished on a week view").toContain("Exp Pts*");
-    expect(row(root, "Nathan")["Pts"]).toBe(String(at(0, "nathan").points));
-    expect(row(root, "Nathan")["Exp Pts*"]).toBe(String(at(0, "nathan").expectedPoints));
-
-    /* And week 1's expectation is genuinely smaller than the season's, which
-       is what makes the assertion above about accumulation and not about two
-       ways of writing the same number. */
-    expect(at(0, "nathan").expectedPoints).toBeLessThan(at(lastWeek, "nathan").expectedPoints);
+    expect(row(root, "Tconn")["Pts"]).toBe(String(own(1, "tconn").points));
+    expect(row(root, "Tconn")["Exp Pts*"]).toBe(String(own(1, "tconn").expectedPoints));
   });
 
   test("and takes the records in the dropdown with it", async () => {
-    /* The dropdown reads the same week as the row it hangs off. A record
-       pinned to the season under a week view would be the same bug the
-       columns were built to avoid, one tap further down. */
+    /* The dropdown reads the same week as the row it hangs off. A season
+       record under a week view is the same bug the columns were built to
+       avoid, one tap further down. */
     stubFetch();
     const { container } = await renderPage();
     const root = container as unknown as HTMLElement;
-    fireEvent.click(within(root).getAllByRole("button", { name: "1" })[0]);
-    const at = data.byWeek[0].cumulative["nathan"] as any;
-    expect(records(root, "Nathan")).toMatchObject({
-      "Record": `${at.wins}-${at.losses}`,
-      "Expected": `${at.expectedWins}-${at.expectedLosses}`,
+    pick(root, "2");
+    const k = own(1, "tconn");
+    /* Read once: `records` opens the dropdown, so asking twice shuts it. */
+    const shown = records(root, "Tconn");
+    expect(shown).toMatchObject({
+      "Record": `${k.wins}-${k.losses}`,
+      "Expected": `${k.expectedWins}-${k.expectedLosses}`,
     });
+    expect(shown["Record"])
+      .not.toBe(`${upTo(1, "tconn").wins}-${upTo(1, "tconn").losses}`);
   });
 
-  test("names the week the expectation has run to", async () => {
+  test("the ceiling is the week's own, not the season's", () => {
+    /* The number that was most obviously wrong: a season ceiling sitting in a
+       row of week figures, three times the size of anything beside it. Two
+       games left at 3 points each on top of 4 banked, and the column beside it
+       counts those games - so the headroom is shown rather than asserted. */
+    const season = data.standings.find((s) => s.manager === "tconn")!;
+    const root = board(withWeek(1, { tconn: { points: 4, remaining: 2, ceiling: 10 } }))
+      .container as unknown as HTMLElement;
+    fireEvent.click(within(root).getAllByRole("button", { name: "2" })[0]);
+    expect(headers(root)).toContain("Games left");
+    expect(row(root, "Tconn")).toMatchObject({ "Pts": "4", "Games left": "2", "Ceil": "10" });
+    expect(row(root, "Tconn")["Ceil"]).not.toBe(String(season.ceiling));
+  });
+
+  test("a bye week tops out at what is already on the board", () => {
+    /* Devish has no game at all in week 2 of the fixture. Their ceiling for it
+       is what they scored in it - not a season figure, and not a week they
+       could still add to - while the manager beside them still has a week to
+       play. That contrast is the point: one row of the same column is capped
+       and the other is not. */
+    expect(own(1, "devish").wins + own(1, "devish").losses + own(1, "devish").remaining,
+      "the fixture stopped being a bye").toBe(0);
+    const root = board(withWeek(1, { tconn: { points: 4, remaining: 2, ceiling: 10 } }))
+      .container as unknown as HTMLElement;
+    fireEvent.click(within(root).getAllByRole("button", { name: "2" })[0]);
+    expect(row(root, "Devish")).toMatchObject({
+      "Pts": String(own(1, "devish").points),
+      "Games left": "0",
+      "Ceil": String(own(1, "devish").ceiling),
+    });
+    /* and the expectation has nothing to say about a week with no priced
+       game of theirs, which is a dash rather than a nought */
+    expect(row(root, "Devish")["Exp Pts*"]).toBe("-");
+  });
+
+  test("a week that is played out quotes no ceiling at all", async () => {
+    /* Every ceiling in a finished week is the points beside it and every
+       "games left" is 0 - two columns saying nothing in the words of
+       something, which is the same reason the expectation disappears when no
+       game in view was priced. */
     stubFetch();
     const { container } = await renderPage();
     const root = container as unknown as HTMLElement;
-    fireEvent.click(within(root).getAllByRole("button", { name: "1" })[0]);
+    expect(Object.values(data.byWeek[1].weekly!).every((k) => k.remaining === 0),
+      "the fixture's week 2 has something left to play").toBe(true);
+    pick(root, "2");
+    expect(headers(root)).not.toContain("Ceil");
+    expect(headers(root)).not.toContain("Games left");
+    expect(root.textContent).toMatch(/no ceiling left to quote/i);
+  });
+
+  test("an own matchup comes off the week's ceiling and says so", () => {
+    /* Two of one manager's teams playing each other in the week pays the
+       winner once. The dock is the builder's, and the dropdown names it in
+       the week's own words rather than the season's "upcoming". */
+    const root = board(withWeek(1, {
+      tconn: { points: 4, remaining: 2, collisionLoss: 2, ceiling: 8 },
+    })).container as unknown as HTMLElement;
+    fireEvent.click(within(root).getAllByRole("button", { name: "2" })[0]);
+    expect(row(root, "Tconn")["Ceil"]).toBe("8");
+    expect(open(root, "Tconn").textContent)
+      .toMatch(/Ceiling docked 2 for games this week between two of your own teams/i);
+  });
+
+  test("says in its own heading that it is one week", async () => {
+    stubFetch();
+    const { container } = await renderPage();
+    const root = container as unknown as HTMLElement;
+    pick(root, "2");
+    /* "As of week 2" was the running-total sentence, and under week figures
+       it reads as a claim the columns do not make. */
+    expect(root.textContent).toMatch(/Week 2 only/);
+    expect(root.textContent).not.toMatch(/As of week 2/i);
     const summary = within(root).getByText(/Exp Pts is the points the closing lines expected/i);
-    expect(summary.textContent).toMatch(/week 1/i);
+    expect(summary.textContent).toMatch(/week 2 alone/i);
+  });
+
+  test("and the squad below it still says which season it is counting", async () => {
+    /* The one figure in the view that is still the season's. Per-team weekly
+       records are not in the payload - byWeek is refetched by every open tab
+       every two minutes - so the honest move is to label them, not to let
+       them read as the week. */
+    stubFetch();
+    const { container } = await renderPage();
+    const root = container as unknown as HTMLElement;
+    pick(root, "2");
+    expect(open(root, "Tconn").textContent)
+      .toMatch(/Squad records below are the season’s, not this week’s/);
+  });
+
+  test("a weekly block missing a manager is not used at all", () => {
+    /* All of it or none of it. A block covering seven managers of eight would
+       sort one row's week against another's season, with a season ceiling in
+       the rows it missed - the mixed row this whole change removes, put back
+       one payload deeper. */
+    const partial = {
+      ...data,
+      byWeek: data.byWeek.map((w, n) => n !== 1 ? w : {
+        ...w,
+        weekly: Object.fromEntries(
+          Object.entries(w.weekly!).filter(([m]) => m !== "devish")
+        ),
+      }),
+    } as unknown as Data;
+    const root = board(partial).container as unknown as HTMLElement;
+    fireEvent.click(within(root).getAllByRole("button", { name: "2" })[0]);
+    expect(headers(root)).toContain("+/-");
+    expect(row(root, "Tconn")["Pts"]).toBe(String(upTo(1, "tconn").points));
+    expect(root.textContent).toMatch(/As of week 2/i);
+  });
+
+  test("a payload with no weekly block still draws the week it always did", () => {
+    /* A browser holding this JS can be handed a snapshot written before the
+       weekly figures shipped. The running totals are what that payload has,
+       and showing them is better than showing blanks - so the view falls back
+       whole, +/- column and all, rather than half. */
+    const older = {
+      ...data,
+      byWeek: data.byWeek.map(({ weekly, ...w }) => w),
+    } as unknown as Data;
+    const root = board(older).container as unknown as HTMLElement;
+    fireEvent.click(within(root).getAllByRole("button", { name: "2" })[0]);
+    expect(headers(root)).toContain("+/-");
+    expect(row(root, "Tconn")["Pts"]).toBe(String(upTo(1, "tconn").points));
+    expect(row(root, "Tconn")["Exp Pts*"]).toBe(String(upTo(1, "tconn").expectedPoints));
+    expect(root.textContent).toMatch(/As of week 2/i);
+    expect(root.textContent).not.toMatch(/undefined/);
   });
 });
 
