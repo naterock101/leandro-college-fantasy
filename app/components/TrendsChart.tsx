@@ -196,6 +196,13 @@ const ticksFor = (base: number, top: number) => {
  * league where everybody is level from dividing by nothing. It is clamped at
  * zero because a negative total is not a thing and an axis that starts at -1
  * says it might be.
+ *
+ * There is no sentence under the chart saying the scale is truncated; there
+ * was one and it was cut, because it explained a convention the numbers
+ * already carry. What carries it instead is the gutter, which prints every
+ * manager's total beside their name, and the labelled gridlines, whose lowest
+ * is plainly not zero. Nothing on this chart is read as a proportion of the
+ * plot's height - it is read as an order, and an order survives a floor.
  */
 export const axisOf = (values: number[]) => {
   const hi = values.length ? Math.max(...values) : 1;
@@ -486,28 +493,6 @@ export function TrendsChart({
           ))}
         </svg>
       </div>
-
-      {/* The axis does not start at zero, so it has to say so. Everything
-          else on this chart is a comparison between managers and survives a
-          truncated scale intact; the one reading it breaks is "how big is the
-          gap", which is exactly what a reader estimates off the height of the
-          gap between two lines. One sentence is cheaper than the alternative,
-          which is a chart that quietly doubles every lead. Only rendered when
-          it is true - an early-season chart that does start at zero should not
-          be apologising for a scale it is not using.
-
-          Hidden from the accessibility tree for the same reason the svg above
-          it is: the chart a screen reader gets is the table below, which is
-          exact numbers with no scale, no lines and no gaps to misjudge. Read
-          out there, this sentence is a caveat about a picture that is not in
-          the room. */}
-      {base > 0 && (
-        <p className="caption" aria-hidden="true">
-          The scale starts at {base} rather than zero, so the pack has room to
-          spread out. Gaps between lines are differences in points, not
-          proportions.
-        </p>
-      )}
 
       {/* The chart, as numbers. This is not a courtesy copy: the svg above is
           aria-hidden, so for a screen reader this table *is* the chart, and

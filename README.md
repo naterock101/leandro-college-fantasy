@@ -938,9 +938,11 @@ Three things that are less obvious than they look:
   whole point, which is also what keeps an all-level league from dividing by
   nothing - and the top stays the leader's exact total rather than a rounded
   ceiling, because rounding leaves the leading line short of the top and reads
-  as everyone having further to go than they do. A truncated axis exaggerates
-  every gap, so the chart says in one line underneath where its scale starts,
-  and only when that is not zero.
+  as everyone having further to go than they do. There is no sentence under the
+  chart saying the scale is truncated - there was one and it was cut. The
+  gutter prints every manager's total beside their name and the lowest gridline
+  is plainly not zero, so nothing here is read as a proportion of the plot's
+  height; it is read as an order, and an order survives a floor.
 - **The height is load-bearing, and 440 is arithmetic rather than taste.** A
   driver is 26 units tall and must not overlap the next one, so the height
   decides how close on points two managers can be and still keep their own

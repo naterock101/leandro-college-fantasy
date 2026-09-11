@@ -254,10 +254,6 @@ describe("the race chart", () => {
       ...[...root.querySelectorAll("text.ax.r")].map((t) => Number(t.textContent))
     );
     expect(lowest, "the axis is still pinned to zero").toBeGreaterThan(0);
-    /* A chart that has stopped starting at zero has to say so, or every lead
-       on it reads as bigger than it is. */
-    const note = within(root).getByText(/starts at \d+ rather than zero/);
-    expect(Number(note.textContent!.match(/starts at (\d+)/)![1])).toBeLessThanOrEqual(lowest);
 
     /* And the payoff: with the plot spent on the spread, every face is
        standing on the end of its own line rather than in a column beside it. */
