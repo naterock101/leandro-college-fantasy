@@ -265,6 +265,64 @@ describe("the race chart", () => {
     }
   });
 
+  test("a window is where the fitted floor still earns its keep", () => {
+    /* Drawing game by game means the season starts at nought, so on the full
+       Total points view the fitted floor is nought and the pack is a band -
+       the trade the three views and this window exist to answer. Inside the
+       window the lowest number on the chart is a long way above zero again,
+       and the floor has to follow it or the window buys nothing. */
+    const weeks = Array.from({ length: 9 }, (_, i) => ({
+      ...byWeek[byWeek.length - 1],
+      key: `0|0${i}`,
+      label: `Week ${i + 1}`,
+      week: i + 1,
+      seasonType: "regular",
+      cumulative: Object.fromEntries(
+        managers.map((m, j) => [m, { points: 10 * (i + 1) + j, wins: 1, losses: 0 }])
+      ),
+    }));
+    const { container } = render(
+      <TrendsChart byWeek={weeks} managers={managers} results={[]} />
+    );
+    const root = container as unknown as HTMLElement;
+    /* The floor itself, read back off a gridline rather than guessed: invert
+       the lowest label's own y and the axis says where it starts. */
+    const lowestTick = () =>
+      Math.min(...[...root.querySelectorAll("text.ax.r")].map((t) => Number(t.textContent)));
+    const spread = () => {
+      const ends = managers.map((m) => seriesOf(root, m).slice(-1)[0][1]);
+      return Math.max(...ends) - Math.min(...ends);
+    };
+
+    const wholeSeason = { tick: lowestTick(), spread: spread() };
+    fireEvent.click(within(root).getByRole("button", { name: /last 4 weeks/i }));
+
+    expect(lowestTick(), "the window did not refit the floor to its own pack")
+      .toBeGreaterThan(wholeSeason.tick);
+    /* And the payoff: the same eight managers, further apart on the screen. */
+    expect(spread(), "the window bought the pack no room")
+      .toBeGreaterThan(wholeSeason.spread);
+  });
+
+  test("a week's dot is drawn under its own label", async () => {
+    /* The fallback draws one dot per week and the label is the middle of the
+       week, so a dot on the week boundary sits half a week to the right of
+       its own name - and the left of the plot goes blank. */
+    const { container } = render(
+      <TrendsChart byWeek={byWeek} managers={managers} results={[]} />
+    );
+    const root = container as unknown as HTMLElement;
+    const xs = seriesOf(root, managers[0]).map(([x]) => x);
+    const labels = [...root.querySelectorAll("text.ax.mid")].map((t) =>
+      Number(t.getAttribute("x"))
+    );
+    expect(labels.length).toBe(xs.length);
+    labels.forEach((lx, i) => expect(lx, `week ${i + 1}`).toBeCloseTo(xs[i], 3));
+    /* and the line uses the width it was given rather than starting a quarter
+       of the way in */
+    expect(xs[0]).toBeCloseTo(GEOM.padL, 3);
+  });
+
   test("a pack nowhere near zero gets the plot to itself", () => {
     /* The reason the axis is fitted rather than pinned to zero, and the case
        the golden fixture cannot make: four of its managers are on nought, so

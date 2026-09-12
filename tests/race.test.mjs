@@ -132,11 +132,40 @@ test("the leader is level with themselves and the average sums to nothing", () =
 });
 
 test("a window wider than the season is the season", () => {
+  /* An index, so it lands on a week rather than between two points. */
   assert.equal(windowStart(1, 4), 0, "week one has no last four");
-  assert.equal(windowStart(4, 4), 0);
-  assert.equal(windowStart(8, 4), 0.5);
-  assert.equal(windowStart(16, 4), 0.75);
+  assert.equal(windowStart(4, 4), 0, "exactly four weeks is all of them");
+  assert.equal(windowStart(8, 4), 4);
+  assert.equal(windowStart(16, 4), 12);
   assert.equal(windowStart(16, 0), 0, "no window is the whole season");
+});
+
+test("a week's dot stands under its own label", () => {
+  /* Both modes, because they do not put the point in the same place: a week
+     with games in it closes on its right-hand edge, a week without them is a
+     dot in the middle. The label is the middle either way, so the fallback
+     used to draw every dot half a week to the right of its own name. */
+  const flat = raceFrames(byWeek, [], managers);
+  flat.frames.filter((f) => f.week).forEach((f) => {
+    assert.equal(f.x, f.week.at, `${f.week.label} sits away from its label`);
+  });
+  const full = raceFrames(byWeek, results, managers);
+  full.frames.filter((f) => f.week).forEach((f) => {
+    assert.ok(f.x > f.week.at, `${f.week.label} does not close on its own edge`);
+    assert.ok(f.x <= f.week.x1 + 1e-9);
+  });
+});
+
+test("every frame knows which week it is in", () => {
+  /* What the window filters on. A frame with the wrong week index is a game
+     drawn in the wrong month. */
+  const { frames, weeks } = raceFrames(byWeek, results, managers);
+  for (const f of frames) {
+    const w = weeks[f.wi];
+    assert.ok(w, `frame at ${f.x} belongs to no week`);
+    assert.ok(f.x >= w.x0 - 1e-9 && f.x <= w.x1 + 1e-9,
+      `a frame in ${w.label} is drawn at ${f.x}, outside ${w.x0}..${w.x1}`);
+  }
 });
 
 test("the axis clamps at zero only where zero is a floor", () => {

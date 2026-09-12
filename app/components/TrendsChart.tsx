@@ -159,9 +159,19 @@ const ticksFor = (base: number, top: number) => {
  * The axis the chart has always fitted, kept at its old name and signature
  * because that is what the tests invert coordinates through.
  *
- * Not zero-based, and that is the point. The numbers this draws are a long way
- * from nought, and a scale that starts there spends most of its height on the
- * stretch of the season everybody has already driven through.
+ * Fitted rather than pinned - but be clear about where that still buys
+ * anything, because drawing game by game changed the answer. A race that runs
+ * from the first kickoff necessarily passes through nought on the way, so on
+ * the full-season Total points view the fitted floor *is* nought and the pack
+ * gets the thin band this was written to avoid: about 46% of the plot's height
+ * on the live payload today, and a quarter of it by December.
+ *
+ * That is not a bug to be tuned out of the axis, it is the shape of the
+ * quantity - the spread between managers grows like the root of the weeks
+ * played and everybody's total grows like the weeks played - and it is what
+ * the other two views and the window are for. Fitting still earns its keep in
+ * exactly those places: inside a window the lowest value is a long way from
+ * nought, and on vs Average the floor is negative and must not be clamped.
  */
 export const axisOf = (values: number[]) => axisFor(values, { floorAtZero: true });
 
@@ -198,12 +208,22 @@ export function TrendsChart({
   const model = useMemo(() => {
     const { all, weeks, frames } = season;
     const V = VIEWS[view];
-    const from = windowStart(weeks.length, weeksBack);
-    /* Week boundaries are exactly where a window starts, so the frame that
-       closes the week before it is already in the set - no interpolation, and
-       the first column of the window is a real moment rather than a guess. */
-    const shown = frames.filter((f) => f.x >= from - 1e-9);
-    const inWindow = weeks.filter((w) => w.x1 > from + 1e-9);
+    const firstWeek = windowStart(weeks.length, weeksBack);
+    /* Kept by which week a frame belongs to rather than by where it lands on
+       the axis, because the two modes do not put their points in the same
+       places and a fraction lands between them in one of them. The week
+       before the window comes too, where there is one: it carries the level
+       everybody entered the window on, and four weeks of movement needs five
+       points to draw. */
+    const shown = frames.filter(
+      (f) => f.wi >= firstWeek || (Boolean(f.week) && f.wi === firstWeek - 1)
+    );
+    const inWindow = weeks.slice(firstWeek);
+    /* The left-hand edge is whatever actually got through, so the plot starts
+       on data rather than on the slice boundary it happens to sit after -
+       which is what used to leave a quarter of the chart blank. */
+    const from = shown.length ? shown[0].x : 0;
+    const reach = Math.max(1e-9, (shown.length ? shown[shown.length - 1].x : 1) - from);
 
     /* Fitted to everybody, not to the selection. Dimming seven managers is a
        way of finding your own line in the pack; if it rescaled the axis it
@@ -214,8 +234,7 @@ export function TrendsChart({
       { floorAtZero: V.floorAtZero }
     );
 
-    const xAt = (x: number) =>
-      GEOM.padL + (from >= 1 ? 0 : (x - from) / (1 - from)) * spanOf(shown.length);
+    const xAt = (x: number) => GEOM.padL + ((x - from) / reach) * spanOf(shown.length);
     const yAt = (v: number) => yOf(v, base, top, V.down);
 
     const series = all.map((manager, i) => {
@@ -455,7 +474,7 @@ export function TrendsChart({
             i % every === 0 ? (
               <text
                 key={w.key}
-                x={r(xAt((Math.max(w.x0, 0) + w.x1) / 2))}
+                x={r(xAt(w.at))}
                 y={GEOM.H - GEOM.padB + 15}
                 className="ax mid"
               >
