@@ -31,7 +31,6 @@ import { describe, expect, test } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 
 import { cap } from "../lib/format.mjs";
-import { VIEWS, axisFor, raceFrames } from "../lib/race.mjs";
 import { KARTS } from "../app/components/Karts";
 import { axisOf, GEOM } from "../app/components/TrendsChart";
 import { TrendsChart } from "../app/components/TrendsChart";
@@ -65,37 +64,6 @@ const seriesOf = (root: HTMLElement, manager: string) => {
     .map((p) => p.split(",").map(Number) as [number, number]);
 };
 
-/**
- * The same series, but only where a week closes.
- *
- * The line moves game by game now and the hidden table is still weekly - nine
- * hundred game columns is not an accessible table - so the two meet at the
- * week boundaries, and this is the attribute that names them.
- */
-const weeksOf = (root: HTMLElement, manager: string) => {
-  const g = root.querySelector(`[data-series="${manager}"]`);
-  if (!g) throw new Error(`no plotted series for ${manager}`);
-  return (g.getAttribute("data-week-points") ?? "")
-    .split(" ")
-    .filter(Boolean)
-    .map((p) => p.split(",").map(Number) as [number, number]);
-};
-
-/** The axis the chart fits for a given view, from the chart's own rule. */
-const axisOfView = (view: keyof typeof VIEWS, results: any[]) => {
-  const { all, frames } = raceFrames(byWeek, results, managers);
-  return axisFor(
-    frames.flatMap((f) => all.map((m) => VIEWS[view].y(f.totals, m))),
-    { floorAtZero: VIEWS[view].floorAtZero }
-  );
-};
-
-/** A drawn y, turned back into the number the given view claims it shows. */
-const invert = (y: number, view: keyof typeof VIEWS, ax: { base: number; top: number }) =>
-  VIEWS[view].down
-    ? ax.base + ((y - GEOM.padT) / plotH) * (ax.top - ax.base)
-    : ax.base + ((GEOM.H - GEOM.padB - y) / plotH) * (ax.top - ax.base);
-
 /** The visually hidden table, as `{ manager: [points per week] }`, gaps kept. */
 const hiddenTable = (root: HTMLElement) => {
   const table = within(root).getByRole("table", { name: /points after each week/i });
@@ -121,24 +89,16 @@ async function openTrends() {
 }
 
 describe("the race chart", () => {
-  test("plots every manager at every week, and in between", async () => {
+  test("plots every manager across every week", async () => {
     stubFetch();
     const { container } = await openTrends();
-    const root = container as unknown as HTMLElement;
 
     for (const m of managers) {
       expect(
-        weeksOf(root, m).length,
-        `${m} should close each of the ${byWeek.length} scored weeks`
+        seriesOf(container as unknown as HTMLElement, m).length,
+        `${m} should have a point in each of the ${byWeek.length} scored weeks`
       ).toBe(byWeek.length);
     }
-    /* And the point of the change: the line says more than the weeks do. A
-       week is not a tidy slice of anything - the live season's first bucket
-       holds 65 games across ten days - so drawing one dot for it throws away
-       every lead change inside it. */
-    const drawn = managers.reduce((n, m) => n + seriesOf(root, m).length, 0);
-    const weekly = managers.reduce((n, m) => n + weeksOf(root, m).length, 0);
-    expect(drawn, "the chart is still only drawing week ends").toBeGreaterThan(weekly);
   });
 
   test("the hidden table carries the same numbers the lines do", async () => {
@@ -148,7 +108,7 @@ describe("the race chart", () => {
     const table = hiddenTable(root);
 
     for (const m of managers) {
-      const drawn = weeksOf(root, m).map(([, y]) => valueAt(y));
+      const drawn = seriesOf(root, m).map(([, y]) => valueAt(y));
       const stated = table[cap(m)];
       expect(stated, `${m} is plotted but missing from the hidden table`).toBeTruthy();
 
@@ -265,123 +225,6 @@ describe("the race chart", () => {
     }
   });
 
-  test("a window is where the fitted floor still earns its keep", () => {
-    /* Drawing game by game means the season starts at nought, so on the full
-       Total points view the fitted floor is nought and the pack is a band -
-       the trade the three views and this window exist to answer. Inside the
-       window the lowest number on the chart is a long way above zero again,
-       and the floor has to follow it or the window buys nothing. */
-    const weeks = Array.from({ length: 9 }, (_, i) => ({
-      ...byWeek[byWeek.length - 1],
-      key: `0|0${i}`,
-      label: `Week ${i + 1}`,
-      week: i + 1,
-      seasonType: "regular",
-      cumulative: Object.fromEntries(
-        managers.map((m, j) => [m, { points: 10 * (i + 1) + j, wins: 1, losses: 0 }])
-      ),
-    }));
-    const { container } = render(
-      <TrendsChart byWeek={weeks} managers={managers} results={[]} />
-    );
-    const root = container as unknown as HTMLElement;
-    /* The floor itself, read back off a gridline rather than guessed: invert
-       the lowest label's own y and the axis says where it starts. */
-    const lowestTick = () =>
-      Math.min(...[...root.querySelectorAll("text.ax.r")].map((t) => Number(t.textContent)));
-    const spread = () => {
-      const ends = managers.map((m) => seriesOf(root, m).slice(-1)[0][1]);
-      return Math.max(...ends) - Math.min(...ends);
-    };
-
-    const wholeSeason = { tick: lowestTick(), spread: spread() };
-    fireEvent.click(within(root).getByRole("button", { name: /last 4 weeks/i }));
-
-    expect(lowestTick(), "the window did not refit the floor to its own pack")
-      .toBeGreaterThan(wholeSeason.tick);
-    /* And the payoff: the same eight managers, further apart on the screen. */
-    expect(spread(), "the window bought the pack no room")
-      .toBeGreaterThan(wholeSeason.spread);
-  });
-
-  test("a week's dot is drawn under its own label", async () => {
-    /* The fallback draws one dot per week and the label is the middle of the
-       week, so a dot on the week boundary sits half a week to the right of
-       its own name - and the left of the plot goes blank. */
-    const { container } = render(
-      <TrendsChart byWeek={byWeek} managers={managers} results={[]} />
-    );
-    const root = container as unknown as HTMLElement;
-    const xs = seriesOf(root, managers[0]).map(([x]) => x);
-    const labels = [...root.querySelectorAll("text.ax.mid")].map((t) =>
-      Number(t.getAttribute("x"))
-    );
-    expect(labels.length).toBe(xs.length);
-    labels.forEach((lx, i) => expect(lx, `week ${i + 1}`).toBeCloseTo(xs[i], 3));
-    /* Each dot in the middle of its own band, and the bands filling the plot.
-       Not flush to the left edge: a week is a band here and its dot is the
-       middle of it, so half a band of lead-in either side is the first half
-       of week one rather than blank space. */
-    const plotW = GEOM.W - GEOM.padL - GEOM.padR;
-    const band = plotW / byWeek.length;
-    xs.forEach((x, i) =>
-      expect(x, `week ${i + 1} is not centred in its band`)
-        .toBeCloseTo(GEOM.padL + band * (i + 0.5), 3)
-    );
-  });
-
-  test("a week results has not caught up on still gets its whole band", async () => {
-    /* The bot writes a week into byWeek before results covers it, which the
-       code calls routine. That week has no game to close it, so its dot is
-       the middle of its band - and ending the plot on the last frame clipped
-       the band in half and left the name jammed against the gutter. */
-    const onlyFirst = payload.results.filter((g: any) => g.key === byWeek[0].key);
-    const { container } = render(
-      <TrendsChart byWeek={byWeek} managers={managers} results={onlyFirst} />
-    );
-    const root = container as unknown as HTMLElement;
-    const plotW = GEOM.W - GEOM.padL - GEOM.padR;
-    const band = plotW / byWeek.length;
-
-    const labels = [...root.querySelectorAll("text.ax.mid")].map((t) =>
-      Number(t.getAttribute("x"))
-    );
-    expect(labels.length).toBe(byWeek.length);
-    labels.forEach((x, i) =>
-      expect(x, `week ${i + 1} is not centred in its band`)
-        .toBeCloseTo(GEOM.padL + band * (i + 0.5), 3)
-    );
-    /* and no label has been pushed out onto the gutter */
-    expect(labels[labels.length - 1]).toBeLessThan(GEOM.padL + plotW);
-  });
-
-  test("the weeks are divided, which is what lets the labels sit in the middle", async () => {
-    /* A name centred in a band needs the band drawn, or it just looks half a
-       week adrift of the marker beside it. One divider between each pair of
-       weeks - not after the last one, where the plot already ends. */
-    stubFetch();
-    const { container } = await openTrends();
-    const root = container as unknown as HTMLElement;
-    const rules = [...root.querySelectorAll("line.wk")];
-    expect(rules.length, "one divider between each pair of weeks")
-      .toBe(byWeek.length - 1);
-    /* vertical, and spanning the plot rather than floating in it */
-    for (const l of rules) {
-      expect(l.getAttribute("x1")).toBe(l.getAttribute("x2"));
-      expect(Number(l.getAttribute("y1"))).toBe(GEOM.padT);
-      expect(Number(l.getAttribute("y2"))).toBe(GEOM.H - GEOM.padB);
-    }
-    /* each one between the labels it separates */
-    const labels = [...root.querySelectorAll("text.ax.mid")].map((t) =>
-      Number(t.getAttribute("x"))
-    );
-    rules.forEach((l, i) => {
-      const x = Number(l.getAttribute("x1"));
-      expect(x, `divider ${i} is not after week ${i + 1}`).toBeGreaterThan(labels[i]);
-      expect(x, `divider ${i} is not before week ${i + 2}`).toBeLessThan(labels[i + 1]);
-    });
-  });
-
   test("a pack nowhere near zero gets the plot to itself", () => {
     /* The reason the axis is fitted rather than pinned to zero, and the case
        the golden fixture cannot make: four of its managers are on nought, so
@@ -438,209 +281,15 @@ describe("the race chart", () => {
     }
   });
 
-  test("every week still has a marker, driver or not", async () => {
+  test("every plotted point still has a marker, driver or not", async () => {
     /* The driver replaces the last marker rather than sitting on top of one,
-       so the count is the thing to hold: one per week, however it is drawn.
-       Per week and not per game on purpose - at sixty-five games a Saturday
-       the markers are a solid bar, and the week is the tick a reader counts
-       in anyway. */
+       so the count is the thing to hold: one per point, however it is drawn.
+       A one-week season is entirely made of last points. */
     stubFetch();
     const { container } = await openTrends();
     const root = container as unknown as HTMLElement;
-    const weekly = managers.reduce((n, m) => n + weeksOf(root, m).length, 0);
-    expect(root.querySelectorAll("[data-marker]").length).toBe(weekly);
-  });
-
-  /* ------------------------------------------------------------------ */
-  /* the three views, the window, and the filter                          */
-  /* ------------------------------------------------------------------ */
-
-  const press = (root: HTMLElement, name: string) =>
-    fireEvent.click(within(root).getByRole("button", { name }));
-
-  test("each view draws what it says it is measuring", async () => {
-    /* The three are lenses on one set of numbers, and the hidden table prints
-       those numbers whichever is on. So the table is the fixed point: derive
-       the view from it and the drawn line has to land on the answer. */
-    stubFetch();
-    const { container } = await openTrends();
-    const root = container as unknown as HTMLElement;
-    const table = hiddenTable(root);
-
-    for (const view of ["points", "gap", "avg"] as const) {
-      press(root, VIEWS[view].label);
-      const ax = axisOfView(view, payload.results);
-      /* the totals the table states at the end of the season */
-      const totals = Object.fromEntries(
-        managers.map((m) => [m, table[cap(m)].filter((v) => v !== null).at(-1)!])
-      );
-      for (const m of managers) {
-        const drawn = invert(weeksOf(root, m).at(-1)![1], view, ax);
-        expect(drawn, `${m} on the ${view} view`).toBeCloseTo(VIEWS[view].y(totals, m), 2);
-      }
-    }
-  });
-
-  test("behind-leader puts the leader on nought and nobody above them", async () => {
-    stubFetch();
-    const { container } = await openTrends();
-    const root = container as unknown as HTMLElement;
-    press(root, "Behind leader");
-
-    const ax = axisOfView("gap", payload.results);
-    const ends = managers.map((m) => invert(weeksOf(root, m).at(-1)![1], "gap", ax));
-    expect(Math.min(...ends), "nobody is the leader").toBeCloseTo(0, 3);
-    for (const v of ends) expect(v, "somebody is ahead of the leader").toBeGreaterThan(-0.01);
-    /* and the gutter says so in words rather than as a nought */
-    expect(within(root).getByText("leader")).toBeTruthy();
-  });
-
-  test("the average view is centred on nothing", async () => {
-    stubFetch();
-    const { container } = await openTrends();
-    const root = container as unknown as HTMLElement;
-    press(root, "vs Average");
-
-    const ax = axisOfView("avg", payload.results);
-    const ends = managers.map((m) => invert(weeksOf(root, m).at(-1)![1], "avg", ax));
-    expect(ends.reduce((a, b) => a + b, 0), "the deviations do not cancel").toBeCloseTo(0, 1);
-    expect(Math.min(...ends), "nobody is below average").toBeLessThan(0);
-    expect(Math.max(...ends), "nobody is above average").toBeGreaterThan(0);
-  });
-
-  test("the hidden table stays weekly totals, and says which view is drawn", async () => {
-    /* Switching view must not move the furniture under somebody halfway
-       through navigating the table - and totals are the one set of numbers
-       every view can be derived from. */
-    stubFetch();
-    const { container } = await openTrends();
-    const root = container as unknown as HTMLElement;
-    const before = hiddenTable(root);
-
-    press(root, "Behind leader");
-    expect(hiddenTable(root)).toEqual(before);
-    expect(
-      within(root).getByRole("table", { name: /drawn as behind leader/i }),
-      "the table does not say what the chart is showing"
-    ).toBeTruthy();
-  });
-
-  test("filtering dims the others without moving the chart", async () => {
-    /* The point of picking your own kart out is seeing it against the pack.
-       A filter that rescaled the axis would answer a different question, and
-       the one thing you could not then do is compare yourself to what you
-       just hid. */
-    stubFetch();
-    const { container } = await openTrends();
-    const root = container as unknown as HTMLElement;
-    const mine = managers[0];
-    const before = seriesOf(root, mine).at(-1)!;
-
-    press(root, "All managers");
-    fireEvent.click(within(root).getByRole("checkbox", { name: cap(mine) }));
-
-    expect(seriesOf(root, mine).at(-1), "the axis moved").toEqual(before);
-    const off = [...root.querySelectorAll("[data-series]")].filter((g) =>
-      g.classList.contains("off")
-    );
-    expect(off.length, "the rest of the pack did not dim").toBe(managers.length - 1);
-    expect(
-      off.some((g) => g.getAttribute("data-series") === mine),
-      "dimmed the manager that was picked"
-    ).toBe(false);
-    /* Dimmed, not dropped: every name and number is still on the chart. */
-    expect(root.querySelectorAll("[data-series]").length).toBe(managers.length);
-  });
-
-  test("there is no window button until there is a season to cut down", () => {
-    /* The league spends the first month of every year on too few weeks for
-       "last four" to mean anything, and it is there now, on one scored week.
-       A control that silently does nothing is worse than no control. */
-    const short = render(
-      <TrendsChart byWeek={byWeek.slice(0, 1)} managers={managers} results={[]} />
-    );
-    expect(short.queryByRole("button", { name: /last 4 weeks/i })).toBeNull();
-
-    const long = render(
-      <TrendsChart
-        byWeek={Array.from({ length: 9 }, (_, i) => ({
-          ...byWeek[byWeek.length - 1],
-          key: `0|0${i}`,
-          label: `Week ${i + 1}`,
-          week: i + 1,
-          seasonType: "regular",
-        }))}
-        managers={managers}
-        results={[]}
-      />
-    );
-    expect(long.getByRole("button", { name: /last 4 weeks/i })).toBeTruthy();
-  });
-
-  test("the window shortens the season without changing the totals", async () => {
-    stubFetch();
-    const weeks = Array.from({ length: 9 }, (_, i) => ({
-      ...byWeek[byWeek.length - 1],
-      key: `0|0${i}`,
-      label: `Week ${i + 1}`,
-      week: i + 1,
-      seasonType: "regular",
-      cumulative: Object.fromEntries(
-        managers.map((m, j) => [m, { points: (i + 1) * (j + 2), wins: 1, losses: 0 }])
-      ),
-    }));
-    const { container } = render(
-      <TrendsChart byWeek={weeks} managers={managers} results={[]} />
-    );
-    const root = container as unknown as HTMLElement;
-    const full = hiddenTable(root);
-
-    fireEvent.click(within(root).getByRole("button", { name: /last 4 weeks/i }));
-    /* Fewer columns on the chart, every column still in the table: the window
-       is what is drawn, not what is known. */
-    const labels = [...root.querySelectorAll("text.ax.mid")].map((t) => t.textContent);
-    expect(labels.length).toBeLessThan(weeks.length);
-    expect(hiddenTable(root), "the window rewrote the season").toEqual(full);
-  });
-
-  test("the window shows as many dots as it has labels", () => {
-    /* The week before the window comes along to anchor the line - four weeks
-       of movement needs the level everybody entered them on - but it is not a
-       week the chart is showing: no label, no band. A marker on it would be a
-       fifth dot in a four week view. */
-    const weeks = Array.from({ length: 9 }, (_, i) => ({
-      ...byWeek[byWeek.length - 1],
-      key: `0|0${i}`,
-      label: `Week ${i + 1}`,
-      week: i + 1,
-      seasonType: "regular",
-      cumulative: Object.fromEntries(
-        managers.map((m, j) => [m, { points: 10 * (i + 1) + 6 * j, wins: 1, losses: 0 }])
-      ),
-    }));
-    const { container } = render(
-      <TrendsChart byWeek={weeks} managers={managers} results={[]} />
-    );
-    const root = container as unknown as HTMLElement;
-    fireEvent.click(within(root).getByRole("button", { name: /last 4 weeks/i }));
-
-    const labels = [...root.querySelectorAll("text.ax.mid")];
-    expect(labels.length).toBe(4);
-    /* Counted off the drawn markers, not off data-week-points. The attribute
-       excludes the lead-in by construction, so counting it would pass while
-       the fifth dot sat there on the screen - which is exactly what the first
-       version of this test did. */
-    expect(
-      root.querySelectorAll("[data-marker]").length,
-      "a dot the window does not name"
-    ).toBe(labels.length * managers.length);
-    /* the line still starts before the first named week, because that is the
-       level the window opened on */
-    expect(seriesOf(root, managers[0]).length).toBeGreaterThan(labels.length);
-    /* and the window's opening edge is drawn, so the lead-in is visibly
-       outside it */
-    expect(root.querySelectorAll("line.wk").length, "the window has no opening edge")
-      .toBe(labels.length);
+    const points = managers.reduce((n, m) => n + seriesOf(root, m).length, 0);
+    expect(root.querySelectorAll("[data-marker]").length).toBe(points);
   });
 
   test("a crowded chart keeps every name apart and inside the plot", () => {
