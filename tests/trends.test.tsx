@@ -571,6 +571,42 @@ describe("the race chart", () => {
     expect(hiddenTable(root), "the window rewrote the season").toEqual(full);
   });
 
+  test("the window shows as many dots as it has labels", () => {
+    /* The week before the window comes along to anchor the line - four weeks
+       of movement needs the level everybody entered them on - but it is not a
+       week the chart is showing: no label, no band. A marker on it would be a
+       fifth dot in a four week view. */
+    const weeks = Array.from({ length: 9 }, (_, i) => ({
+      ...byWeek[byWeek.length - 1],
+      key: `0|0${i}`,
+      label: `Week ${i + 1}`,
+      week: i + 1,
+      seasonType: "regular",
+      cumulative: Object.fromEntries(
+        managers.map((m, j) => [m, { points: 10 * (i + 1) + 6 * j, wins: 1, losses: 0 }])
+      ),
+    }));
+    const { container } = render(
+      <TrendsChart byWeek={weeks} managers={managers} results={[]} />
+    );
+    const root = container as unknown as HTMLElement;
+    fireEvent.click(within(root).getByRole("button", { name: /last 4 weeks/i }));
+
+    const labels = [...root.querySelectorAll("text.ax.mid")];
+    expect(labels.length).toBe(4);
+    for (const m of managers) {
+      expect(weeksOf(root, m).length, `${m} has a dot the window does not name`)
+        .toBe(labels.length);
+    }
+    /* the line still starts before the first named week, because that is the
+       level the window opened on */
+    expect(seriesOf(root, managers[0]).length).toBeGreaterThan(labels.length);
+    /* and the window's opening edge is drawn, so the lead-in is visibly
+       outside it */
+    expect(root.querySelectorAll("line.wk").length, "the window has no opening edge")
+      .toBe(labels.length);
+  });
+
   test("a crowded chart keeps every name apart and inside the plot", () => {
     /* The gap used to be a fixed 28 units - the height of a face - which fits
        eight managers and not twelve. Past that the declutter clamped the

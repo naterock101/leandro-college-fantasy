@@ -201,6 +201,23 @@ test("a week with no games of its own is a dot in its middle", () => {
     assert.equal(f.x, f.week.at, `${f.week.label} has no games and is off its own label`);
 });
 
+test("a week nobody scored in is still a dot in its own middle", () => {
+  /* Not the same thing as a week with no rows. Every game in it was won by a
+     team nobody drafted - a real Saturday that moves nobody - so the rows are
+     there and not one of them draws a frame. Counting rows would put the lone
+     dot on the divider with its name half a week away. */
+  const blanked = results.map((g) =>
+    g.key === byWeek[1].key
+      ? { ...g, points: 0, winner: { team: g.winner.team, manager: null } }
+      : g
+  );
+  const { frames } = raceFrames(byWeek, blanked, managers);
+  const closes = frames.filter((f) => f.week);
+  assert.equal(closes[1].x, closes[1].week.at,
+    "a week that scored nothing was closed on its edge anyway");
+  assert.ok(closes[0].x > closes[0].week.at, "and a week that did score was not");
+});
+
 test("every frame knows which week it is in", () => {
   /* What the window filters on. A frame with the wrong week index is a game
      drawn in the wrong month. */

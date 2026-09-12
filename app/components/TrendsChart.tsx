@@ -242,7 +242,13 @@ export function TrendsChart({
       for (const f of shown) {
         const v = V.y(f.totals, manager);
         if (typeof v !== "number") continue;
-        pts.push({ x: r(xAt(f.x)), y: r(yAt(v)), v, week: Boolean(f.week) });
+        /* The week before the window closes the lead-in, and it is where the
+           line enters rather than a week the chart is showing: the window
+           gives it no label and no divider, so a marker on it would be a
+           fifth dot in a four week view. It still anchors the line, because
+           four weeks of movement needs the level everybody started them on. */
+        const owned = Boolean(f.week) && f.wi >= firstWeek;
+        pts.push({ x: r(xAt(f.x)), y: r(yAt(v)), v, week: owned });
       }
       /* A vertex is only needed where a line turns, plus every week boundary -
          those are what the hidden table is checked against, and a flat week
@@ -305,7 +311,7 @@ export function TrendsChart({
       }
     }
 
-    return { all, base, top, series, labels, weeks: inWindow, xAt, shown };
+    return { all, base, top, series, labels, weeks: inWindow, xAt, shown, firstWeek };
   }, [season, view, weeksBack]);
 
   if (!byWeek.length) {
@@ -318,7 +324,7 @@ export function TrendsChart({
   }
 
   const V = VIEWS[view];
-  const { all, base, top, series, labels, weeks, xAt, shown } = model;
+  const { all, base, top, series, labels, weeks, xAt, shown, firstWeek } = model;
   const ticks = ticksFor(base, top);
   const span = spanOf(shown.length);
   /* Where the plot stops and the gutter of names starts. */
@@ -478,6 +484,18 @@ export function TrendsChart({
               every chart with bands labels them. Without the dividers the same
               label just looked half a week adrift of the marker beside it,
               which is what it was before this loop drew anything. */}
+          {/* Where the window opens, when it is not the start of the season.
+              Without it the lead-in runs into the first week with nothing
+              between them, and the first label looks adrift of its own band. */}
+          {firstWeek > 0 && weeks.length > 0 && (
+            <line
+              x1={r(xAt(weeks[0].x0))}
+              x2={r(xAt(weeks[0].x0))}
+              y1={GEOM.padT}
+              y2={GEOM.H - GEOM.padB}
+              className="wk"
+            />
+          )}
           {weeks.map((w, i) => (
             <g key={w.key}>
               {i < weeks.length - 1 && (
