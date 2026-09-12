@@ -318,9 +318,41 @@ describe("the race chart", () => {
     );
     expect(labels.length).toBe(xs.length);
     labels.forEach((lx, i) => expect(lx, `week ${i + 1}`).toBeCloseTo(xs[i], 3));
-    /* and the line uses the width it was given rather than starting a quarter
-       of the way in */
-    expect(xs[0]).toBeCloseTo(GEOM.padL, 3);
+    /* Each dot in the middle of its own band, and the bands filling the plot.
+       Not flush to the left edge: a week is a band here and its dot is the
+       middle of it, so half a band of lead-in either side is the first half
+       of week one rather than blank space. */
+    const plotW = GEOM.W - GEOM.padL - GEOM.padR;
+    const band = plotW / byWeek.length;
+    xs.forEach((x, i) =>
+      expect(x, `week ${i + 1} is not centred in its band`)
+        .toBeCloseTo(GEOM.padL + band * (i + 0.5), 3)
+    );
+  });
+
+  test("a week results has not caught up on still gets its whole band", async () => {
+    /* The bot writes a week into byWeek before results covers it, which the
+       code calls routine. That week has no game to close it, so its dot is
+       the middle of its band - and ending the plot on the last frame clipped
+       the band in half and left the name jammed against the gutter. */
+    const onlyFirst = payload.results.filter((g: any) => g.key === byWeek[0].key);
+    const { container } = render(
+      <TrendsChart byWeek={byWeek} managers={managers} results={onlyFirst} />
+    );
+    const root = container as unknown as HTMLElement;
+    const plotW = GEOM.W - GEOM.padL - GEOM.padR;
+    const band = plotW / byWeek.length;
+
+    const labels = [...root.querySelectorAll("text.ax.mid")].map((t) =>
+      Number(t.getAttribute("x"))
+    );
+    expect(labels.length).toBe(byWeek.length);
+    labels.forEach((x, i) =>
+      expect(x, `week ${i + 1} is not centred in its band`)
+        .toBeCloseTo(GEOM.padL + band * (i + 0.5), 3)
+    );
+    /* and no label has been pushed out onto the gutter */
+    expect(labels[labels.length - 1]).toBeLessThan(GEOM.padL + plotW);
   });
 
   test("the weeks are divided, which is what lets the labels sit in the middle", async () => {
@@ -594,10 +626,14 @@ describe("the race chart", () => {
 
     const labels = [...root.querySelectorAll("text.ax.mid")];
     expect(labels.length).toBe(4);
-    for (const m of managers) {
-      expect(weeksOf(root, m).length, `${m} has a dot the window does not name`)
-        .toBe(labels.length);
-    }
+    /* Counted off the drawn markers, not off data-week-points. The attribute
+       excludes the lead-in by construction, so counting it would pass while
+       the fifth dot sat there on the screen - which is exactly what the first
+       version of this test did. */
+    expect(
+      root.querySelectorAll("[data-marker]").length,
+      "a dot the window does not name"
+    ).toBe(labels.length * managers.length);
     /* the line still starts before the first named week, because that is the
        level the window opened on */
     expect(seriesOf(root, managers[0]).length).toBeGreaterThan(labels.length);

@@ -219,11 +219,21 @@ export function TrendsChart({
       (f) => f.wi >= firstWeek || (Boolean(f.week) && f.wi === firstWeek - 1)
     );
     const inWindow = weeks.slice(firstWeek);
-    /* The left-hand edge is whatever actually got through, so the plot starts
-       on data rather than on the slice boundary it happens to sit after -
-       which is what used to leave a quarter of the chart blank. */
-    const from = shown.length ? shown[0].x : 0;
-    const reach = Math.max(1e-9, (shown.length ? shown[shown.length - 1].x : 1) - from);
+    /* The plot covers whole weeks: from the start of the first band it is
+       showing to the end of the last, widened to take in the lead-in frame
+       where a window carries one.
+
+       Not just the span of the frames themselves, which is what this did
+       first. A week's dot does not sit at either end of its own band - in the
+       fallback it is the middle, and a week the payload knows about but
+       `results` has not caught up on has no game to close it - so ending on
+       the last frame clipped that week's band in half and left its name
+       jammed against the gutter instead of centred under it. */
+    const first = inWindow.length ? inWindow[0].x0 : 0;
+    const last = inWindow.length ? inWindow[inWindow.length - 1].x1 : 1;
+    const from = shown.length ? Math.min(shown[0].x, first) : first;
+    const to = shown.length ? Math.max(shown[shown.length - 1].x, last) : last;
+    const reach = Math.max(1e-9, to - from);
 
     /* Fitted to everybody, not to the selection. Dimming seven managers is a
        way of finding your own line in the pack; if it rescaled the axis it
@@ -553,7 +563,12 @@ export function TrendsChart({
                     3.2-unit dot behind a 26-unit face is invisible when it
                     lands and a smudge on the chin when the face is nudged. */}
                 {s.coords.map((p, i) => {
-                  if (season.perGame && !p.week) return null;
+                  /* Week frames only, in both modes. Not gated on `perGame`:
+                     the lead-in frame the window carries is not a week the
+                     chart is showing, and in the fallback - where every other
+                     frame is a week - that gate let it through and drew five
+                     dots under four labels. */
+                  if (!p.week) return null;
                   if (s.style.kart && i === s.coords.length - 1) return null;
                   const shape = MARKER[s.style.marker](p.x, p.y);
                   return shape ? (
