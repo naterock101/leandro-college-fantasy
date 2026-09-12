@@ -1,20 +1,29 @@
 import { useMemo } from "react";
 
 import { cap } from "../../lib/format.mjs";
+import { VIEWS, axisFor, corners, raceFrames, windowStart } from "../../lib/race.mjs";
+import { useViewState } from "../hooks/useViewState";
 import type { Data } from "../types";
+import { Dropdown } from "./Dropdown";
 import { KartIcon, KARTS, type Marker } from "./Karts";
 
 /**
- * The race: every manager's running points total, week by week.
+ * The race: every manager's running total, game by game.
  *
  * Hand-rolled SVG. A charting library would be a runtime dependency in a repo
  * whose first ground rule is that there are none, and this chart is one
  * polyline per manager against a linear scale - the library would be several
  * hundred kilobytes to avoid about forty lines of arithmetic.
  *
- * Everything it draws comes from `byWeek[].cumulative`, which is in the
- * always-fetched core file, so the chart is on screen the moment the tab
- * opens rather than after a second request.
+ * The arithmetic itself lives in `lib/race.mjs`, which is where the tests that
+ * matter can reach it without a DOM. What is left here is the drawing and the
+ * three controls.
+ *
+ * It reads `results` where it used to read only `byWeek`. The Trends tab
+ * already fetches `results.json` for the head-to-head matrix below, so the
+ * finer picture costs no extra request and no extra byte - and until that file
+ * lands (or if it never does) the chart falls back to the week-by-week shape
+ * it has always drawn, out of the always-fetched core.
  */
 
 /* The drawing surface, in user units rather than pixels: the svg carries a
@@ -24,22 +33,10 @@ import { KartIcon, KARTS, type Marker } from "./Karts";
    match eight colours to eight names by memory, which is exactly the task
    colour-blindness makes impossible and everyone else finds tedious.
 
-   The vertical half is fixed and the horizontal half is not: `W` is the width
-   of a season with weeks in it, and a single scored week draws a much narrower
-   box instead. Only the height and the vertical padding are load-bearing for
-   the tests, which invert a plotted y back into points to check it against the
-   hidden table - hard-coding those in the test would mean a change here
-   silently stops the test measuring anything.
-
    `H` is 440 rather than the 280 this started at, and the extra 160 units are
    not decoration. A driver is 26 units tall and must not overlap the next one,
    so the height is what decides how close on points two managers can be and
-   still each keep their face on their own line. The arithmetic that picked the
-   number: the axis below fits the plot to the spread of the pack, this league
-   opened about 14 points wide, and 440 leaves 400 units of plot - which is
-   about 28 units for every point of difference between two managers. One point
-   apart is therefore still two lanes rather than a pile. At 280 it was 17, and
-   the whole grid had to be shoved apart to be read at all.
+   still each keep their face on their own line.
 
    `W` is deliberately left alone. The svg is never drawn wider than its own
    units but on a phone it is drawn a good deal narrower, and every unit added
@@ -48,21 +45,28 @@ import { KartIcon, KARTS, type Marker } from "./Karts";
    in both directions. */
 export const GEOM = { W: 460, H: 440, padL: 30, padR: 132, padT: 14, padB: 26 };
 
+/* Derived from the table rather than written out again, so a fourth view is
+   one edit in lib/race.mjs and nothing here. */
+type ViewId = keyof typeof VIEWS;
+const VIEW_IDS = Object.keys(VIEWS) as ViewId[];
+
 const plotW = GEOM.W - GEOM.padL - GEOM.padR;
 const plotH = GEOM.H - GEOM.padT - GEOM.padB;
 
-/* One week is a column of dots, not a race, and stretching that column across
-   580 units of empty grid draws a chart that looks broken rather than early.
-   So the plot collapses to the width of the markers themselves and the svg
-   goes with it - which turns the one-week case into the dot plot it actually
-   is, and turns back into a race the moment a second Saturday lands. Worth
-   the special case because the league spends the first week of every season
-   looking at it, and this season is there now. */
+/* A season with one moment in it is a column of dots, not a race, and
+   stretching that column across the whole grid draws a chart that looks broken
+   rather than early. So the plot collapses to the width of the markers
+   themselves. Keyed on how many distinct moments are actually plotted rather
+   than on how many weeks are scored: one week used to mean one dot, and now
+   means sixty-five games and a genuine line. */
 const spanOf = (n: number) => (n <= 1 ? 30 : plotW);
 
-/* Enough precision that inverting a coordinate lands back on the integer it
+/* Enough precision that inverting a coordinate lands back on the number it
    came from, short enough that the points attribute stays readable. */
 const r = (n: number) => Math.round(n * 1000) / 1000;
+
+/** How many weeks the short window covers, when the season is long enough. */
+const WINDOW = 4;
 
 /**
  * Series that stay apart without hue doing the work.
@@ -73,16 +77,12 @@ const r = (n: number) => Math.round(n * 1000) / 1000;
  * because it is a picture of a specific thing rather than one value along an
  * axis. The dash pattern comes from the same table and is still doing work -
  * eight distinguishable hues do not exist on a dark ground for a deuteranope,
- * so the pairs that hue does not separate are given different strokes. See
- * the grid in Karts.tsx for which pairs and why.
+ * so the pairs that hue does not separate are given different strokes.
  *
  * A manager with no driver - a mid-season addition, or a payload written by a
- * bot that knows a name this build does not - falls back to what the chart did
- * before: four tokens used twice over, the pair that shares a colour told
- * apart by stroke pattern and marker shape. It is the same fallback the rest
- * of this file uses for a manager who is in one list and not the other, and
- * for the same reason: a name nobody has drawn yet should cost a plain line
- * and nothing else.
+ * bot that knows a name this build does not - falls back to four tokens used
+ * twice over, the pair that shares a colour told apart by stroke pattern and
+ * marker shape.
  */
 const IN = ["var(--amber)", "var(--teal)", "var(--chalk)", "var(--red)"];
 const DASH = ["none", "6 4"];
@@ -130,167 +130,150 @@ const MARKER: Record<Marker, (x: number, y: number) => string> = {
    this size is a smudge, and a face is still a face. */
 const ICON = 26;
 
-const shortLabel = (w: Data["byWeek"][number]) =>
-  w.seasonType === "postseason" ? `P${w.week}` : `W${w.week}`;
-
-type Series = {
-  manager: string;
-  /* one entry per week, null before the manager appears in the payload */
-  values: (number | null)[];
-  coords: [number, number][];
-  style: ReturnType<typeof styleFor>;
-};
-
 /* Step sizes a reader counts in. 4 is in the list and 3 is not, which is the
    whole point of having a list: the steps people read off an axis without
    thinking are the ones they can add up in their head. */
 const STEPS = [1, 2, 4, 5, 10, 20, 25, 50, 100];
 
 /**
- * The gridlines, as values: a round step near a quarter of the range, then
- * every multiple of it the axis actually covers.
+ * The gridlines, as values: a round step near a fifth of the range, then every
+ * multiple of it the axis actually covers.
  *
- * The alternative - four equal slices of whatever the range happens to be -
- * is what this drew first, and on a fitted axis a quarter is almost never a
- * whole number: a league 14 points wide got 10, 14, 17, 21, 24, which are
- * five correct numbers in four different gaps, and a ruler with uneven
- * markings is harder to read than no ruler. Rounding the labels instead is
- * worse again, because then the line is not where its own label says.
- *
- * The leader's total may not land on one of these, and that is fine: their
- * name and their number are in the gutter at the end of their line, which is
- * where this chart answers "how many" anyway.
+ * The alternative - equal slices of whatever the range happens to be - is what
+ * this drew first, and on a fitted axis a quarter is almost never a whole
+ * number: a league 14 points wide got 10, 14, 17, 21, 24, which are five
+ * correct numbers in four different gaps, and a ruler with uneven markings is
+ * harder to read than no ruler. Rounding the labels instead is worse again,
+ * because then the line is not where its own label says.
  */
 const ticksFor = (base: number, top: number) => {
   const step = STEPS.find((v) => (top - base) / v <= 5) ?? Math.ceil((top - base) / 5);
   const out: number[] = [];
   for (let v = Math.ceil(base / step) * step; v <= top; v += step) out.push(v);
-  /* Unreachable from `axisOf`, which hands over a whole-number floor and a
-     top at least one above it - and a step is never wider than the range, so
-     a multiple always lands inside. Kept because `ticksFor` is arithmetic on
-     two numbers and nothing in its signature promises where they came from:
-     an axis with no lines on it at all reads as a chart that failed to draw,
+  /* An axis with no lines on it at all reads as a chart that failed to draw,
      which is a worse thing to ship than one dead line. */
   return out.length ? out : [base, top];
 };
 
 /**
- * The slice of the scoreboard the plot covers.
+ * The axis the chart has always fitted, kept at its old name and signature
+ * because that is what the tests invert coordinates through.
  *
- * Not zero-based, and that is the point. Cumulative points only ever go up,
- * so a zero-based axis spends most of its height on the stretch of the season
- * everybody has already driven through: by the second Saturday the whole
- * league lived in the top half of this chart as one band, every driver had to
- * be shoved off its own line to be legible, and the picture answered "who is
- * ahead" with eight faces in a column that were no longer standing on
- * anything. Fitting the axis to the pack spends the plot on the difference
- * between managers, which is the only thing this chart is read for.
- *
- * The top stays the leader's exact total rather than a rounded-up ceiling:
- * rounding puts the leading line short of the top of the plot, which reads as
- * everyone having further to go than they do.
- *
- * The floor is the back of the pack less a tenth of the spread, so the last
- * manager's line is not drawn along the axis itself and mistaken for zero,
- * and never less than a whole point below them - which is also what keeps a
- * league where everybody is level from dividing by nothing. It is clamped at
- * zero because a negative total is not a thing and an axis that starts at -1
- * says it might be.
- *
- * There is no sentence under the chart saying the scale is truncated; there
- * was one and it was cut, because it explained a convention the numbers
- * already carry. What carries it instead is the gutter, which prints every
- * manager's total beside their name, and the labelled gridlines, whose lowest
- * is plainly not zero. Nothing on this chart is read as a proportion of the
- * plot's height - it is read as an order, and an order survives a floor.
+ * Not zero-based, and that is the point. The numbers this draws are a long way
+ * from nought, and a scale that starts there spends most of its height on the
+ * stretch of the season everybody has already driven through.
  */
-export const axisOf = (values: number[]) => {
-  const hi = values.length ? Math.max(...values) : 1;
-  const lo = values.length ? Math.min(...values) : 0;
-  const base = Math.max(0, Math.floor(lo - Math.max(1, (hi - lo) / 10)));
-  return { base, top: Math.max(hi, base + 1) };
-};
+export const axisOf = (values: number[]) => axisFor(values, { floorAtZero: true });
 
 /** Where a value sits vertically, given the range the axis covers. */
-const yAt = (v: number, base: number, top: number) =>
-  GEOM.H - GEOM.padB - ((v - base) / (top - base)) * plotH;
-
-const xAt = (i: number, n: number) =>
-  GEOM.padL + (n <= 1 ? spanOf(n) : (i / (n - 1)) * plotW);
+const yOf = (v: number, base: number, top: number, down: boolean) =>
+  down
+    ? GEOM.padT + ((v - base) / (top - base)) * plotH
+    : GEOM.H - GEOM.padB - ((v - base) / (top - base)) * plotH;
 
 export function TrendsChart({
   byWeek,
   managers,
+  results = [],
 }: {
   byWeek: Data["byWeek"];
   managers: string[];
+  results?: NonNullable<Data["results"]>;
 }) {
-  const model = useMemo(() => {
-    /* The union, not the standings list. A manager can be in one and not the
-       other in both directions - the bot writes a week before a late joiner
-       is in the league, and a payload written by an older bot can carry a
-       manager the current standings have dropped - and a chart that silently
-       omitted either would be wrong in the way nobody checks. */
-    const all = [
-      ...new Set([...managers, ...byWeek.flatMap((w) => Object.keys(w.cumulative ?? {}))]),
-    ].sort();
+  /* Kept on the shell rather than in this component, like every other control
+     on the page: switching to Trophies and back must not throw away the view
+     somebody chose. */
+  const [view, setView] = useViewState<ViewId>("race.view", "points");
+  const [weeksBack, setWeeksBack] = useViewState<number>("race.window", 0);
+  /* Empty means everybody, which is the same convention the three other
+     dropdowns on this page use - and what keeps "all" stable when a manager
+     joins or leaves. */
+  const [sel, setSel] = useViewState<string[]>("race.only", []);
 
-    /* Every number that will be plotted, which is what the axis is fitted to
-       - not just the last week's, because an early week below the floor would
-       be drawn off the bottom of its own chart. */
-    const { base, top } = axisOf(
-      byWeek.flatMap((w) => Object.values(w.cumulative ?? {}).map((c) => c.points))
+  const season = useMemo(
+    () => raceFrames(byWeek, results, managers),
+    [byWeek, results, managers]
+  );
+
+  const model = useMemo(() => {
+    const { all, weeks, frames } = season;
+    const V = VIEWS[view];
+    const from = windowStart(weeks.length, weeksBack);
+    /* Week boundaries are exactly where a window starts, so the frame that
+       closes the week before it is already in the set - no interpolation, and
+       the first column of the window is a real moment rather than a guess. */
+    const shown = frames.filter((f) => f.x >= from - 1e-9);
+    const inWindow = weeks.filter((w) => w.x1 > from + 1e-9);
+
+    /* Fitted to everybody, not to the selection. Dimming seven managers is a
+       way of finding your own line in the pack; if it rescaled the axis it
+       would be a different chart each time, and the one thing you could not
+       then do is compare yourself to the pack you just hid. */
+    const { base, top } = axisFor(
+      shown.flatMap((f) => all.map((m) => V.y(f.totals, m))),
+      { floorAtZero: V.floorAtZero }
     );
 
-    const series: Series[] = all.map((manager, i) => {
-      const values = byWeek.map((w) => w.cumulative?.[manager]?.points ?? null);
-      /* A manager absent from an early week did not score nothing that week -
-         they were not in the payload. Backfilling a zero would draw a flat
-         line along the bottom that says they played and lost, so the line
-         starts at the first week they exist and the table leaves a gap. */
-      const from = values.findIndex((v) => v !== null);
-      const coords: [number, number][] =
-        from < 0
-          ? []
-          : values
-              .map((v, x) => [v, x] as const)
-              .filter(([v, x]) => v !== null && x >= from)
-              .map(([v, x]) => [r(xAt(x, byWeek.length)), r(yAt(v as number, base, top))]);
-      return { manager, values, coords, style: styleFor(manager, i) };
+    const xAt = (x: number) =>
+      GEOM.padL + (from >= 1 ? 0 : (x - from) / (1 - from)) * spanOf(shown.length);
+    const yAt = (v: number) => yOf(v, base, top, V.down);
+
+    const series = all.map((manager, i) => {
+      const pts: { x: number; y: number; v: number; week: boolean }[] = [];
+      for (const f of shown) {
+        const v = V.y(f.totals, manager);
+        if (typeof v !== "number") continue;
+        pts.push({ x: r(xAt(f.x)), y: r(yAt(v)), v, week: Boolean(f.week) });
+      }
+      /* A vertex is only needed where a line turns, plus every week boundary -
+         those are what the hidden table is checked against, and a flat week
+         would otherwise lose the marker that says it happened. On the points
+         view most frames repeat the one before them, because a total only
+         moves on a game its owner won. */
+      const keep = corners(pts.map((p) => p.y));
+      const coords = pts.filter((p, j) => p.week || keep.has(j));
+      /* What the gutter prints. Taken from this manager's own last plotted
+         value rather than from the last frame of the season: a manager the
+         payload stopped carrying has no value there, and `NaN` in the gutter
+         is a worse answer than their last real one. */
+      const value = pts.length ? pts[pts.length - 1].v : null;
+      return { manager, coords, value, style: styleFor(manager, i) };
     });
 
-    /* Drivers and names stack up wherever two managers are level, which after
-       one week is most of them and in the first week of this season was all
-       eight. Push them apart from the top down, then, if the column has run
-       off the bottom, push it back up from the bottom - rather than sliding
-       the whole column, which just moves the overflow to the other end and
-       paints the leader's name over the paragraph above the chart, because
-       the svg is `overflow:visible` and nothing clips it.
+    /* Drivers and names stack up wherever two managers are level. Push them
+       apart from the top down, then, if the column has run off the bottom,
+       push it back up from the bottom - rather than sliding the whole column,
+       which just moves the overflow to the other end and paints the leader's
+       name over the paragraph above the chart, because the svg is
+       `overflow:visible` and nothing clips it.
 
        The gap wants to be the height of a driver rather than the height of a
        name, because the faces are the thing that must not overlap: two names a
        few units apart are still two names, and two faces a few units apart are
-       a pile. Eight of them want 196 of the plot's 240 units, which fits - but
+       a pile. Eight of them want 196 of the plot's 400 units, which fits - but
        "fits" is a fact about this league and not about this code, and at ten
        managers the column stops fitting and the passes below clamp the surplus
        onto padT, which draws three names on one coordinate. So the gap is
        whatever the column can actually afford, and only then the height of a
-       face. Crowding faces is a worse chart; stacking names is a broken one. */
+       face. */
     const labels = series
       .filter((s) => s.coords.length)
-      .map((s) => ({
-        s,
-        y: s.coords[s.coords.length - 1][1],
-        /* where the line actually ends, kept because `y` is about to move.
-           A driver that has been nudged off its own line is drawn with a
-           leader back down to this, so the chart never claims a total it is
-           not showing. */
-        at: s.coords[s.coords.length - 1][1],
-        x: s.coords[s.coords.length - 1][0],
-        /* the total the name is standing next to, so the gutter answers "how
-           many" as well as "who" and the chart needs no hover */
-        points: s.values.filter((v): v is number => v !== null).slice(-1)[0],
-      }))
+      .map((s) => {
+        const end = s.coords[s.coords.length - 1];
+        return {
+          s,
+          y: end.y,
+          /* where the line actually ends, kept because `y` is about to move.
+             A driver nudged off its own line is drawn with a leader back down
+             to this, so the chart never claims a total it is not showing. */
+          at: end.y,
+          x: end.x,
+          /* the figure the name is standing next to, in whatever the chart is
+             currently measuring, so the gutter answers "how many" as well as
+             "who" and the chart needs no hover */
+          value: s.value as number,
+        };
+      })
       .sort((a, b) => a.y - b.y);
     const GAP = Math.min(ICON + 2, labels.length > 1 ? plotH / (labels.length - 1) : ICON + 2);
     let prev = -Infinity;
@@ -303,8 +286,8 @@ export function TrendsChart({
       }
     }
 
-    return { all, base, top, series, labels, weeks: byWeek };
-  }, [byWeek, managers]);
+    return { all, base, top, series, labels, weeks: inWindow, xAt, shown };
+  }, [season, view, weeksBack]);
 
   if (!byWeek.length) {
     return (
@@ -315,25 +298,116 @@ export function TrendsChart({
     );
   }
 
-  const { base, top, series, labels, weeks } = model;
+  const V = VIEWS[view];
+  const { all, base, top, series, labels, weeks, xAt, shown } = model;
   const ticks = ticksFor(base, top);
-  /* Every week label at four weeks, every second or third by December: twelve
-     labels across 306 units would overlap. The last week is labelled too, but
-     only when it is a full step clear of the previous one - at twelve weeks
-     and a step of two, W12 lands one unit from W11 and the pair reads as a
-     smudge, and the gutter already says where the season has got to. */
-  const every = Math.ceil(weeks.length / 9);
-  const lastTick = Math.floor((weeks.length - 1) / every) * every;
-  const tick = (i: number) =>
-    i % every === 0 || (i === weeks.length - 1 && weeks.length - 1 - lastTick >= every);
-  const span = spanOf(weeks.length);
+  const span = spanOf(shown.length);
   /* Where the plot stops and the gutter of names starts. */
   const gutter = GEOM.padL + span;
-
   const box = gutter + GEOM.padR;
+  const dim = (m: string) => sel.length > 0 && !sel.includes(m);
+  /* Every week label on a short season, every second or third by December:
+     twelve labels across 300 units would overlap. */
+  const every = Math.ceil(weeks.length / 9);
+  const windowed = weeksBack > 0 && season.weeks.length > weeksBack;
+
+  /* A real minus sign rather than a hyphen: these sit in a monospace column
+     beside a proportional name, and the hyphen is visibly too short for the
+     digits it qualifies. Used by the axis labels as well as the gutter - the
+     two have to read as the same number. */
+  const signed = (v: number, dp = 0) =>
+    `${v < 0 ? "−" : "+"}${Math.abs(v).toFixed(dp)}`;
+
+  /** The number in the gutter, in the unit the chart is currently drawn in. */
+  const badge = (v: number) =>
+    view === "gap"
+      ? /* Never signed. The axis counts downwards and the caption says
+           "behind", so a minus here would be a second negative on a number
+           that is already a deficit - and the axis labels, which cannot carry
+           one, would then disagree with the gutter. The leader is a word
+           rather than a nought, because "0 behind" is not how anybody says
+           it. */
+        v === 0
+        ? "leader"
+        : String(Math.round(v))
+      : view === "avg"
+      ? signed(v, 1)
+      : String(Math.round(v));
 
   return (
     <>
+      <div className="filters">
+        <div className="seg" role="group" aria-label="What the chart measures">
+          {VIEW_IDS.map((id) => (
+            <button
+              key={id}
+              type="button"
+              className="segbtn"
+              aria-pressed={view === id}
+              onClick={() => setView(id)}
+            >
+              {VIEWS[id].label}
+            </button>
+          ))}
+        </div>
+        {/* Only once there is a season to cut down. A window wider than the
+            league has played is not a choice, it is the same chart twice. */}
+        {season.weeks.length > WINDOW && (
+          <div className="seg" role="group" aria-label="How much of the season">
+            <button
+              type="button"
+              className="segbtn"
+              aria-pressed={weeksBack === 0}
+              onClick={() => setWeeksBack(0)}
+            >
+              Full season
+            </button>
+            <button
+              type="button"
+              className="segbtn"
+              aria-pressed={weeksBack === WINDOW}
+              onClick={() => setWeeksBack(WINDOW)}
+            >
+              Last {WINDOW} weeks
+            </button>
+          </div>
+        )}
+        <Dropdown
+          name="race"
+          summary={
+            sel.length === 0
+              ? "All managers"
+              : sel.length === 1
+              ? cap(sel[0])
+              : `${sel.length} managers`
+          }
+          allLabel="All managers"
+          options={all.map((m) => ({
+            value: m,
+            label: cap(m),
+            badge: (
+              <span
+                className="ddot"
+                style={{ background: styleFor(m, all.indexOf(m)).stroke }}
+                aria-hidden="true"
+              />
+            ),
+          }))}
+          selected={sel}
+          onClear={() => setSel([])}
+          onToggle={(m) =>
+            setSel((v) => (v.includes(m) ? v.filter((x) => x !== m) : [...v, m]))
+          }
+        />
+      </div>
+
+      <p className="asof">
+        {V.caption}{" "}
+        {windowed ? `The last ${WINDOW} weeks only. ` : ""}
+        Names sit at the end of their own line; the number beside each is{" "}
+        {V.gutter}.
+      </p>
+
       <div className="race">
         {/* The numbers live in the table below, which is the accessible
             version of this and not a supplement to it. Announcing the svg as
@@ -353,11 +427,7 @@ export function TrendsChart({
           {/* The floor of the plot, drawn as an axis rather than as a
               gridline: it carries no label because the value it sits on is
               the fitted floor, which is a number nobody chose and nobody
-              needs. It exists because the gridlines are now on round
-              multiples and the lowest of them is usually a little way up the
-              chart - which left the bottom of the plot as open space, the
-              week labels floating under nothing, and the whole drawing
-              looking like it had been cut off. */}
+              needs. */}
           <line
             x1={GEOM.padL}
             x2={gutter}
@@ -366,38 +436,47 @@ export function TrendsChart({
             className="grid"
           />
 
-          {ticks.map((v, i) => (
-            <g key={i}>
-              <line
-                x1={GEOM.padL}
-                x2={gutter}
-                y1={r(yAt(v, base, top))}
-                y2={r(yAt(v, base, top))}
-                className="grid"
-              />
-              <text x={GEOM.padL - 6} y={r(yAt(v, base, top)) + 3} className="ax r">
-                {v}
-              </text>
-            </g>
-          ))}
+          {ticks.map((v, i) => {
+            const y = r(yOf(v, base, top, V.down));
+            return (
+              <g key={i}>
+                <line x1={GEOM.padL} x2={gutter} y1={y} y2={y}
+                      className={view === "avg" && v === 0 ? "grid zero" : "grid"} />
+                <text x={GEOM.padL - 6} y={y + 3} className="ax r">
+                  {view === "avg" && v !== 0 ? signed(v) : v}
+                </text>
+              </g>
+            );
+          })}
 
+          {/* One divider per week, so the x axis still reads as a calendar
+              even though the line inside it moves game by game. */}
           {weeks.map((w, i) =>
-            tick(i) ? (
+            i % every === 0 ? (
               <text
                 key={w.key}
-                x={r(xAt(i, weeks.length))}
+                x={r(xAt((Math.max(w.x0, 0) + w.x1) / 2))}
                 y={GEOM.H - GEOM.padB + 15}
                 className="ax mid"
               >
-                {shortLabel(w)}
+                {w.short}
               </text>
             ) : null
           )}
 
           {series.map((s) => {
-            const pts = s.coords.map(([x, y]) => `${x},${y}`).join(" ");
+            const pts = s.coords.map((p) => `${p.x},${p.y}`).join(" ");
             return (
-              <g key={s.manager} data-series={s.manager} data-points={pts}>
+              <g
+                key={s.manager}
+                data-series={s.manager}
+                data-points={pts}
+                data-week-points={s.coords
+                  .filter((p) => p.week)
+                  .map((p) => `${p.x},${p.y}`)
+                  .join(" ")}
+                className={dim(s.manager) ? "off" : undefined}
+              >
                 {/* One point is a position, not a direction. A polyline
                     through it draws nothing anyway, so this is about not
                     claiming a trend in the markup either. */}
@@ -407,23 +486,25 @@ export function TrendsChart({
                     fill="none"
                     stroke={s.style.stroke}
                     strokeDasharray={s.style.dash}
-                    strokeWidth="2"
+                    strokeWidth={sel.includes(s.manager) ? 3 : 2}
                     strokeLinejoin="round"
                     strokeLinecap="round"
                   />
                 )}
-                {/* Every point but the head of the line, which is drawn in a
-                    later pass as the driver. Skipping it here rather than
-                    drawing a dot underneath is deliberate: a 3.2-unit dot
-                    behind a 17-unit face is invisible when it lands and a
-                    smudge on the chin when the face is a few units off. */}
-                {s.coords.map(([x, y], i) => {
+                {/* A dot per week rather than per game: at sixty-five games a
+                    Saturday the markers would be a solid bar, and the week is
+                    the tick a reader counts in anyway. The head of the line is
+                    skipped because it is drawn later as the driver - a
+                    3.2-unit dot behind a 26-unit face is invisible when it
+                    lands and a smudge on the chin when the face is nudged. */}
+                {s.coords.map((p, i) => {
+                  if (season.perGame && !p.week) return null;
                   if (s.style.kart && i === s.coords.length - 1) return null;
-                  const pts = MARKER[s.style.marker](x, y);
-                  return pts ? (
-                    <polygon key={i} data-marker="" points={pts} fill={s.style.stroke} />
+                  const shape = MARKER[s.style.marker](p.x, p.y);
+                  return shape ? (
+                    <polygon key={i} data-marker="" points={shape} fill={s.style.stroke} />
                   ) : (
-                    <circle key={i} data-marker="" cx={x} cy={y} r="3.2" fill={s.style.stroke} />
+                    <circle key={i} data-marker="" cx={p.x} cy={p.y} r="3.2" fill={s.style.stroke} />
                   );
                 })}
               </g>
@@ -433,15 +514,11 @@ export function TrendsChart({
           {/* The drivers, after every line rather than inside their own
               series, because a face belongs on top of all eight lines and not
               only on top of the ones drawn before it. They carry `data-marker`
-              because that is what they are - each is one series' last point -
-              so a one-week season is eight faces on a start line rather than a
-              chart with no markers at all.
+              because that is what they are - each is one series' last point.
 
               They ride the decluttered y rather than the raw one, and where
               those differ a leader runs back to the line. Left on the raw one
-              they simply overlap: this season opened with all eight managers
-              inside twelve points of each other, which is 120 units of chart
-              for 208 units of face. */}
+              they simply overlap. */}
           {/* Leaders first and faces second, in two passes rather than one:
               drawn inside each driver's own group, the eighth manager's leader
               is painted across the first manager's face. */}
@@ -455,27 +532,31 @@ export function TrendsChart({
                 y2={r(y)}
                 stroke={s.style.stroke}
                 strokeWidth="1.5"
-                className="lead"
+                className={dim(s.manager) ? "lead off" : "lead"}
               />
             ) : null
           )}
           {labels.map(({ s, y, x }) =>
             s.style.kart ? (
-              <g key={s.manager} data-marker="" data-kart={s.manager}>
+              <g
+                key={s.manager}
+                data-marker=""
+                data-kart={s.manager}
+                className={dim(s.manager) ? "off" : undefined}
+              >
                 <KartIcon kart={s.style.kart} x={x} y={r(y)} size={ICON} />
               </g>
             ) : null
           )}
 
-          {labels.map(({ s, y, points }) => (
-            <g key={s.manager}>
+          {labels.map(({ s, y, value }) => (
+            <g key={s.manager} className={dim(s.manager) ? "off" : undefined}>
               {/* A sample of the line itself, so the dash pattern is beside
-                  the name rather than only out in the plot. */}
-              {/* Clear of the driver, which is centred on the last point and
-                  so overhangs the plot by half its own width. The sample is
-                  still here rather than replaced by a second copy of the face:
-                  it carries the dash pattern, which is the half of the key
-                  that a face cannot show. */}
+                  the name rather than only out in the plot. Clear of the
+                  driver, which is centred on the last point and so overhangs
+                  the plot by half its own width. It is still here rather than
+                  replaced by a second copy of the face: it carries the dash
+                  pattern, which is the half of the key a face cannot show. */}
               <line
                 x1={gutter + ICON / 2 + 3}
                 x2={gutter + ICON / 2 + 17}
@@ -487,7 +568,7 @@ export function TrendsChart({
               />
               <text x={gutter + ICON / 2 + 21} y={r(y) + 4} className="nm" fill={s.style.stroke}>
                 {cap(s.manager)}
-                <tspan className="nmp"> {points}</tspan>
+                <tspan className="nmp"> {badge(value)}</tspan>
               </text>
             </g>
           ))}
@@ -495,15 +576,25 @@ export function TrendsChart({
       </div>
 
       {/* The chart, as numbers. This is not a courtesy copy: the svg above is
-          aria-hidden, so for a screen reader this table *is* the chart, and
-          the test that keeps the two saying the same thing inverts the drawn
-          coordinates rather than comparing two variables. */}
+          aria-hidden, so for a screen reader this table *is* the chart.
+
+          It carries running totals whichever view is on, and it is weekly
+          whatever the x axis is doing. Both of those are deliberate. A table
+          with nine hundred game columns is not an accessible table, it is a
+          punishment; and the three views are three lenses on one set of
+          numbers, so printing the totals lets a reader derive any of them
+          while switching view does not move the furniture under somebody
+          halfway through navigating it. */}
       <table className="vh">
-        <caption>Points after each week, by manager</caption>
+        <caption>
+          Points after each week, by manager. The chart above is drawn as{" "}
+          {V.label.toLowerCase()}
+          {windowed ? `, over the last ${WINDOW} weeks` : ""}.
+        </caption>
         <thead>
           <tr>
             <th scope="col">Manager</th>
-            {weeks.map((w) => (
+            {season.weeks.map((w) => (
               <th key={w.key} scope="col">
                 {w.label}
               </th>
@@ -511,12 +602,14 @@ export function TrendsChart({
           </tr>
         </thead>
         <tbody>
-          {series.map((s) => (
-            <tr key={s.manager}>
-              <th scope="row">{cap(s.manager)}</th>
-              {s.values.map((v, i) => (
-                <td key={i}>{v === null ? "—" : v}</td>
-              ))}
+          {all.map((m) => (
+            <tr key={m}>
+              <th scope="row">{cap(m)}</th>
+              {season.frames
+                .filter((f) => f.week)
+                .map((f, i) => (
+                  <td key={i}>{f.totals[m] === null ? "—" : f.totals[m]}</td>
+                ))}
             </tr>
           ))}
         </tbody>
@@ -529,6 +622,10 @@ export const css = `
     .race{margin-bottom:6px}
     .race svg{width:100%;height:auto;display:block;overflow:visible}
     .race .grid{stroke:var(--rule);stroke-width:1}
+    /* The line an average manager is standing on. Brighter than a gridline
+       because on that view it is the thing every other line is measured
+       against, and a reader who cannot find it cannot read the chart. */
+    .race .grid.zero{stroke:var(--dim);stroke-width:1.5}
     .race .ax{font-family:ui-monospace,Menlo,monospace;font-size:12px;fill:var(--muted)}
     .race .ax.r{text-anchor:end} .race .ax.mid{text-anchor:middle}
     .race .nm{font-size:15px;font-weight:600}
@@ -539,9 +636,40 @@ export const css = `
        them needed explaining. Dash and width carry that on their own: an
        opacity would dim it below the contrast floor and, worse, do it
        invisibly - see tests/contrast.test.tsx, which is why there is no
-       opacity anywhere in this stylesheet. */
+       opacity anywhere else in this stylesheet. */
     .race .lead{stroke-dasharray:3 3}
+    /* A manager the reader has filtered out. They stay on the chart rather
+       than vanishing, because the point of picking your own kart out is
+       seeing it against the pack - a pack that disappeared when you looked at
+       yourself would answer a different question.
+
+       Dimmed to a token rather than with an "opacity", which is what the
+       first cut used and what tests/contrast.test.tsx exists to stop: a name
+       at .15 is about 1.1:1 on the ink, unreadable, and invisible from the
+       stylesheet. --dim is 5.54:1 and passes AA on its own, so a backgrounded
+       manager is quieter without being illegible. The face is the exception
+       and it is not text - a greyscale PNG has no contrast floor to fail. */
+    .race .off polyline{stroke:var(--dim)}
+    .race .off line,.race line.lead.off{stroke:var(--dim)}
+    .race .off polygon,.race .off circle{fill:var(--dim)}
+    .race .off text{fill:var(--dim)}
+    .race .off image{filter:grayscale(1)}
     .race .nmp{font-family:ui-monospace,Menlo,monospace;font-size:13px;font-weight:400}
+    /* A segmented control, which is what three mutually exclusive answers to
+       one question look like. aria-pressed carries the state; the fill is
+       what says it out loud. */
+    .seg{display:flex;border:1px solid var(--rule);border-radius:6px;overflow:hidden}
+    .segbtn{background:transparent;border:0;border-right:1px solid var(--rule);
+      color:var(--muted);font:inherit;font-size:12.5px;padding:7px 11px;cursor:pointer;
+      white-space:nowrap}
+    .segbtn:last-child{border-right:0}
+    .segbtn:hover{color:var(--chalk)}
+    .segbtn[aria-pressed="true"]{background:var(--amber);color:var(--ink);font-weight:600}
+    /* The series colour beside its name in the picker, so choosing a manager
+       is choosing a line rather than reading a name and hunting for it. It
+       sits in the Dropdown's existing badge slot and is aria-hidden: the name
+       is already the label, and "green" is not a second fact about it. */
+    .ddot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
     /* Off the screen but in the accessibility tree, which display:none and
        visibility:hidden are both the wrong side of. The 1px box with a clip on
        it is the standard trick and the reason it is not simply width:0 is that

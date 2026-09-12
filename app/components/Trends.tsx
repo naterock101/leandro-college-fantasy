@@ -12,11 +12,16 @@ import type { Data } from "../types";
  * and these answer "how did it get like this" and "who beats whom" - questions
  * a reader asks occasionally and not on every visit.
  *
- * The two halves are fed from different files. The race chart reads `byWeek`
- * out of the always-fetched core, so it draws immediately; the matrix reads
- * `headToHead` out of `results.json`, which is fetched when this tab is first
- * opened. So the tab is deliberately half-loaded for a moment, and `note`
- * carries the page's word for why.
+ * Both halves are fed from `results.json`, which is fetched when this tab is
+ * first opened - the matrix needs `headToHead` and the race now draws game by
+ * game rather than week by week. The race still opens on something either way:
+ * it falls back to the week-by-week shape out of the always-fetched core and
+ * refines when the file lands, so the tab is deliberately half-loaded for a
+ * moment and `note` carries the page's word for why.
+ *
+ * `note` is not passed to the chart. A half-loaded race is a coarser race, not
+ * an empty one, and an apology over a chart that is already drawing would be
+ * explaining a state the reader cannot see.
  */
 export function Trends({ data, note }: { data: Data; note: string | null }) {
   /* Alphabetical, and the same order in both halves. Deliberately not
@@ -39,12 +44,10 @@ export function Trends({ data, note }: { data: Data; note: string | null }) {
           {scored} week{scored === 1 ? "" : "s"} scored
         </span>
       </h2>
-      <p className="asof">
-        Points after each week, cumulative. Names sit at the end of their own
-        line; the number beside each is that manager&rsquo;s total.
-      </p>
-
-      <TrendsChart byWeek={data.byWeek} managers={managers} />
+      {/* The caption moved into the chart, because it now has to say which of
+          the three things the chart is measuring - and that is the chart's
+          state, not this component's. */}
+      <TrendsChart byWeek={data.byWeek} managers={managers} results={data.results} />
 
       <h2>
         Head to head
