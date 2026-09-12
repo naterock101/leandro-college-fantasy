@@ -323,6 +323,33 @@ describe("the race chart", () => {
     expect(xs[0]).toBeCloseTo(GEOM.padL, 3);
   });
 
+  test("the weeks are divided, which is what lets the labels sit in the middle", async () => {
+    /* A name centred in a band needs the band drawn, or it just looks half a
+       week adrift of the marker beside it. One divider between each pair of
+       weeks - not after the last one, where the plot already ends. */
+    stubFetch();
+    const { container } = await openTrends();
+    const root = container as unknown as HTMLElement;
+    const rules = [...root.querySelectorAll("line.wk")];
+    expect(rules.length, "one divider between each pair of weeks")
+      .toBe(byWeek.length - 1);
+    /* vertical, and spanning the plot rather than floating in it */
+    for (const l of rules) {
+      expect(l.getAttribute("x1")).toBe(l.getAttribute("x2"));
+      expect(Number(l.getAttribute("y1"))).toBe(GEOM.padT);
+      expect(Number(l.getAttribute("y2"))).toBe(GEOM.H - GEOM.padB);
+    }
+    /* each one between the labels it separates */
+    const labels = [...root.querySelectorAll("text.ax.mid")].map((t) =>
+      Number(t.getAttribute("x"))
+    );
+    rules.forEach((l, i) => {
+      const x = Number(l.getAttribute("x1"));
+      expect(x, `divider ${i} is not after week ${i + 1}`).toBeGreaterThan(labels[i]);
+      expect(x, `divider ${i} is not before week ${i + 2}`).toBeLessThan(labels[i + 1]);
+    });
+  });
+
   test("a pack nowhere near zero gets the plot to itself", () => {
     /* The reason the axis is fitted rather than pinned to zero, and the case
        the golden fixture cannot make: four of its managers are on nought, so

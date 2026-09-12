@@ -468,20 +468,38 @@ export function TrendsChart({
             );
           })}
 
-          {/* One divider per week, so the x axis still reads as a calendar
-              even though the line inside it moves game by game. */}
-          {weeks.map((w, i) =>
-            i % every === 0 ? (
-              <text
-                key={w.key}
-                x={r(xAt(w.at))}
-                y={GEOM.H - GEOM.padB + 15}
-                className="ax mid"
-              >
-                {w.short}
-              </text>
-            ) : null
-          )}
+          {/* One divider per week, and the name of the week between two of
+              them, so the x axis still reads as a calendar even though the
+              line inside it moves game by game.
+
+              The dividers are why the name sits in the middle of its week
+              rather than under the week's own last point: a week is a band of
+              games here, not an instant, and a label centred in a band is how
+              every chart with bands labels them. Without the dividers the same
+              label just looked half a week adrift of the marker beside it,
+              which is what it was before this loop drew anything. */}
+          {weeks.map((w, i) => (
+            <g key={w.key}>
+              {i < weeks.length - 1 && (
+                <line
+                  x1={r(xAt(w.x1))}
+                  x2={r(xAt(w.x1))}
+                  y1={GEOM.padT}
+                  y2={GEOM.H - GEOM.padB}
+                  className="wk"
+                />
+              )}
+              {i % every === 0 && (
+                <text
+                  x={r(xAt(w.at))}
+                  y={GEOM.H - GEOM.padB + 15}
+                  className="ax mid"
+                >
+                  {w.short}
+                </text>
+              )}
+            </g>
+          ))}
 
           {series.map((s) => {
             const pts = s.coords.map((p) => `${p.x},${p.y}`).join(" ");
@@ -645,6 +663,11 @@ export const css = `
        because on that view it is the thing every other line is measured
        against, and a reader who cannot find it cannot read the chart. */
     .race .grid.zero{stroke:var(--dim);stroke-width:1.5}
+    /* The line between one week and the next. Dashed and on the rule colour
+       because it is furniture rather than data: it has to be findable when you
+       look for it and invisible when you are reading a driver's line across
+       it. */
+    .race .wk{stroke:var(--rule);stroke-width:1;stroke-dasharray:2 5}
     .race .ax{font-family:ui-monospace,Menlo,monospace;font-size:12px;fill:var(--muted)}
     .race .ax.r{text-anchor:end} .race .ax.mid{text-anchor:middle}
     .race .nm{font-size:15px;font-weight:600}

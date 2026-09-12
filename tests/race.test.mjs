@@ -156,6 +156,51 @@ test("a week's dot stands under its own label", () => {
   });
 });
 
+test("a cumulative cell the bot wrote wrong draws a dash, not a blank page", () => {
+  /* The old chart read this as `?.points ?? null`. Reading it as
+     `cum[m].points` throws instead, and there is no error boundary under
+     app/ - so a payload one field out would take the whole page down rather
+     than leave one cell empty. Every one of these has been written by some
+     version of some bot at some point. */
+  for (const bad of [null, undefined, 7, "12", {}, { points: null }, { points: "3" }]) {
+    const weeks = byWeek.map((w, i) => ({
+      ...w,
+      cumulative: i === 1 ? { ...w.cumulative, [managers[0]]: bad } : w.cumulative,
+    }));
+    const { frames } = raceFrames(weeks, results, managers);
+    const closes = frames.filter((f) => f.week);
+    assert.equal(closes[1].totals[managers[0]], null,
+      `${JSON.stringify(bad)} should read as a gap`);
+    /* and it must not poison the weeks after it */
+    assert.equal(typeof closes[2].totals[managers[0]], "number",
+      `${JSON.stringify(bad)} leaked into the next week`);
+  }
+});
+
+test("a game with a points field off the wire cannot poison a total", () => {
+  const junk = [...results, { key: byWeek[0].key, points: "9",
+                              winner: { team: "X", manager: managers[0] },
+                              loser: { team: "Y", manager: null } }];
+  const { frames } = raceFrames(byWeek, junk, managers);
+  for (const f of frames)
+    for (const v of Object.values(f.totals))
+      assert.ok(v === null || Number.isFinite(v), `a total came out as ${v}`);
+});
+
+test("a week with no games of its own is a dot in its middle", () => {
+  /* `perGame` is true as soon as any one week has games, and a season is
+     routinely a mix - the bot writes a week into byWeek before results
+     catches up. Those weeks were still being closed on their right-hand edge
+     while their label sat in the middle. */
+  const onlyFirst = results.filter((g) => g.key === byWeek[0].key);
+  const { frames, perGame } = raceFrames(byWeek, onlyFirst, managers);
+  assert.equal(perGame, true, "the season should still be drawing game by game");
+  const closes = frames.filter((f) => f.week);
+  assert.ok(closes[0].x > closes[0].week.at, "a week with games should close on its edge");
+  for (const f of closes.slice(1))
+    assert.equal(f.x, f.week.at, `${f.week.label} has no games and is off its own label`);
+});
+
 test("every frame knows which week it is in", () => {
   /* What the window filters on. A frame with the wrong week index is a game
      drawn in the wrong month. */
