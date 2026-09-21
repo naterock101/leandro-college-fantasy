@@ -726,6 +726,24 @@ function project(table, upcoming, lines, val) {
   };
 }
 
+/**
+ * Records one game against one school in a week ledger: the letter in
+ * `teams`, and beside it in `games` who they played, where, and - once it is
+ * final - the score from their side. The two stay the same length, so the
+ * page can read the nth letter and the nth game as one game.
+ */
+function markGame(led, g, team, letter) {
+  led.teams[team] = (led.teams[team] ?? "") + letter;
+  const isHome = team === home(g);
+  const game = { opp: isHome ? away(g) : home(g) };
+  if (!isHome && pick(g, "neutralSite", "neutral_site") !== true) game.away = true;
+  if (letter === "W" || letter === "L") {
+    const hp = homePts(g), ap = awayPts(g);
+    game.score = isHome ? `${hp}-${ap}` : `${ap}-${hp}`;
+  }
+  (led.games[team] ??= []).push(game);
+}
+
 function buildByWeek(doc, owners, games, PTS, lines) {
   const names = Object.keys(doc.managers);
   const buckets = new Map();
@@ -743,7 +761,7 @@ function buildByWeek(doc, owners, games, PTS, lines) {
   const aheadOf = (k) => {
     if (!ahead.has(k)) {
       ahead.set(k, { left: {}, upside: {}, collision: {},
-                     priced: {}, expWins: {}, expPoints: {}, teams: {} });
+                     priced: {}, expWins: {}, expPoints: {}, teams: {}, games: {} });
     }
     return ahead.get(k);
   };
@@ -766,7 +784,7 @@ function buildByWeek(doc, owners, games, PTS, lines) {
       /* The same count per school, so a manager's week can show which of
          their teams are still to play rather than only how many. */
       for (const t of [home(g), away(g)]) {
-        if (owners.has(t)) a.teams[t] = (a.teams[t] ?? "") + "-";
+        if (owners.has(t)) markGame(a, g, t, "-");
       }
       /* A game between two of one manager's own teams pays the winner and
          nothing else, so the lesser of the two prices comes straight back off
@@ -805,7 +823,7 @@ function buildByWeek(doc, owners, games, PTS, lines) {
       if (state !== "scheduled" && state !== "live") {
         const a = aheadOf(k);
         for (const t of [home(g), away(g)]) {
-          if (owners.has(t)) a.teams[t] = (a.teams[t] ?? "") + "x";
+          if (owners.has(t)) markGame(a, g, t, "x");
         }
       }
       continue;
@@ -848,22 +866,22 @@ function buildByWeek(doc, owners, games, PTS, lines) {
        to apologise for. A string rather than an object because this rides the
        polling path, ten schools a manager a week; the points are not stored
        at all, because a W is worth the school's tier and nothing else. */
-    const results = {};
+    const results = { teams: {}, games: {} };
     for (const g of [...buckets.get(k)].sort((a, b) => String(startDate(a)).localeCompare(String(startDate(b))))) {
       const hp = homePts(g), ap = awayPts(g);
       if (typeof hp !== "number" || typeof ap !== "number" || hp === ap) {
         /* Finished with no usable score, or tied: no win, no loss, and no
            result - but not a bye either. */
         for (const t of [home(g), away(g)]) {
-          if (owners.has(t)) results[t] = (results[t] ?? "") + "x";
+          if (owners.has(t)) markGame(results, g, t, "x");
         }
         continue;
       }
       const winner = hp > ap ? home(g) : away(g);
       const loser = hp > ap ? away(g) : home(g);
       const ow = owners.get(winner), ol = owners.get(loser);
-      if (ow) results[winner] = (results[winner] ?? "") + "W";
-      if (ol) results[loser] = (results[loser] ?? "") + "L";
+      if (ow) markGame(results, g, winner, "W");
+      if (ol) markGame(results, g, loser, "L");
       if (ow) {
         const p = PTS[ow.tier];
         running[ow.manager].points += p; running[ow.manager].wins++; delta[ow.manager] += p;
@@ -919,7 +937,7 @@ function buildByWeek(doc, owners, games, PTS, lines) {
       }
     }
     const upcoming = ahead.get(k)
-      ?? { left: {}, upside: {}, collision: {}, priced: {}, expWins: {}, expPoints: {}, teams: {} };
+      ?? { left: {}, upside: {}, collision: {}, priced: {}, expWins: {}, expPoints: {}, teams: {}, games: {} };
     out.push({
       key: k,
       label: ord === "1" ? `Postseason ${Number(wk)}` : `Week ${Number(wk)}`,
@@ -996,8 +1014,16 @@ function buildByWeek(doc, owners, games, PTS, lines) {
              standings key them. A school on a bye is absent, which the page
              reads as a bye. */
           teams: Object.fromEntries(doc.managers[n]
-            .map((t) => [t.cfbd, (results[t.cfbd] ?? "") + (upcoming.teams[t.cfbd] ?? "")])
+            .map((t) => [t.cfbd, (results.teams[t.cfbd] ?? "") + (upcoming.teams[t.cfbd] ?? "")])
             .filter(([, r]) => r)),
+          /* The games behind those letters, one for one: the opponent as
+             CFBD names them, `away` when they travelled, and the final score
+             from their side once there is one. A separate key rather than a
+             richer `teams`, so a browser still holding the JS that reads the
+             letters goes on reading them. */
+          games: Object.fromEntries(doc.managers[n]
+            .map((t) => [t.cfbd, [...(results.games[t.cfbd] ?? []), ...(upcoming.games[t.cfbd] ?? [])]])
+            .filter(([, g]) => g.length)),
         }];
       })),
     });

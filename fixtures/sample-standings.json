@@ -1277,6 +1277,19 @@
           "teams": {
             "Texas A&M": "x",
             "UNLV": "L"
+          },
+          "games": {
+            "Texas A&M": [
+              {
+                "opp": "Missouri State"
+              }
+            ],
+            "UNLV": [
+              {
+                "opp": "Memphis",
+                "score": "21-27"
+              }
+            ]
           }
         },
         "tconn": {
@@ -1300,6 +1313,21 @@
           "teams": {
             "Virginia": "W",
             "Hawai'i": "L"
+          },
+          "games": {
+            "Virginia": [
+              {
+                "opp": "NC State",
+                "score": "34-8"
+              }
+            ],
+            "Hawai'i": [
+              {
+                "opp": "Stanford",
+                "away": true,
+                "score": "27-37"
+              }
+            ]
           }
         },
         "leandro": {
@@ -1322,6 +1350,15 @@
           "slateGames": 1,
           "teams": {
             "New Mexico State": "L"
+          },
+          "games": {
+            "New Mexico State": [
+              {
+                "opp": "Florida State",
+                "away": true,
+                "score": "17-34"
+              }
+            ]
           }
         },
         "charlie": {
@@ -1342,7 +1379,8 @@
           "slateExpectedLosses": 0,
           "slateExpectedPoints": 0,
           "slateGames": 0,
-          "teams": {}
+          "teams": {},
+          "games": {}
         },
         "steve": {
           "points": 0,
@@ -1362,7 +1400,8 @@
           "slateExpectedLosses": 0,
           "slateExpectedPoints": 0,
           "slateGames": 0,
-          "teams": {}
+          "teams": {},
+          "games": {}
         },
         "devish": {
           "points": 7,
@@ -1387,6 +1426,34 @@
             "TCU": "L",
             "Memphis": "W",
             "Eastern Michigan": "W"
+          },
+          "games": {
+            "USC": [
+              {
+                "opp": "San José State",
+                "score": "42-26"
+              }
+            ],
+            "TCU": [
+              {
+                "opp": "North Carolina",
+                "away": true,
+                "score": "10-15"
+              }
+            ],
+            "Memphis": [
+              {
+                "opp": "UNLV",
+                "away": true,
+                "score": "27-21"
+              }
+            ],
+            "Eastern Michigan": [
+              {
+                "opp": "Sacramento State",
+                "score": "28-17"
+              }
+            ]
           }
         },
         "adam": {
@@ -1410,6 +1477,21 @@
           "teams": {
             "Jacksonville State": "L",
             "North Dakota State": "W"
+          },
+          "games": {
+            "Jacksonville State": [
+              {
+                "opp": "North Dakota State",
+                "away": true,
+                "score": "7-33"
+              }
+            ],
+            "North Dakota State": [
+              {
+                "opp": "Jacksonville State",
+                "score": "33-7"
+              }
+            ]
           }
         },
         "clint": {
@@ -1433,6 +1515,22 @@
           "teams": {
             "NC State": "L",
             "San José State": "L"
+          },
+          "games": {
+            "NC State": [
+              {
+                "opp": "Virginia",
+                "away": true,
+                "score": "8-34"
+              }
+            ],
+            "San José State": [
+              {
+                "opp": "USC",
+                "away": true,
+                "score": "26-42"
+              }
+            ]
           }
         }
       }
@@ -1567,6 +1665,28 @@
             "Texas A&M": "W",
             "East Carolina": "L",
             "UNLV": "W"
+          },
+          "games": {
+            "Texas A&M": [
+              {
+                "opp": "Missouri State",
+                "score": "45-10"
+              }
+            ],
+            "East Carolina": [
+              {
+                "opp": "Alabama",
+                "away": true,
+                "score": "14-38"
+              }
+            ],
+            "UNLV": [
+              {
+                "opp": "Hawai'i",
+                "away": true,
+                "score": "24-17"
+              }
+            ]
           }
         },
         "tconn": {
@@ -1592,6 +1712,31 @@
             "Tulane": "x",
             "Toledo": "x",
             "Hawai'i": "L"
+          },
+          "games": {
+            "Alabama": [
+              {
+                "opp": "East Carolina",
+                "score": "38-14"
+              }
+            ],
+            "Tulane": [
+              {
+                "opp": "Navy",
+                "away": true
+              }
+            ],
+            "Toledo": [
+              {
+                "opp": "Buffalo"
+              }
+            ],
+            "Hawai'i": [
+              {
+                "opp": "UNLV",
+                "score": "17-24"
+              }
+            ]
           }
         },
         "leandro": {
@@ -1614,6 +1759,14 @@
           "slateGames": 0,
           "teams": {
             "New Mexico": "x"
+          },
+          "games": {
+            "New Mexico": [
+              {
+                "opp": "Wyoming",
+                "away": true
+              }
+            ]
           }
         },
         "charlie": {
@@ -1636,6 +1789,14 @@
           "slateGames": 1,
           "teams": {
             "Pittsburgh": "L"
+          },
+          "games": {
+            "Pittsburgh": [
+              {
+                "opp": "Notre Dame",
+                "score": "17-24"
+              }
+            ]
           }
         },
         "steve": {
@@ -1658,6 +1819,13 @@
           "slateGames": 0,
           "teams": {
             "Wyoming": "x"
+          },
+          "games": {
+            "Wyoming": [
+              {
+                "opp": "New Mexico"
+              }
+            ]
           }
         },
         "devish": {
@@ -1678,7 +1846,8 @@
           "slateExpectedLosses": 0,
           "slateExpectedPoints": 0,
           "slateGames": 0,
-          "teams": {}
+          "teams": {},
+          "games": {}
         },
         "adam": {
           "points": 0,
@@ -1700,6 +1869,14 @@
           "slateGames": 0,
           "teams": {
             "Buffalo": "x"
+          },
+          "games": {
+            "Buffalo": [
+              {
+                "opp": "Toledo",
+                "away": true
+              }
+            ]
           }
         },
         "clint": {
@@ -1722,6 +1899,13 @@
           "slateGames": 0,
           "teams": {
             "Navy": "x"
+          },
+          "games": {
+            "Navy": [
+              {
+                "opp": "Tulane"
+              }
+            ]
           }
         }
       }
@@ -1854,6 +2038,14 @@
           "slateGames": 1,
           "teams": {
             "Marshall": "W"
+          },
+          "games": {
+            "Marshall": [
+              {
+                "opp": "Ohio",
+                "score": "31-24"
+              }
+            ]
           }
         },
         "tconn": {
@@ -1874,7 +2066,8 @@
           "slateExpectedLosses": 0,
           "slateExpectedPoints": 0,
           "slateGames": 0,
-          "teams": {}
+          "teams": {},
+          "games": {}
         },
         "leandro": {
           "points": 0,
@@ -1894,7 +2087,8 @@
           "slateExpectedLosses": 0,
           "slateExpectedPoints": 0,
           "slateGames": 0,
-          "teams": {}
+          "teams": {},
+          "games": {}
         },
         "charlie": {
           "points": 0,
@@ -1914,7 +2108,8 @@
           "slateExpectedLosses": 0,
           "slateExpectedPoints": 0,
           "slateGames": 0,
-          "teams": {}
+          "teams": {},
+          "games": {}
         },
         "steve": {
           "points": 0,
@@ -1934,7 +2129,8 @@
           "slateExpectedLosses": 0,
           "slateExpectedPoints": 0,
           "slateGames": 0,
-          "teams": {}
+          "teams": {},
+          "games": {}
         },
         "devish": {
           "points": 0,
@@ -1954,7 +2150,8 @@
           "slateExpectedLosses": 0,
           "slateExpectedPoints": 0,
           "slateGames": 0,
-          "teams": {}
+          "teams": {},
+          "games": {}
         },
         "adam": {
           "points": 0,
@@ -1974,7 +2171,8 @@
           "slateExpectedLosses": 0,
           "slateExpectedPoints": 0,
           "slateGames": 0,
-          "teams": {}
+          "teams": {},
+          "games": {}
         },
         "clint": {
           "points": 0,
@@ -1996,6 +2194,15 @@
           "slateGames": 1,
           "teams": {
             "Ohio": "L"
+          },
+          "games": {
+            "Ohio": [
+              {
+                "opp": "Marshall",
+                "away": true,
+                "score": "24-31"
+              }
+            ]
           }
         }
       }
@@ -2126,7 +2333,8 @@
           "slateExpectedLosses": 0,
           "slateExpectedPoints": 0,
           "slateGames": 0,
-          "teams": {}
+          "teams": {},
+          "games": {}
         },
         "tconn": {
           "points": 0,
@@ -2146,7 +2354,8 @@
           "slateExpectedLosses": 0,
           "slateExpectedPoints": 0,
           "slateGames": 0,
-          "teams": {}
+          "teams": {},
+          "games": {}
         },
         "leandro": {
           "points": 0,
@@ -2166,7 +2375,8 @@
           "slateExpectedLosses": 0,
           "slateExpectedPoints": 0,
           "slateGames": 0,
-          "teams": {}
+          "teams": {},
+          "games": {}
         },
         "charlie": {
           "points": 0,
@@ -2186,7 +2396,8 @@
           "slateExpectedLosses": 0,
           "slateExpectedPoints": 0,
           "slateGames": 0,
-          "teams": {}
+          "teams": {},
+          "games": {}
         },
         "steve": {
           "points": 0,
@@ -2206,7 +2417,8 @@
           "slateExpectedLosses": 0,
           "slateExpectedPoints": 0,
           "slateGames": 0,
-          "teams": {}
+          "teams": {},
+          "games": {}
         },
         "devish": {
           "points": 3,
@@ -2228,6 +2440,14 @@
           "slateGames": 1,
           "teams": {
             "Texas": "W"
+          },
+          "games": {
+            "Texas": [
+              {
+                "opp": "Ole Miss",
+                "score": "30-27"
+              }
+            ]
           }
         },
         "adam": {
@@ -2250,6 +2470,15 @@
           "slateGames": 1,
           "teams": {
             "Ole Miss": "L"
+          },
+          "games": {
+            "Ole Miss": [
+              {
+                "opp": "Texas",
+                "away": true,
+                "score": "27-30"
+              }
+            ]
           }
         },
         "clint": {
@@ -2270,7 +2499,8 @@
           "slateExpectedLosses": 0,
           "slateExpectedPoints": 0,
           "slateGames": 0,
-          "teams": {}
+          "teams": {},
+          "games": {}
         }
       }
     }

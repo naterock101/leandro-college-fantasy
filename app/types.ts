@@ -207,7 +207,13 @@ export type Data = {
                                          that will never be scored. A school on a
                                          bye is absent. Optional because it
                                          postdates the rest of the block. */
-                                      teams?: Record<string, string> }> }[];
+                                      teams?: Record<string, string>;
+                                      /* The games behind those letters, one
+                                         for one: who they played, whether
+                                         they travelled, and the final score
+                                         from their side once there is one. */
+                                      games?: Record<string, { opp: string; away?: true;
+                                                                score?: string }[]> }> }[];
   linesFetchedAt: string | null;
   projection: {
     label: string; games: number; projected: number; unprojected: number;

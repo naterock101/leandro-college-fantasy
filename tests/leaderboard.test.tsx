@@ -871,6 +871,21 @@ describe("the week strip", () => {
     expect(root.querySelector("tr.detail")!.textContent).not.toMatch(/season’s/);
   });
 
+  test("and each school says who it played and the final score", async () => {
+    stubFetch();
+    const { container } = await renderPage();
+    const root = container as unknown as HTMLElement;
+    pick(root, "2");
+    const lines = [...open(root, "Tconn").querySelectorAll(".gms")]
+      .map((g) => g.textContent!.replace(/\s+/g, " ").trim());
+        expect(lines).toEqual([
+      "38–14 vs East Carolina (Nathan)",
+      "17–24 vs UNLV (Nathan)",
+      "vs Buffalo (Adam) · no result",
+      "at Navy (Clint) · no result",
+    ]);
+  });
+
   test("a school still to play in the week says so", () => {
     const root = board(withWeek(1, { tconn: { teams: { Alabama: "W", "Hawai'i": "-" } } }))
       .container as unknown as HTMLElement;

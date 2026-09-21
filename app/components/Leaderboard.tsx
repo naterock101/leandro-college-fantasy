@@ -254,6 +254,11 @@ export function Leaderboard({ data }: { data: Data }) {
     return names.length > 0 && names.every((m) => k[m]) ? k : undefined;
   }, [data, weekIdx]);
 
+  /* Every drafted school's owner, so a game in a squad's week can say whose
+     team was on the other side without the payload repeating it. */
+  const ownerOf = useMemo(() => new Map(data.standings.flatMap((s) =>
+    Object.keys(s.teams).map((t) => [t, s.manager] as const))), [data]);
+
   const board = useMemo(() => {
     if (weekIdx < 0) return data.standings.map((r) => ({ ...r, delta: 0, live: true }));
     const w = data.byWeek[weekIdx];
@@ -632,7 +637,8 @@ export function Leaderboard({ data }: { data: Data }) {
                         return { t, res, pts, rank };
                       }).sort((a, b) => a.rank - b.rank || b.pts - a.pts
                         || a.t.draft.localeCompare(b.t.draft));
-                      return rows.map(({ t, res, pts }) => (
+                      const played = weekly?.[r.manager]?.games;
+                      return rows.map(({ t, res, pts }) => [
                         <div className="team" key={t.team}>
                           <span className={`tier ${t.tier}`}>{t.tier === "p4" ? 3 : 2}</span>
                           <TeamName team={t.team} label={t.draft} className="tn" />
@@ -653,8 +659,38 @@ export function Leaderboard({ data }: { data: Data }) {
                           <span className={`mono tp ${pts > 0 ? "" : "zero"}`}>
                             {/[WL]/.test(res) ? pts : "–"}
                           </span>
-                        </div>
-                      ));
+                        </div>,
+                        /* Who they played and how it finished, one line a
+                           game, under the school it belongs to. The letter is
+                           already in the column to the right, so the line is
+                           the score and the opponent - and the opponent's
+                           owner, when there is one, because in this league
+                           that is who the game was really against. A payload
+                           with the letters and not the games draws the row
+                           alone. */
+                        played?.[t.team]?.length ? (
+                          <div className="gms" key={t.team + "-g"}>
+                            {played[t.team].map((g, j) => {
+                              const c = res[j];
+                              const owner = ownerOf.get(g.opp);
+                              return (
+                                <div key={j}>
+                                  {g.score && (
+                                    <span className={`mono ${c === "W" ? "won" : "lost"}`}>
+                                      {g.score.replace("-", "–")}{" "}
+                                    </span>
+                                  )}
+                                  {g.away ? "at" : "vs"} {g.opp}
+                                  {owner && owner !== r.manager && ` (${cap(owner)})`}
+                                  {owner === r.manager && " (your own team)"}
+                                  {c === "-" && " · still to play"}
+                                  {c === "x" && " · no result"}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : null,
+                      ]);
                     })()}
                     {/* Zero is not "expected nothing", it is "has no priced game
                         this week", and a line reading "+0 points" says the
@@ -873,6 +909,10 @@ export const css = `
     .team .tp.zero{color:var(--dim);font-weight:400}
     .team .wl.wk{display:flex;justify-content:flex-end;gap:3px}
     .won{color:var(--teal)} .lost{color:var(--red)}
+    /* A game's score and opponent, tucked under the school it belongs to:
+       indented past the tier badge and the crest so it reads as part of that
+       row rather than a row of its own. */
+    .gms{padding:0 0 4px 46px;margin-top:-2px;font-size:11px;color:var(--muted);line-height:1.4}
     .note{margin-top:8px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--rule);padding-top:7px}
     /* The same small print, above what it is about rather than below it: the
        rule belongs under the sentence here, not over it. */
