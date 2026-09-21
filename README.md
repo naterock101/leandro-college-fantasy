@@ -784,11 +784,13 @@ Every ceiling in a finished week is the points beside it and every "games left"
 is 0, which is two columns saying nothing in the words of something - the same
 rule that hides the expectation when no game in view carried a line.
 
-The squad list in a manager's dropdown is the one figure in that view that is
-still the season's, and it says so. Per-team weekly records are not published:
-`byWeek` is in the always-fetched core file, refetched by every open tab every
-two minutes, and ten teams a manager a week is exactly the growth term the lazy
-split exists to keep off that path.
+The squad list in a manager's dropdown is the week too: each school shows what
+it did in that week - W, L, "–" for a game still to play, NR for one that will
+never be scored, or Bye - and the points that paid. The builder publishes this
+as `weekly[manager].teams`, one letter a game per school, which keeps it small
+on the always-fetched core file; the points are not stored, because a win is
+worth the school's tier and nothing else. A payload written before that field
+existed shows the season's records instead, and says so.
 
 A payload written before `weekly` existed falls back whole - running totals,
 the `+/-` column and the season ceiling - because that is what such a payload

@@ -595,27 +595,67 @@ export function Leaderboard({ data }: { data: Data }) {
                         );
                       })()}
                     </div>
-                    {/* The one thing in this view that is still a season
-                        figure, said out loud rather than left to look like
-                        the week. Per-team weekly records are not in the
-                        payload and would not be worth what they cost: byWeek
-                        is refetched by every open tab every two minutes, and
-                        ten teams a manager a week is the sort of growth term
-                        the lazy split exists to keep off that path. */}
-                    {weekly && (
-                      <div className="note pre">
-                        Squad records below are the season&rsquo;s, not this week&rsquo;s.
-                      </div>
-                    )}
-                    {teams.map((t) => (
-                      <div className="team" key={t.team}>
-                        <span className={`tier ${t.tier}`}>{t.tier === "p4" ? 3 : 2}</span>
-                        <TeamName team={t.team} label={t.draft} className="tn" />
-                        <span className="mono muted cf">{t.conf}</span>
-                        <span className="mono wl">{t.wins}-{t.losses}</span>
-                        <span className="mono tp">{t.points}</span>
-                      </div>
-                    ))}
+                    {/* In a week view the squad is the week too: what each
+                        school did in it, and what that paid. A payload written
+                        before the builder carried per-school results has only
+                        the season's, and says so rather than passing them off
+                        as the week. */}
+                    {(() => {
+                      const wk = weekly?.[r.manager]?.teams;
+                      const season = teams.map((t) => (
+                        <div className="team" key={t.team}>
+                          <span className={`tier ${t.tier}`}>{t.tier === "p4" ? 3 : 2}</span>
+                          <TeamName team={t.team} label={t.draft} className="tn" />
+                          <span className="mono muted cf">{t.conf}</span>
+                          <span className="mono wl">{t.wins}-{t.losses}</span>
+                          <span className="mono tp">{t.points}</span>
+                        </div>
+                      ));
+                      if (!wk) {
+                        return weekly ? (
+                          <>
+                            <div className="note pre">
+                              Squad records below are the season&rsquo;s, not this week&rsquo;s.
+                            </div>
+                            {season}
+                          </>
+                        ) : season;
+                      }
+                      /* Winners first by what they paid, then the games still
+                         to come, then the losses, then the byes - the order a
+                         reader scans a week in. */
+                      const rows = Object.values(r.teams).map((t) => {
+                        const res = wk[t.team] ?? "";
+                        const won = [...res].filter((c) => c === "W").length;
+                        const pts = won * (t.tier === "p4" ? 3 : 2);
+                        const rank = pts > 0 ? 0 : res.includes("-") ? 1 : res ? 2 : 3;
+                        return { t, res, pts, rank };
+                      }).sort((a, b) => a.rank - b.rank || b.pts - a.pts
+                        || a.t.draft.localeCompare(b.t.draft));
+                      return rows.map(({ t, res, pts }) => (
+                        <div className="team" key={t.team}>
+                          <span className={`tier ${t.tier}`}>{t.tier === "p4" ? 3 : 2}</span>
+                          <TeamName team={t.team} label={t.draft} className="tn" />
+                          <span className="mono muted cf">{t.conf}</span>
+                          {res ? (
+                            <span className="mono wl wk" title={[...res].map((c) =>
+                              c === "W" ? "Won" : c === "L" ? "Lost" : c === "x" ? "No result - will not be scored"
+                                : "Still to play").join(", ")}>
+                              {[...res].map((c, j) => (
+                                <span key={j} className={c === "W" ? "won" : c === "L" ? "lost" : "dim"}>
+                                  {c === "-" ? "–" : c === "x" ? "NR" : c}
+                                </span>
+                              ))}
+                            </span>
+                          ) : (
+                            <span className="mono wl dim" title="No game this week">Bye</span>
+                          )}
+                          <span className={`mono tp ${pts > 0 ? "" : "zero"}`}>
+                            {/[WL]/.test(res) ? pts : "–"}
+                          </span>
+                        </div>
+                      ));
+                    })()}
                     {/* Zero is not "expected nothing", it is "has no priced game
                         this week", and a line reading "+0 points" says the
                         second thing in the words of the first. */}
@@ -830,6 +870,9 @@ export const css = `
     .team .cf{font-size:10px;width:78px;text-align:right;flex-shrink:0}
     .team .wl{width:30px;text-align:right;flex-shrink:0}
     .team .tp{color:var(--amber);font-weight:700;width:22px;text-align:right;flex-shrink:0}
+    .team .tp.zero{color:var(--dim);font-weight:400}
+    .team .wl.wk{display:flex;justify-content:flex-end;gap:3px}
+    .won{color:var(--teal)} .lost{color:var(--red)}
     .note{margin-top:8px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--rule);padding-top:7px}
     /* The same small print, above what it is about rather than below it: the
        rule belongs under the sentence here, not over it. */

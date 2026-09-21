@@ -200,7 +200,14 @@ export type Data = {
                                       slateExpectedLosses?: number;
                                       slateExpectedPoints?: number;
                                       slatePriced?: number;
-                                      slateGames?: number }> }[];
+                                      slateGames?: number;
+                                      /* Each school's results in this week,
+                                         one letter a game: W, L, "-" for one
+                                         still to be played, or "x" for one
+                                         that will never be scored. A school on a
+                                         bye is absent. Optional because it
+                                         postdates the rest of the block. */
+                                      teams?: Record<string, string> }> }[];
   linesFetchedAt: string | null;
   projection: {
     label: string; games: number; projected: number; unprojected: number;

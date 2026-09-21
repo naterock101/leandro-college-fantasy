@@ -847,14 +847,54 @@ describe("the week strip", () => {
     expect(summary.textContent).toMatch(/week 2 alone/i);
   });
 
-  test("and the squad below it still says which season it is counting", async () => {
-    /* The one figure in the view that is still the season's. Per-team weekly
-       records are not in the payload - byWeek is refetched by every open tab
-       every two minutes - so the honest move is to label them, not to let
-       them read as the week. */
+  /** Each school in a manager's dropdown, as `{ school: [result, points] }`. */
+  const squad = (root: HTMLElement, manager: string) =>
+    Object.fromEntries(
+      [...open(root, manager).querySelectorAll(".team")].map((t) => [
+        t.querySelector(".tn")!.textContent!.trim(),
+        [t.querySelector(".wl")!.textContent!.trim(), t.querySelector(".tp")!.textContent!.trim()],
+      ])
+    );
+
+  test("and the squad below it is the week too", async () => {
+    /* Tconn's Hawai'i is 0-2 on the season and lost in week 2; Virginia won
+       in a different week and had no game in this one. A season record here
+       would print 0-2 and 1-0, neither of which is anything about week 2. */
     stubFetch();
     const { container } = await renderPage();
     const root = container as unknown as HTMLElement;
+    pick(root, "2");
+    const s = squad(root, "Tconn");
+    expect(s["Alabama Crimson Tide"]).toEqual(["W", "3"]);
+    expect(s["Hawaii Rainbow Warriors"]).toEqual(["L", "0"]);
+    expect(s["Virginia Cavaliers"]).toEqual(["Bye", "–"]);
+    expect(root.querySelector("tr.detail")!.textContent).not.toMatch(/season’s/);
+  });
+
+  test("a school still to play in the week says so", () => {
+    const root = board(withWeek(1, { tconn: { teams: { Alabama: "W", "Hawai'i": "-" } } }))
+      .container as unknown as HTMLElement;
+    pick(root, "2");
+    expect(squad(root, "Tconn")["Hawaii Rainbow Warriors"]).toEqual(["–", "–"]);
+  });
+
+  test("a game that will never be scored is not a bye", () => {
+    const root = board(withWeek(1, { tconn: { teams: { Alabama: "W", "Hawai'i": "x" } } }))
+      .container as unknown as HTMLElement;
+    pick(root, "2");
+    expect(squad(root, "Tconn")["Hawaii Rainbow Warriors"]).toEqual(["NR", "–"]);
+  });
+
+  test("a payload without per-school results still labels the season's", () => {
+    const old = {
+      ...data,
+      byWeek: data.byWeek.map((w) => ({
+        ...w,
+        weekly: Object.fromEntries(Object.entries(w.weekly!)
+          .map(([m, { teams, ...k }]) => [m, k])),
+      })),
+    } as unknown as Data;
+    const root = board(old).container as unknown as HTMLElement;
     pick(root, "2");
     expect(open(root, "Tconn").textContent)
       .toMatch(/Squad records below are the season’s, not this week’s/);
