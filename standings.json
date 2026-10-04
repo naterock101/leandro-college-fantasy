@@ -1,19 +1,19 @@
 {
-  "generatedAt": "2026-10-04T04:54:44.986Z",
+  "generatedAt": "2026-10-04T05:58:23.839Z",
   "season": 2026,
   "scoring": {
     "p4": 3,
     "g5": 2
   },
   "postseasonScheduled": false,
-  "linesFetchedAt": "2026-10-04T04:54:43.802Z",
+  "linesFetchedAt": "2026-10-04T05:58:21.286Z",
   "standings": [
     {
       "manager": "adam",
-      "points": 87,
-      "wins": 36,
+      "points": 89,
+      "wins": 37,
       "losses": 12,
-      "remaining": 71,
+      "remaining": 70,
       "ceiling": 258,
       "collisionLoss": 0,
       "teams": {
@@ -110,10 +110,10 @@
           "draft": "Fresno State Bulldogs",
           "conf": "Pac-12",
           "tier": "g5",
-          "wins": 3,
+          "wins": 4,
           "losses": 1,
-          "points": 6,
-          "remaining": 7,
+          "points": 8,
+          "remaining": 6,
           "ceiling": 20
         },
         "Louisiana": {
@@ -496,9 +496,9 @@
       "manager": "leandro",
       "points": 70,
       "wins": 28,
-      "losses": 19,
-      "remaining": 72,
-      "ceiling": 243,
+      "losses": 20,
+      "remaining": 71,
+      "ceiling": 241,
       "collisionLoss": 0,
       "teams": {
         "Louisville": {
@@ -595,10 +595,10 @@
           "conf": "Pac-12",
           "tier": "g5",
           "wins": 1,
-          "losses": 3,
+          "losses": 4,
           "points": 2,
-          "remaining": 7,
-          "ceiling": 16
+          "remaining": 6,
+          "ceiling": 14
         },
         "Troy": {
           "team": "Troy",
@@ -980,23 +980,23 @@
   "projection": {
     "key": "0|05",
     "label": "Week 5",
-    "games": 5,
-    "projected": 5,
+    "games": 4,
+    "projected": 4,
     "unprojected": 0,
     "unpriced": 0,
     "pickems": 0,
     "modelled": 0,
     "managers": {
       "adam": {
-        "wins": 36,
-        "losses": 13,
-        "points": 87,
+        "wins": 37,
+        "losses": 12,
+        "points": 89,
         "gained": 0,
         "rankDelta": 0,
-        "expectedGained": 0.9,
-        "expectedPoints": 87.9,
-        "expectedWins": 36.4,
-        "expectedLosses": 12.6,
+        "expectedGained": 0,
+        "expectedPoints": 89,
+        "expectedWins": 37,
+        "expectedLosses": 12,
         "expectedRankDelta": 0,
         "modelled": 0
       },
@@ -1013,25 +1013,12 @@
         "expectedRankDelta": 0,
         "modelled": 0
       },
-      "leandro": {
-        "wins": 30,
-        "losses": 19,
-        "points": 75,
-        "gained": 5,
-        "rankDelta": 2,
-        "expectedGained": 3.2,
-        "expectedPoints": 73.2,
-        "expectedWins": 29.3,
-        "expectedLosses": 19.7,
-        "expectedRankDelta": 0,
-        "modelled": 0
-      },
       "nathan": {
         "wins": 30,
         "losses": 18,
         "points": 75,
         "gained": 5,
-        "rankDelta": 2,
+        "rankDelta": 3,
         "expectedGained": 3.3,
         "expectedPoints": 73.3,
         "expectedWins": 29.3,
@@ -1044,7 +1031,7 @@
         "losses": 19,
         "points": 74,
         "gained": 0,
-        "rankDelta": -2,
+        "rankDelta": -1,
         "expectedGained": 0,
         "expectedPoints": 74,
         "expectedWins": 30,
@@ -1057,12 +1044,25 @@
         "losses": 19,
         "points": 74,
         "gained": 2,
-        "rankDelta": -2,
+        "rankDelta": -1,
         "expectedGained": 1.1,
         "expectedPoints": 73.1,
         "expectedWins": 28.6,
         "expectedLosses": 19.4,
-        "expectedRankDelta": -2,
+        "expectedRankDelta": -1,
+        "modelled": 0
+      },
+      "leandro": {
+        "wins": 29,
+        "losses": 20,
+        "points": 73,
+        "gained": 3,
+        "rankDelta": -1,
+        "expectedGained": 2.1,
+        "expectedPoints": 72.1,
+        "expectedWins": 28.7,
+        "expectedLosses": 20.3,
+        "expectedRankDelta": -1,
         "modelled": 0
       },
       "steve": {
@@ -1094,14 +1094,14 @@
     }
   },
   "luck": {
-    "games": 277,
+    "games": 278,
     "unpriced": 0,
     "managers": {
       "adam": {
-        "games": 48,
-        "actual": 87,
-        "expected": 79.1,
-        "delta": 7.9
+        "games": 49,
+        "actual": 89,
+        "expected": 79.9,
+        "delta": 9.1
       },
       "charlie": {
         "games": 46,
@@ -1122,10 +1122,10 @@
         "delta": -3.8
       },
       "leandro": {
-        "games": 47,
+        "games": 48,
         "actual": 70,
-        "expected": 72.3,
-        "delta": -2.3
+        "expected": 73.4,
+        "delta": -3.4
       },
       "nathan": {
         "games": 46,
@@ -4654,7 +4654,7 @@
       "label": "Week 5",
       "seasonType": "regular",
       "week": 5,
-      "games": 41,
+      "games": 42,
       "scheduled": 46,
       "delta": {
         "nathan": 10,
@@ -4663,7 +4663,7 @@
         "charlie": 12,
         "steve": 5,
         "devish": 9,
-        "adam": 12,
+        "adam": 14,
         "clint": 10
       },
       "cumulative": {
@@ -4692,20 +4692,20 @@
         "leandro": {
           "points": 70,
           "wins": 28,
-          "losses": 19,
-          "expectedWins": 28.4,
-          "expectedLosses": 18.6,
-          "priced": 47,
+          "losses": 20,
+          "expectedWins": 29,
+          "expectedLosses": 19,
+          "priced": 48,
           "pricedWins": 28,
-          "expectedPoints": 72.3,
+          "expectedPoints": 73.4,
           "pricedPoints": 70
         },
         "charlie": {
           "points": 85,
           "wins": 34,
           "losses": 12,
-          "expectedWins": 32.1,
-          "expectedLosses": 13.9,
+          "expectedWins": 32,
+          "expectedLosses": 14,
           "priced": 46,
           "pricedWins": 34,
           "expectedPoints": 79.7,
@@ -4734,15 +4734,15 @@
           "pricedPoints": 74
         },
         "adam": {
-          "points": 87,
-          "wins": 36,
+          "points": 89,
+          "wins": 37,
           "losses": 12,
-          "expectedWins": 32.3,
-          "expectedLosses": 15.7,
-          "priced": 48,
-          "pricedWins": 36,
-          "expectedPoints": 79.1,
-          "pricedPoints": 87
+          "expectedWins": 32.7,
+          "expectedLosses": 16.3,
+          "priced": 49,
+          "pricedWins": 37,
+          "expectedPoints": 79.9,
+          "pricedPoints": 89
         },
         "clint": {
           "points": 64,
@@ -4932,16 +4932,16 @@
         "leandro": {
           "points": 14,
           "wins": 6,
-          "losses": 1,
-          "expectedWins": 5.3,
-          "expectedLosses": 1.7,
-          "priced": 7,
+          "losses": 2,
+          "expectedWins": 5.9,
+          "expectedLosses": 2.1,
+          "priced": 8,
           "pricedWins": 6,
-          "expectedPoints": 13.3,
+          "expectedPoints": 14.4,
           "pricedPoints": 14,
-          "remaining": 2,
+          "remaining": 1,
           "collisionLoss": 0,
-          "ceiling": 19,
+          "ceiling": 17,
           "slatePriced": 9,
           "slateExpectedWins": 6.6,
           "slateExpectedLosses": 2.4,
@@ -4956,7 +4956,7 @@
             "New Mexico State": "W",
             "Bowling Green": "W",
             "New Mexico": "W",
-            "Washington State": "-"
+            "Washington State": "L"
           },
           "games": {
             "Louisville": [
@@ -5011,7 +5011,8 @@
             ],
             "Washington State": [
               {
-                "opp": "Fresno State"
+                "opp": "Fresno State",
+                "score": "6-26"
               }
             ]
           }
@@ -5020,8 +5021,8 @@
           "points": 12,
           "wins": 5,
           "losses": 2,
-          "expectedWins": 4.9,
-          "expectedLosses": 2.1,
+          "expectedWins": 4.8,
+          "expectedLosses": 2.2,
           "priced": 7,
           "pricedWins": 5,
           "expectedPoints": 11.8,
@@ -5189,7 +5190,7 @@
           "expectedLosses": 3.8,
           "priced": 7,
           "pricedWins": 4,
-          "expectedPoints": 7.6,
+          "expectedPoints": 7.7,
           "pricedPoints": 9,
           "remaining": 0,
           "collisionLoss": 0,
@@ -5197,7 +5198,7 @@
           "slatePriced": 7,
           "slateExpectedWins": 3.2,
           "slateExpectedLosses": 3.8,
-          "slateExpectedPoints": 7.6,
+          "slateExpectedPoints": 7.7,
           "slateGames": 7,
           "teams": {
             "Clemson": "L",
@@ -5258,22 +5259,22 @@
           }
         },
         "adam": {
-          "points": 12,
-          "wins": 5,
+          "points": 14,
+          "wins": 6,
           "losses": 2,
-          "expectedWins": 4.7,
-          "expectedLosses": 2.3,
-          "priced": 7,
-          "pricedWins": 5,
-          "expectedPoints": 11.5,
-          "pricedPoints": 12,
-          "remaining": 1,
+          "expectedWins": 5.1,
+          "expectedLosses": 2.9,
+          "priced": 8,
+          "pricedWins": 6,
+          "expectedPoints": 12.3,
+          "pricedPoints": 14,
+          "remaining": 0,
           "collisionLoss": 0,
           "ceiling": 14,
           "slatePriced": 8,
           "slateExpectedWins": 5.1,
           "slateExpectedLosses": 2.9,
-          "slateExpectedPoints": 12.4,
+          "slateExpectedPoints": 12.3,
           "slateGames": 8,
           "teams": {
             "Virginia Tech": "L",
@@ -5282,7 +5283,7 @@
             "UTSA": "W",
             "Buffalo": "L",
             "North Dakota State": "W",
-            "Fresno State": "-",
+            "Fresno State": "W",
             "Louisiana": "W"
           },
           "games": {
@@ -5327,7 +5328,8 @@
             "Fresno State": [
               {
                 "opp": "Washington State",
-                "away": true
+                "away": true,
+                "score": "26-6"
               }
             ],
             "Louisiana": [
@@ -5534,7 +5536,7 @@
       "holders": [
         {
           "manager": "adam",
-          "value": 7.9,
+          "value": 9.1,
           "detail": "Through week 5"
         }
       ],
@@ -5549,40 +5551,6 @@
   "gamesOfWeek": {
     "label": "Week 5",
     "games": [
-      {
-        "key": "0|05",
-        "id": 401860921,
-        "week": 5,
-        "seasonType": "regular",
-        "date": "2026-10-04T01:30:00.000Z",
-        "away": {
-          "team": "Fresno State",
-          "manager": "adam",
-          "tier": "g5",
-          "conf": "Pac-12",
-          "draft": "Fresno State Bulldogs"
-        },
-        "home": {
-          "team": "Washington State",
-          "manager": "leandro",
-          "tier": "g5",
-          "conf": "Pac-12",
-          "draft": "Washington State Cougars"
-        },
-        "neutral": false,
-        "h2h": true,
-        "sameManager": false,
-        "stakes": 2,
-        "spread": {
-          "spread": -2.5,
-          "favorite": "Washington State",
-          "formatted": "Washington State -2.5",
-          "overUnder": 44.5,
-          "provider": "DraftKings",
-          "seenAt": "2026-10-03T22:06:47.690Z",
-          "closed": false
-        }
-      },
       {
         "key": "0|05",
         "id": 401860900,
