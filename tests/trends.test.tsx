@@ -163,49 +163,108 @@ describe("the race chart", () => {
     };
   };
 
-  test("every manager's line ends in their own driver", async () => {
-    /* What makes it a race rather than a chart. The face is on the end of the
-       line horizontally - it moves along with the season rather than sitting
-       pinned in the gutter, which would be a legend with a picture in it. */
+  test("every manager gets their own driver, and nobody else's", async () => {
     stubFetch();
     const { container } = await openTrends();
     const root = container as unknown as HTMLElement;
 
     for (const m of managers) {
-      const [x] = seriesOf(root, m).slice(-1)[0];
-      const d = driverAt(root, m);
-      expect(d.x, `${m}'s driver is not at the end of their line`).toBeCloseTo(x, 3);
-      expect(d.href, `${m} is drawn as somebody else`).toBe(`/karts/${KARTS[m].file}.png`);
+      expect(driverAt(root, m).href, `${m} is drawn as somebody else`)
+        .toBe(`/karts/${KARTS[m].file}.png`);
     }
   });
 
-  test("a driver nudged off its own line is tied back to it", async () => {
-    /* Faces are 26 units across and this league opened with all eight managers
-       inside twelve points of each other, so they have to be pushed apart or
-       they are one pile. A face that has moved is then making a claim about a
-       total it is not standing next to, and the leader is what stops that
-       being silent. */
+  test("no driver covers a finishing dot", async () => {
+    /* The reason the faces left the end of the line. Parked on the last
+       point, a 26-unit face sat on top of a 3.2-unit dot, so the one mark on
+       each line a reader is looking for was the one mark the chart hid. The
+       faces now stand clear to the right of every line end - which is also
+       what lets the last dot be drawn at all. */
+    stubFetch();
+    const { container } = await openTrends();
+    const root = container as unknown as HTMLElement;
+
+    /* every line ends on the same x, because every line ends on the same
+       Saturday - so one number is the whole plot's right-hand edge */
+    const ends = managers.map((m) => seriesOf(root, m).slice(-1)[0][0]);
+    const edge = Math.max(...ends);
+
+    for (const m of managers) {
+      const d = driverAt(root, m);
+      const clear = d.x - d.size / 2 - edge;
+      expect(clear, `${m}'s driver overhangs the plot by ${(-clear).toFixed(1)} units`)
+        .toBeGreaterThan(0);
+    }
+  });
+
+  test("the drivers stand in lanes rather than one column", async () => {
+    /* A column of eight same-sized heads reads as one block; a staircase
+       reads as eight. The stagger is bounded on purpose - it is a rail beside
+       the plot, not a second chart - so this holds it to both ends: every
+       neighbour is offset from the one above, and the whole rail is narrower
+       than two faces. */
+    stubFetch();
+    const { container } = await openTrends();
+    const root = container as unknown as HTMLElement;
+    const placed = managers
+      .map((m) => ({ m, ...driverAt(root, m) }))
+      .sort((a, b) => a.y - b.y);
+
+    for (let i = 1; i < placed.length; i++) {
+      expect(placed[i].x, `${placed[i - 1].m} and ${placed[i].m} share a lane`)
+        .not.toBeCloseTo(placed[i - 1].x, 3);
+    }
+    const xs = placed.map((p) => p.x);
+    const spread = Math.max(...xs) - Math.min(...xs);
+    expect(spread, `the rail is ${spread} units wide`)
+      .toBeLessThanOrEqual(placed[0].size * 2);
+  });
+
+  test("every driver is tied back to the point it stands for", async () => {
+    /* A face that has moved - sideways onto the rail, and often up or down to
+       get clear of the pack - is making a claim about a total it is no longer
+       standing next to. The leader is what stops that being silent, and it is
+       now drawn for all eight rather than only for the ones that were nudged
+       vertically, because all eight have moved. */
     stubFetch();
     const { container } = await openTrends();
     const root = container as unknown as HTMLElement;
     const leaders = [...root.querySelectorAll("line.lead")];
 
-    let nudged = 0;
     for (const m of managers) {
       const [x, y] = seriesOf(root, m).slice(-1)[0];
       const d = driverAt(root, m);
-      if (Math.abs(d.y - y) <= 1) continue;
-      nudged++;
       const tie = leaders.find(
         (l) =>
           Math.abs(Number(l.getAttribute("x1")) - x) < 0.01 &&
           Math.abs(Number(l.getAttribute("y1")) - y) < 0.01 &&
-          Math.abs(Number(l.getAttribute("y2")) - d.y) < 0.01
+          Math.abs(Number(l.getAttribute("y2")) - d.y) < 0.01 &&
+          Number(l.getAttribute("x2")) <= d.x
       );
-      expect(tie, `${m}'s driver moved ${(d.y - y).toFixed(1)} units with no leader`).toBeTruthy();
+      expect(tie, `${m}'s driver stands on the rail with no leader back`).toBeTruthy();
     }
-    expect(nudged, "nothing was nudged, so this test measured nothing")
-      .toBeGreaterThan(0);
+  });
+
+  test("no driver sits on a name", async () => {
+    /* The other half of the move. The rail is staggered, so a name cleared of
+       the nearest face is still under the furthest one - the names are set
+       off the whole rail, and this is what says so. */
+    stubFetch();
+    const { container } = await openTrends();
+    const root = container as unknown as HTMLElement;
+    const rail = Math.max(
+      ...managers.map((m) => {
+        const d = driverAt(root, m);
+        return d.x + d.size / 2;
+      })
+    );
+    const names = [...root.querySelectorAll("text.nm")];
+    expect(names.length).toBe(managers.length);
+    for (const t of names) {
+      const at = Number(t.getAttribute("x"));
+      expect(at, `"${t.textContent}" starts ${(rail - at).toFixed(1)} units inside the rail`)
+        .toBeGreaterThan(rail);
+    }
   });
 
   test("no two drivers overlap", async () => {
