@@ -197,27 +197,33 @@ describe("the race chart", () => {
     }
   });
 
-  test("the drivers stand in lanes rather than one column", async () => {
-    /* A column of eight same-sized heads reads as one block; a staircase
-       reads as eight. The stagger is bounded on purpose - it is a rail beside
-       the plot, not a second chart - so this holds it to both ends: every
-       neighbour is offset from the one above, and the whole rail is narrower
-       than two faces. */
+  test("every driver opens its own name's row", async () => {
+    /* What "beside the names" has to mean to be worth anything: one column,
+       every face level with the name it belongs to, and the face first. The
+       stagger this replaced put a face up to twenty units off the row it was
+       labelling, which is close enough to look deliberate and far enough to
+       pair a face with the wrong manager. */
     stubFetch();
     const { container } = await openTrends();
     const root = container as unknown as HTMLElement;
-    const placed = managers
-      .map((m) => ({ m, ...driverAt(root, m) }))
-      .sort((a, b) => a.y - b.y);
 
-    for (let i = 1; i < placed.length; i++) {
-      expect(placed[i].x, `${placed[i - 1].m} and ${placed[i].m} share a lane`)
-        .not.toBeCloseTo(placed[i - 1].x, 3);
+    const names = [...root.querySelectorAll("text.nm")];
+    expect(names.length).toBe(managers.length);
+
+    const xs = new Set<number>();
+    for (const t of names) {
+      const m = managers.find((k) => t.textContent!.toLowerCase().startsWith(k));
+      expect(m, `no manager owns the row "${t.textContent}"`).toBeTruthy();
+      const d = driverAt(root, m!);
+      /* the name's baseline is set four units below the row's centre - see
+         the chart - so this is the same row, not merely a nearby one */
+      expect(d.y, `${m}'s face is not level with their name`)
+        .toBeCloseTo(Number(t.getAttribute("y")) - 4, 2);
+      expect(d.x + d.size / 2, `${m}'s face is not in front of their name`)
+        .toBeLessThanOrEqual(Number(t.getAttribute("x")));
+      xs.add(d.x);
     }
-    const xs = placed.map((p) => p.x);
-    const spread = Math.max(...xs) - Math.min(...xs);
-    expect(spread, `the rail is ${spread} units wide`)
-      .toBeLessThanOrEqual(placed[0].size * 2);
+    expect(xs.size, "the faces are not in one column").toBe(1);
   });
 
   test("every driver is tied back to the point it stands for", async () => {

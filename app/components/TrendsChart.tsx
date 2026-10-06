@@ -41,15 +41,15 @@ import { KartIcon, KARTS, type Marker } from "./Karts";
    apart is therefore still two lanes rather than a pile. At 280 it was 17, and
    the whole grid had to be shoved apart to be read at all.
 
-   `W` grew from 460 to 500 and `padR` from 132 to 176, together, and the pair
-   is the point: the gutter now opens with a rail of drivers before it gets to
-   the names, which is forty more units of gutter, and taking them out of the
-   plot instead would have cost the chart a seventh of its own width. The svg
-   is never drawn wider than its own units but on a phone it is drawn a good
-   deal narrower, so the forty units are paid for by the labels at about eight
+   `W` grew from 460 to 480 and `padR` from 132 to 152, together, and the pair
+   is the point: every gutter row now opens with a face before it gets to the
+   name, which is twenty more units of gutter, and taking them out of the plot
+   instead would have cost the chart a fifteenth of its own width. The svg is
+   never drawn wider than its own units but on a phone it is drawn a good deal
+   narrower, so the twenty units are paid for by the labels at about four
    percent - which is the cheaper of the two bills, and the only reason `W`
    moves at all. */
-export const GEOM = { W: 500, H: 440, padL: 30, padR: 176, padT: 14, padB: 26 };
+export const GEOM = { W: 480, H: 440, padL: 30, padR: 152, padT: 14, padB: 26 };
 
 const plotW = GEOM.W - GEOM.padL - GEOM.padR;
 const plotH = GEOM.H - GEOM.padT - GEOM.padB;
@@ -134,36 +134,33 @@ const MARKER: Record<Marker, (x: number, y: number) => string> = {
 const ICON = 26;
 
 /**
- * The rail: where the drivers stand, now that they stand off the plot.
+ * The gutter row: a face, a sample of its line, a name, a total.
  *
- * They used to be centred on the last point of their own line, which made the
- * end of a season a pile of three things on one coordinate - a face, the dot
- * it was covering, and whatever the next manager's line was doing underneath.
- * The dot lost every time, so a chart about where eight people finished was
- * drawing seven of the eight finishing marks and hiding them.
+ * The faces used to be centred on the last point of their own line, which made
+ * the end of a season a pile of three things on one coordinate - a face, the
+ * dot it was covering, and whatever the next manager's line was doing
+ * underneath. The dot lost every time, so a chart about where eight people
+ * finished was drawing seven of the eight finishing marks and hiding them.
  *
- * So the faces move into the gutter and the dots come back. `X0` is the first
- * lane's centre: half a face clear of the plot edge plus six units, so the
- * nearest a face comes to a finishing dot is six units of empty space.
+ * So the faces come off the plot entirely and the dots come back. A face is
+ * not a plotted point now; it is the first thing in its manager's row, which
+ * is where a reader was already looking to find out who is who.
  *
- * `LANES` and `LANE` are the stagger. The vertical declutter below already
- * keeps faces off each other, so this is not about overlap - it is about a
- * column of eight identical-sized heads reading as one block, where a shallow
- * staircase reads as eight. It also buys the leader lines something to do:
- * each one is a different length, so a face and its dot are paired by a line
- * nobody has to trace. Three lanes ten units apart is twenty units of gutter,
- * which is the cheapest stagger that is still visible at phone scale.
+ * The offsets are a row read left to right. `FACE` is a face's centre, half a
+ * face past the end of the plot plus ten units, which leaves about seven units
+ * of clear ground between a face and the edge of the dot it is standing beside
+ * - enough that the two read as two things at phone scale, where the whole
+ * chart is drawn at about three quarters. `SAMPLE` is a short piece of
+ * the line itself, which is still here rather than replaced by a second copy
+ * of the face: it carries the dash pattern, and the dash pattern is the half
+ * of the key that a face cannot show. `NAME` is where the text starts.
+ *
+ * There is no stagger. There was one, three lanes ten units apart, and it did
+ * the wrong job: the declutter below already keeps the faces off each other,
+ * so all the lanes bought was a face sitting twenty units adrift of the name
+ * it belonged to. A face hard up against its own row reads as that row's face.
  */
-const RAIL = { LANES: 3, LANE: 10, X0: ICON / 2 + 6 };
-
-/** Half a face past the last lane: where the names are allowed to start. */
-const RAIL_W = RAIL.X0 + (RAIL.LANES - 1) * RAIL.LANE + ICON / 2;
-
-/* Which lane a driver stands in, by its place down the gutter rather than by
-   anything about the manager - the staircase only has to separate neighbours,
-   and neighbours are whoever is next in the column. Measured from the gutter,
-   because that is where the plot stops whatever the season's width. */
-const railX = (i: number) => RAIL.X0 + (i % RAIL.LANES) * RAIL.LANE;
+const ROW = { FACE: ICON / 2 + 10, SAMPLE: ICON + 14, NAME: ICON + 32 };
 
 const shortLabel = (w: Data["byWeek"][number]) =>
   w.seasonType === "postseason" ? `P${w.week}` : `W${w.week}`;
@@ -475,22 +472,22 @@ export function TrendsChart({
               is drawn back on the line in its own colour, which is what the
               count in the markers pass is counting.
 
-              They ride the decluttered y rather than the raw one, and a lane
-              on the rail rather than the end of the line. Both offsets are
-              tied back by the same leader, so a face is never making a claim
-              about a coordinate it is not standing on. Left where they were
-              they overlapped each other as well: this season opened with all
-              eight managers inside twelve points, which is 120 units of chart
-              for 208 units of face. */}
+              They ride the decluttered y rather than the raw one, and the
+              head of their own gutter row rather than the end of the line.
+              Both offsets are tied back by the same leader, so a face is never
+              making a claim about a coordinate it is not standing on. Left
+              where they were they overlapped each other as well: this season
+              opened with all eight managers inside twelve points, which is 120
+              units of chart for 208 units of face. */}
           {/* Leaders first and faces second, in two passes rather than one:
               drawn inside each driver's own group, the eighth manager's leader
               is painted across the first manager's face. */}
-          {labels.map(({ s, y, at, x }, i) =>
+          {labels.map(({ s, y, at, x }) =>
             s.style.kart ? (
               <line
                 key={s.manager}
                 x1={x}
-                x2={r(gutter + railX(i) - ICON / 2 - 2)}
+                x2={gutter + ROW.FACE - ICON / 2 - 2}
                 y1={r(at)}
                 y2={r(y)}
                 stroke={s.style.stroke}
@@ -499,12 +496,12 @@ export function TrendsChart({
               />
             ) : null
           )}
-          {labels.map(({ s, y }, i) =>
+          {labels.map(({ s, y }) =>
             s.style.kart ? (
               <g key={s.manager} data-kart={s.manager}>
                 <KartIcon
                   kart={s.style.kart}
-                  x={r(gutter + railX(i))}
+                  x={gutter + ROW.FACE}
                   y={r(y)}
                   size={ICON}
                 />
@@ -516,21 +513,17 @@ export function TrendsChart({
             <g key={s.manager}>
               {/* A sample of the line itself, so the dash pattern is beside
                   the name rather than only out in the plot. */}
-              {/* Clear of the whole rail, not of one face: the lanes stagger,
-                  so a name set off the nearest face would be set under the
-                  furthest one. The sample is still here rather than replaced
-                  by a second copy of the face: it carries the dash pattern,
-                  which is the half of the key that a face cannot show. */}
+              {/* The rest of the row, set off the face that opens it. */}
               <line
-                x1={gutter + RAIL_W + 4}
-                x2={gutter + RAIL_W + 18}
+                x1={gutter + ROW.SAMPLE}
+                x2={gutter + ROW.SAMPLE + 14}
                 y1={r(y)}
                 y2={r(y)}
                 stroke={s.style.stroke}
                 strokeDasharray={s.style.dash}
                 strokeWidth="2"
               />
-              <text x={gutter + RAIL_W + 22} y={r(y) + 4} className="nm" fill={s.style.stroke}>
+              <text x={gutter + ROW.NAME} y={r(y) + 4} className="nm" fill={s.style.stroke}>
                 {cap(s.manager)}
                 <tspan className="nmp"> {points}</tspan>
               </text>
