@@ -174,81 +174,112 @@ describe("the race chart", () => {
     }
   });
 
+  /** Do two drivers, or a driver and a point, share any pixels? */
+  const overlaps = (
+    a: { x: number; y: number; size: number },
+    b: { x: number; y: number; size: number }
+  ) =>
+    Math.abs(a.x - b.x) < (a.size + b.size) / 2 &&
+    Math.abs(a.y - b.y) < (a.size + b.size) / 2;
+
   test("no driver covers a finishing dot", async () => {
     /* The reason the faces left the end of the line. Parked on the last
        point, a 26-unit face sat on top of a 3.2-unit dot, so the one mark on
        each line a reader is looking for was the one mark the chart hid. The
-       faces now stand clear to the right of every line end - which is also
-       what lets the last dot be drawn at all. */
+       rail now stops a week short of the finish, and this is what holds it
+       there - against every manager's last dot, not just its own. */
     stubFetch();
     const { container } = await openTrends();
     const root = container as unknown as HTMLElement;
 
-    /* every line ends on the same x, because every line ends on the same
-       Saturday - so one number is the whole plot's right-hand edge */
-    const ends = managers.map((m) => seriesOf(root, m).slice(-1)[0][0]);
-    const edge = Math.max(...ends);
+    const dots = managers.map((m) => {
+      const [x, y] = seriesOf(root, m).slice(-1)[0];
+      /* the drawn markers are about 6.4 units across at their widest */
+      return { m, x, y, size: 7 };
+    });
 
     for (const m of managers) {
       const d = driverAt(root, m);
-      const clear = d.x - d.size / 2 - edge;
-      expect(clear, `${m}'s driver overhangs the plot by ${(-clear).toFixed(1)} units`)
-        .toBeGreaterThan(0);
+      for (const dot of dots) {
+        expect(
+          overlaps(d, dot),
+          `${m}'s driver is sitting on ${dot.m}'s finishing dot`
+        ).toBe(false);
+      }
     }
   });
 
-  test("the drivers stand in lanes rather than one column", async () => {
-    /* A column of eight same-sized heads reads as one block; a staircase
-       reads as eight. The stagger is bounded on purpose - it is a rail beside
-       the plot, not a second chart - so this holds it to both ends: every
-       neighbour is offset from the one above, and the whole rail is narrower
-       than two faces. */
+  test("the drivers spread along the chart rather than stacking at the end", async () => {
+    /* The move this design is: eight faces at one x is a pile however it is
+       nudged, and the space to separate them was always the chart's own
+       width. First place rides near the opening week, last place near the one
+       before the finish, and the spacing is what guarantees the clearance -
+       so this checks both ends of the rail and the step between. */
     stubFetch();
     const { container } = await openTrends();
     const root = container as unknown as HTMLElement;
+
     const placed = managers
       .map((m) => ({ m, ...driverAt(root, m) }))
-      .sort((a, b) => a.y - b.y);
+      .sort((a, b) => a.x - b.x);
+
+    const weekX = (i: number) => {
+      /* every series is plotted on the same weekly x, so any one of them
+         answers where a given week is */
+      const pts = seriesOf(root, managers[0]);
+      return pts[i][0];
+    };
+    const weeks = seriesOf(root, managers[0]).length;
+
+    expect(placed[0].x, "the rail starts before the first week")
+      .toBeGreaterThanOrEqual(weekX(0));
+    expect(placed[placed.length - 1].x, "the rail runs past the week before last")
+      .toBeLessThanOrEqual(weekX(weeks - 2));
 
     for (let i = 1; i < placed.length; i++) {
-      expect(placed[i].x, `${placed[i - 1].m} and ${placed[i].m} share a lane`)
-        .not.toBeCloseTo(placed[i - 1].x, 3);
+      const gap = placed[i].x - placed[i - 1].x;
+      expect(gap, `${placed[i - 1].m} and ${placed[i].m} are ${gap.toFixed(1)} apart`)
+        .toBeGreaterThanOrEqual(placed[i].size);
     }
-    const xs = placed.map((p) => p.x);
-    const spread = Math.max(...xs) - Math.min(...xs);
-    expect(spread, `the rail is ${spread} units wide`)
-      .toBeLessThanOrEqual(placed[0].size * 2);
   });
 
-  test("every driver is tied back to the point it stands for", async () => {
-    /* A face that has moved - sideways onto the rail, and often up or down to
-       get clear of the pack - is making a claim about a total it is no longer
-       standing next to. The leader is what stops that being silent, and it is
-       now drawn for all eight rather than only for the ones that were nudged
-       vertically, because all eight have moved. */
+  test("every driver stands on its own line", async () => {
+    /* What the spread buys that the gutter column could not: a face is on the
+       segment it belongs to, so it needs no leader drawn back to a point it
+       was claiming from a distance. The x almost never lands on a Saturday,
+       so this interpolates the line the same way the chart does and checks
+       the face is on it.
+
+       It is also the test that catches the worst possible bug here, which is
+       silent: a face plotted against somebody else's line still looks like a
+       chart. */
     stubFetch();
     const { container } = await openTrends();
     const root = container as unknown as HTMLElement;
-    const leaders = [...root.querySelectorAll("line.lead")];
 
     for (const m of managers) {
-      const [x, y] = seriesOf(root, m).slice(-1)[0];
       const d = driverAt(root, m);
-      const tie = leaders.find(
-        (l) =>
-          Math.abs(Number(l.getAttribute("x1")) - x) < 0.01 &&
-          Math.abs(Number(l.getAttribute("y1")) - y) < 0.01 &&
-          Math.abs(Number(l.getAttribute("y2")) - d.y) < 0.01 &&
-          Number(l.getAttribute("x2")) <= d.x
-      );
-      expect(tie, `${m}'s driver stands on the rail with no leader back`).toBeTruthy();
+      const pts = seriesOf(root, m);
+      const found = pts.findIndex(([x]) => x >= d.x - 0.001);
+      expect(found, `${m}'s driver is off the end of their own line`)
+        .toBeGreaterThanOrEqual(0);
+      /* first place rides the opening week exactly, which is the start of the
+         first segment rather than the end of a previous one */
+      const i = Math.max(1, found);
+      const [x0, y0] = pts[i - 1];
+      const [x1, y1] = pts[i];
+      const on = y0 + ((d.x - x0) / (x1 - x0)) * (y1 - y0);
+      expect(d.y, `${m}'s driver is floating beside their line`).toBeCloseTo(on, 2);
     }
+
+    expect(root.querySelectorAll("line.lead").length, "a face on its line still has a leader")
+      .toBe(0);
   });
 
   test("no driver sits on a name", async () => {
-    /* The other half of the move. The rail is staggered, so a name cleared of
-       the nearest face is still under the furthest one - the names are set
-       off the whole rail, and this is what says so. */
+    /* The names are in the gutter and the faces are on the plot, so this is
+       cheap to hold and expensive to lose - it is the check that fails first
+       if the rail is ever let run to the end of the lines again. */
     stubFetch();
     const { container } = await openTrends();
     const root = container as unknown as HTMLElement;
@@ -268,19 +299,21 @@ describe("the race chart", () => {
   });
 
   test("no two drivers overlap", async () => {
-    /* The reason the gap is the height of a face rather than the height of a
-       name. Two names a few units apart are two names; two faces a few units
-       apart are a pile with one face in it. */
+    /* Two faces a few units apart are a pile with one face in it. The spread
+       separates them horizontally rather than vertically now, so the check
+       has to be a box against a box - a gap test on y alone passes a chart
+       with eight faces in a heap. */
     stubFetch();
     const { container } = await openTrends();
     const root = container as unknown as HTMLElement;
-    const placed = managers
-      .map((m) => ({ m, ...driverAt(root, m) }))
-      .sort((a, b) => a.y - b.y);
-    for (let i = 1; i < placed.length; i++) {
-      const gap = placed[i].y - placed[i - 1].y;
-      expect(gap, `${placed[i - 1].m} and ${placed[i].m} are ${gap} apart`)
-        .toBeGreaterThanOrEqual(placed[i].size);
+    const placed = managers.map((m) => ({ m, ...driverAt(root, m) }));
+    for (let i = 0; i < placed.length; i++) {
+      for (let j = i + 1; j < placed.length; j++) {
+        expect(
+          overlaps(placed[i], placed[j]),
+          `${placed[i].m} and ${placed[j].m} are drawn on top of each other`
+        ).toBe(false);
+      }
     }
   });
 
