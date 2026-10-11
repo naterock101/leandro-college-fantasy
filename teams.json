@@ -47,6 +47,15 @@
         "manager": "steve"
       },
       {
+        "team": "Virginia",
+        "tier": "p4",
+        "wins": 4,
+        "losses": 2,
+        "points": 12,
+        "remaining": 6,
+        "manager": "tconn"
+      },
+      {
         "team": "Virginia Tech",
         "tier": "p4",
         "wins": 4,
@@ -110,15 +119,6 @@
         "manager": null
       },
       {
-        "team": "Virginia",
-        "tier": "p4",
-        "wins": 3,
-        "losses": 2,
-        "points": 9,
-        "remaining": 7,
-        "manager": "tconn"
-      },
-      {
         "team": "Boston College",
         "tier": "p4",
         "wins": 2,
@@ -149,9 +149,9 @@
         "team": "Syracuse",
         "tier": "p4",
         "wins": 2,
-        "losses": 2,
+        "losses": 3,
         "points": 6,
-        "remaining": 8,
+        "remaining": 7,
         "manager": null
       }
     ],
@@ -164,6 +164,15 @@
         "points": 18,
         "remaining": 6,
         "manager": "leandro"
+      },
+      {
+        "team": "USC",
+        "tier": "p4",
+        "wins": 6,
+        "losses": 1,
+        "points": 18,
+        "remaining": 5,
+        "manager": "devish"
       },
       {
         "team": "Iowa",
@@ -202,21 +211,12 @@
         "manager": null
       },
       {
-        "team": "USC",
-        "tier": "p4",
-        "wins": 5,
-        "losses": 1,
-        "points": 15,
-        "remaining": 6,
-        "manager": "devish"
-      },
-      {
         "team": "Minnesota",
         "tier": "p4",
         "wins": 4,
-        "losses": 1,
+        "losses": 2,
         "points": 12,
-        "remaining": 7,
+        "remaining": 6,
         "manager": null
       },
       {
@@ -268,10 +268,19 @@
         "team": "Penn State",
         "tier": "p4",
         "wins": 3,
-        "losses": 2,
+        "losses": 3,
         "points": 9,
-        "remaining": 7,
+        "remaining": 6,
         "manager": "tconn"
+      },
+      {
+        "team": "Purdue",
+        "tier": "p4",
+        "wins": 3,
+        "losses": 3,
+        "points": 9,
+        "remaining": 6,
+        "manager": null
       },
       {
         "team": "Washington",
@@ -298,15 +307,6 @@
         "losses": 4,
         "points": 6,
         "remaining": 6,
-        "manager": null
-      },
-      {
-        "team": "Purdue",
-        "tier": "p4",
-        "wins": 2,
-        "losses": 3,
-        "points": 6,
-        "remaining": 7,
         "manager": null
       },
       {
@@ -357,6 +357,15 @@
         "manager": "tconn"
       },
       {
+        "team": "Utah",
+        "tier": "p4",
+        "wins": 5,
+        "losses": 0,
+        "points": 15,
+        "remaining": 7,
+        "manager": "charlie"
+      },
+      {
         "team": "Baylor",
         "tier": "p4",
         "wins": 4,
@@ -382,15 +391,6 @@
         "points": 12,
         "remaining": 7,
         "manager": null
-      },
-      {
-        "team": "Utah",
-        "tier": "p4",
-        "wins": 4,
-        "losses": 0,
-        "points": 12,
-        "remaining": 8,
-        "manager": "charlie"
       },
       {
         "team": "Iowa State",
@@ -450,9 +450,9 @@
         "team": "Kansas",
         "tier": "p4",
         "wins": 2,
-        "losses": 2,
+        "losses": 3,
         "points": 6,
-        "remaining": 8,
+        "remaining": 7,
         "manager": null
       },
       {
@@ -467,22 +467,31 @@
     ],
     "SEC": [
       {
+        "team": "Georgia",
+        "tier": "p4",
+        "wins": 6,
+        "losses": 0,
+        "points": 18,
+        "remaining": 6,
+        "manager": "charlie"
+      },
+      {
         "team": "Alabama",
         "tier": "p4",
         "wins": 5,
-        "losses": 0,
+        "losses": 1,
         "points": 15,
-        "remaining": 7,
+        "remaining": 6,
         "manager": "tconn"
       },
       {
-        "team": "Georgia",
+        "team": "Kentucky",
         "tier": "p4",
         "wins": 5,
-        "losses": 0,
+        "losses": 1,
         "points": 15,
-        "remaining": 7,
-        "manager": "charlie"
+        "remaining": 6,
+        "manager": null
       },
       {
         "team": "Missouri",
@@ -512,21 +521,12 @@
         "manager": "steve"
       },
       {
-        "team": "Kentucky",
-        "tier": "p4",
-        "wins": 4,
-        "losses": 1,
-        "points": 12,
-        "remaining": 7,
-        "manager": null
-      },
-      {
         "team": "LSU",
         "tier": "p4",
         "wins": 4,
-        "losses": 1,
+        "losses": 2,
         "points": 12,
-        "remaining": 7,
+        "remaining": 6,
         "manager": "leandro"
       },
       {
@@ -613,6 +613,15 @@
     ],
     "American Athletic": [
       {
+        "team": "Memphis",
+        "tier": "g5",
+        "wins": 5,
+        "losses": 1,
+        "points": 10,
+        "remaining": 6,
+        "manager": "devish"
+      },
+      {
         "team": "UTSA",
         "tier": "g5",
         "wins": 5,
@@ -629,15 +638,6 @@
         "points": 8,
         "remaining": 7,
         "manager": "leandro"
-      },
-      {
-        "team": "Memphis",
-        "tier": "g5",
-        "wins": 4,
-        "losses": 1,
-        "points": 8,
-        "remaining": 7,
-        "manager": "devish"
       },
       {
         "team": "North Texas",
@@ -688,9 +688,9 @@
         "team": "UAB",
         "tier": "g5",
         "wins": 3,
-        "losses": 2,
+        "losses": 3,
         "points": 6,
-        "remaining": 7,
+        "remaining": 6,
         "manager": null
       },
       {
@@ -955,10 +955,19 @@
         "team": "North Dakota State",
         "tier": "g5",
         "wins": 5,
-        "losses": 0,
+        "losses": 1,
         "points": 10,
-        "remaining": 7,
+        "remaining": 6,
         "manager": "adam"
+      },
+      {
+        "team": "Air Force",
+        "tier": "g5",
+        "wins": 4,
+        "losses": 1,
+        "points": 8,
+        "remaining": 7,
+        "manager": "charlie"
       },
       {
         "team": "New Mexico",
@@ -970,13 +979,13 @@
         "manager": "leandro"
       },
       {
-        "team": "Air Force",
+        "team": "UNLV",
         "tier": "g5",
-        "wins": 3,
-        "losses": 1,
-        "points": 6,
-        "remaining": 8,
-        "manager": "charlie"
+        "wins": 4,
+        "losses": 2,
+        "points": 8,
+        "remaining": 6,
+        "manager": "nathan"
       },
       {
         "team": "San José State",
@@ -988,15 +997,6 @@
         "manager": "clint"
       },
       {
-        "team": "UNLV",
-        "tier": "g5",
-        "wins": 3,
-        "losses": 2,
-        "points": 6,
-        "remaining": 7,
-        "manager": "nathan"
-      },
-      {
         "team": "Wyoming",
         "tier": "g5",
         "wins": 3,
@@ -1004,6 +1004,15 @@
         "points": 6,
         "remaining": 6,
         "manager": "steve"
+      },
+      {
+        "team": "Nevada",
+        "tier": "g5",
+        "wins": 2,
+        "losses": 3,
+        "points": 4,
+        "remaining": 7,
+        "manager": "devish"
       },
       {
         "team": "Hawai'i",
@@ -1015,30 +1024,21 @@
         "manager": "tconn"
       },
       {
-        "team": "Nevada",
-        "tier": "g5",
-        "wins": 1,
-        "losses": 3,
-        "points": 2,
-        "remaining": 8,
-        "manager": "devish"
-      },
-      {
         "team": "UTEP",
         "tier": "g5",
         "wins": 1,
-        "losses": 4,
+        "losses": 5,
         "points": 2,
-        "remaining": 7,
+        "remaining": 6,
         "manager": null
       },
       {
         "team": "Northern Illinois",
         "tier": "g5",
         "wins": 0,
-        "losses": 4,
+        "losses": 5,
         "points": 0,
-        "remaining": 8,
+        "remaining": 7,
         "manager": null
       }
     ],
@@ -1120,10 +1120,10 @@
       {
         "team": "James Madison",
         "tier": "g5",
-        "wins": 5,
+        "wins": 6,
         "losses": 0,
-        "points": 10,
-        "remaining": 7,
+        "points": 12,
+        "remaining": 6,
         "manager": "charlie"
       },
       {
@@ -1139,9 +1139,9 @@
         "team": "Louisiana",
         "tier": "g5",
         "wins": 4,
-        "losses": 1,
+        "losses": 2,
         "points": 8,
-        "remaining": 7,
+        "remaining": 6,
         "manager": "adam"
       },
       {
@@ -1163,12 +1163,21 @@
         "manager": "devish"
       },
       {
-        "team": "Marshall",
+        "team": "Louisiana Tech",
         "tier": "g5",
         "wins": 3,
         "losses": 2,
         "points": 6,
         "remaining": 7,
+        "manager": null
+      },
+      {
+        "team": "Marshall",
+        "tier": "g5",
+        "wins": 3,
+        "losses": 3,
+        "points": 6,
+        "remaining": 6,
         "manager": "nathan"
       },
       {
@@ -1190,21 +1199,21 @@
         "manager": "clint"
       },
       {
-        "team": "Georgia Southern",
+        "team": "Coastal Carolina",
         "tier": "g5",
         "wins": 2,
-        "losses": 3,
+        "losses": 4,
         "points": 4,
-        "remaining": 7,
+        "remaining": 6,
         "manager": null
       },
       {
-        "team": "Louisiana Tech",
+        "team": "Georgia Southern",
         "tier": "g5",
         "wins": 2,
-        "losses": 2,
+        "losses": 4,
         "points": 4,
-        "remaining": 8,
+        "remaining": 6,
         "manager": null
       },
       {
@@ -1215,15 +1224,6 @@
         "points": 4,
         "remaining": 6,
         "manager": "steve"
-      },
-      {
-        "team": "Coastal Carolina",
-        "tier": "g5",
-        "wins": 1,
-        "losses": 4,
-        "points": 2,
-        "remaining": 7,
-        "manager": null
       },
       {
         "team": "Southern Miss",
