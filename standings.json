@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-10-29T05:53:05.085Z",
+  "generatedAt": "2026-10-29T15:15:12.122Z",
   "season": 2026,
   "scoring": {
     "p4": 3,
     "g5": 2
   },
   "postseasonScheduled": false,
-  "linesFetchedAt": "2026-10-29T05:53:01.252Z",
+  "linesFetchedAt": "2026-10-29T15:15:05.529Z",
   "standings": [
     {
       "manager": "adam",
@@ -1006,10 +1006,10 @@
         "points": 136,
         "gained": 20,
         "rankDelta": 0,
-        "expectedGained": 14.6,
-        "expectedPoints": 130.6,
-        "expectedWins": 52.8,
-        "expectedLosses": 30.2,
+        "expectedGained": 14.5,
+        "expectedPoints": 130.5,
+        "expectedWins": 52.7,
+        "expectedLosses": 30.3,
         "expectedRankDelta": 0,
         "modelled": 0
       },
@@ -1032,8 +1032,8 @@
         "points": 118,
         "gained": 10,
         "rankDelta": 0,
-        "expectedGained": 10.2,
-        "expectedPoints": 118.2,
+        "expectedGained": 10.1,
+        "expectedPoints": 118.1,
         "expectedWins": 49,
         "expectedLosses": 34,
         "expectedRankDelta": 0,
@@ -8458,7 +8458,7 @@
           "slatePriced": 5,
           "slateExpectedWins": 3.4,
           "slateExpectedLosses": 1.6,
-          "slateExpectedPoints": 8.3,
+          "slateExpectedPoints": 8.2,
           "slateGames": 5,
           "teams": {
             "Ohio State": "-",
@@ -8730,40 +8730,6 @@
       },
       {
         "key": "0|09",
-        "id": 401856843,
-        "week": 9,
-        "seasonType": "regular",
-        "date": "2026-10-31T19:30:00.000Z",
-        "away": {
-          "team": "Arizona State",
-          "manager": "nathan",
-          "tier": "p4",
-          "conf": "Big 12",
-          "draft": "Arizona State Sun Devils"
-        },
-        "home": {
-          "team": "BYU",
-          "manager": "clint",
-          "tier": "p4",
-          "conf": "Big 12",
-          "draft": "BYU Cougars"
-        },
-        "neutral": false,
-        "h2h": true,
-        "sameManager": false,
-        "stakes": 3,
-        "spread": {
-          "spread": -16.5,
-          "favorite": "BYU",
-          "formatted": "BYU -16.5",
-          "overUnder": 48.5,
-          "provider": "Draft Kings",
-          "seenAt": "2026-10-29T05:53:01.252Z",
-          "closed": false
-        }
-      },
-      {
-        "key": "0|09",
         "id": 401856734,
         "week": 9,
         "seasonType": "regular",
@@ -8791,6 +8757,40 @@
           "favorite": "Georgia",
           "formatted": "Georgia -12.5",
           "overUnder": 55.5,
+          "provider": "Draft Kings",
+          "seenAt": "2026-10-29T05:53:01.252Z",
+          "closed": false
+        }
+      },
+      {
+        "key": "0|09",
+        "id": 401856843,
+        "week": 9,
+        "seasonType": "regular",
+        "date": "2026-10-31T19:30:00.000Z",
+        "away": {
+          "team": "Arizona State",
+          "manager": "nathan",
+          "tier": "p4",
+          "conf": "Big 12",
+          "draft": "Arizona State Sun Devils"
+        },
+        "home": {
+          "team": "BYU",
+          "manager": "clint",
+          "tier": "p4",
+          "conf": "Big 12",
+          "draft": "BYU Cougars"
+        },
+        "neutral": false,
+        "h2h": true,
+        "sameManager": false,
+        "stakes": 3,
+        "spread": {
+          "spread": -16.5,
+          "favorite": "BYU",
+          "formatted": "BYU -16.5",
+          "overUnder": 48.5,
           "provider": "Draft Kings",
           "seenAt": "2026-10-29T05:53:01.252Z",
           "closed": false
@@ -8858,9 +8858,9 @@
           "spread": -19.5,
           "favorite": "James Madison",
           "formatted": "James Madison -19.5",
-          "overUnder": 49.5,
+          "overUnder": 51.5,
           "provider": "Draft Kings",
-          "seenAt": "2026-10-29T05:53:01.252Z",
+          "seenAt": "2026-10-29T15:15:05.529Z",
           "closed": false
         }
       },
@@ -9297,12 +9297,12 @@
         "sameManager": false,
         "stakes": 3,
         "spread": {
-          "spread": 15.5,
+          "spread": 14.5,
           "favorite": "Michigan",
-          "formatted": "Michigan -15.5",
+          "formatted": "Michigan -14.5",
           "overUnder": 45.5,
           "provider": "Draft Kings",
-          "seenAt": "2026-10-29T05:53:01.252Z",
+          "seenAt": "2026-10-29T15:15:05.529Z",
           "closed": false
         }
       },
@@ -9331,12 +9331,12 @@
         "sameManager": false,
         "stakes": 3,
         "spread": {
-          "spread": -13.5,
+          "spread": -12.5,
           "favorite": "Ole Miss",
-          "formatted": "Ole Miss -13.5",
+          "formatted": "Ole Miss -12.5",
           "overUnder": 57.5,
           "provider": "Draft Kings",
-          "seenAt": "2026-10-29T05:53:01.252Z",
+          "seenAt": "2026-10-29T15:15:05.529Z",
           "closed": false
         }
       },
@@ -9410,35 +9410,35 @@
       },
       {
         "key": "0|09",
-        "id": 401858505,
+        "id": 401856845,
         "week": 9,
         "seasonType": "regular",
         "date": "2026-10-31T19:30:00.000Z",
         "away": {
-          "team": "Northwestern",
+          "team": "Kansas",
           "manager": null,
           "tier": null,
           "conf": null,
-          "draft": "Northwestern"
+          "draft": "Kansas"
         },
         "home": {
-          "team": "Oregon",
-          "manager": "steve",
+          "team": "TCU",
+          "manager": "devish",
           "tier": "p4",
-          "conf": "Big Ten",
-          "draft": "Oregon Ducks"
+          "conf": "Big 12",
+          "draft": "TCU Horned Frogs"
         },
         "neutral": false,
         "h2h": false,
         "sameManager": false,
         "stakes": 3,
         "spread": {
-          "spread": -3.5,
-          "favorite": "Oregon",
-          "formatted": "Oregon -3.5",
-          "overUnder": 47.5,
+          "spread": -5.5,
+          "favorite": "TCU",
+          "formatted": "TCU -5.5",
+          "overUnder": 46.5,
           "provider": "Draft Kings",
-          "seenAt": "2026-10-29T05:53:01.252Z",
+          "seenAt": "2026-10-29T15:15:05.529Z",
           "closed": false
         }
       },
@@ -9478,33 +9478,33 @@
       },
       {
         "key": "0|09",
-        "id": 401856845,
+        "id": 401858505,
         "week": 9,
         "seasonType": "regular",
         "date": "2026-10-31T19:30:00.000Z",
         "away": {
-          "team": "Kansas",
+          "team": "Northwestern",
           "manager": null,
           "tier": null,
           "conf": null,
-          "draft": "Kansas"
+          "draft": "Northwestern"
         },
         "home": {
-          "team": "TCU",
-          "manager": "devish",
+          "team": "Oregon",
+          "manager": "steve",
           "tier": "p4",
-          "conf": "Big 12",
-          "draft": "TCU Horned Frogs"
+          "conf": "Big Ten",
+          "draft": "Oregon Ducks"
         },
         "neutral": false,
         "h2h": false,
         "sameManager": false,
         "stakes": 3,
         "spread": {
-          "spread": -6,
-          "favorite": "TCU",
-          "formatted": "TCU -6",
-          "overUnder": 46.5,
+          "spread": -3.5,
+          "favorite": "Oregon",
+          "formatted": "Oregon -3.5",
+          "overUnder": 47.5,
           "provider": "Draft Kings",
           "seenAt": "2026-10-29T05:53:01.252Z",
           "closed": false
@@ -9841,12 +9841,12 @@
         "sameManager": false,
         "stakes": 2,
         "spread": {
-          "spread": -14.5,
+          "spread": -14,
           "favorite": "North Texas",
-          "formatted": "North Texas -14.5",
-          "overUnder": 76.5,
+          "formatted": "North Texas -14",
+          "overUnder": 77.5,
           "provider": "Draft Kings",
-          "seenAt": "2026-10-29T05:53:01.252Z",
+          "seenAt": "2026-10-29T15:15:05.529Z",
           "closed": false
         }
       },
